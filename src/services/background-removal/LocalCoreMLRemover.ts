@@ -3,25 +3,51 @@ import type { BackgroundRemover, ImageSource, RemovalOptions, RemovalResult } fr
 export class LocalCoreMLRemover implements BackgroundRemover {
   readonly id = 'coreml-local'
   readonly name = 'Apple Silicon Core ML (BiRefNet / RMBG-2)'
-  readonly baseUrl: string
+  baseUrl: string
 
-  constructor(baseUrl = 'http://127.0.0.1:5055') {
-    this.baseUrl = baseUrl.replace(/\/+$/, '')
+  constructor(baseUrl?: string) {
+    if (baseUrl) {
+      this.baseUrl = baseUrl.replace(/\/+$/, '')
+    } else if (
+      typeof window !== 'undefined' &&
+      window.location?.origin?.startsWith('http') &&
+      !window.location.origin.includes(':5173')
+    ) {
+      this.baseUrl = window.location.origin.replace(/\/+$/, '')
+    } else {
+      this.baseUrl = 'http://127.0.0.1:5055'
+    }
   }
 
   async isAvailable(): Promise<boolean> {
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 1500)
-      const res = await fetch(`${this.baseUrl}/health`, {
-        method: 'GET',
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-      return res.ok
-    } catch {
-      return false
+    const checkUrl = async (url: string) => {
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 1500)
+        const res = await fetch(`${url}/health`, {
+          method: 'GET',
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+        return res.ok
+      } catch {
+        return false
+      }
     }
+
+    if (await checkUrl(this.baseUrl)) return true
+    if (
+      typeof window !== 'undefined' &&
+      window.location?.origin &&
+      window.location.origin !== this.baseUrl &&
+      window.location.origin.startsWith('http')
+    ) {
+      if (await checkUrl(window.location.origin)) {
+        this.baseUrl = window.location.origin
+        return true
+      }
+    }
+    return false
   }
 
   async remove(image: ImageSource, options: RemovalOptions = {}): Promise<RemovalResult> {

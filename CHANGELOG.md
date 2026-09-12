@@ -2,6 +2,16 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.55] - 2026-09-12
+
+### Added
+- Native macOS desktop GUI architecture (`Approach A` based on `autoraffkat` pattern)
+- Standalone CLI command `uv run youthumber` launching native desktop window via `pywebview`
+- Embedded FastAPI server hosting both the compiled React Studio and Apple Silicon Core ML APIs
+- Headless and developer flags (`--no-gui`, `--dev`, `--debug`, `--port`, `--host`)
+- Automatic origin detection in `LocalCoreMLRemover` for seamless desktop and browser execution
+- Full Python test suite covering backend endpoints and static asset delivery
+
 ## [26.09.12.54] - 2026-09-12
 
 ### Added
