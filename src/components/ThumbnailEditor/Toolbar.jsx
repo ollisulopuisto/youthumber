@@ -24,11 +24,45 @@ function Toolbar({
   const [availableRemovers, setAvailableRemovers] = useState([])
   const [showPresets, setShowPresets] = useState([])
   const [exportFormat, setExportFormat] = useState('jpeg')
+  const [coreMLStatus, setCoreMLStatus] = useState('checking')
 
   useEffect(() => {
     const list = defaultRemoverRegistry.list()
     setAvailableRemovers(list)
     setShowPresets(loadShowPresets())
+
+    let isMounted = true
+    const checkCoreML = async () => {
+      try {
+        const coreML =
+          defaultRemoverRegistry.get('cached-coreml-local') ||
+          defaultRemoverRegistry.get('coreml-local')
+        if (coreML && typeof coreML.isAvailable === 'function') {
+          const available = await coreML.isAvailable()
+          if (!isMounted) return
+          if (available) {
+            setCoreMLStatus('online')
+            // Auto-activate Core ML if active remover is currently default WASM
+            const currentActive = defaultRemoverRegistry.getActive()
+            if (currentActive?.id?.includes('imgly')) {
+              defaultRemoverRegistry.setActive(coreML.id)
+              setActiveRemoverId(coreML.id)
+            }
+          } else {
+            setCoreMLStatus('offline')
+          }
+        } else {
+          if (isMounted) setCoreMLStatus('offline')
+        }
+      } catch {
+        if (isMounted) setCoreMLStatus('offline')
+      }
+    }
+
+    checkCoreML()
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleRemoverChange = (e) => {
@@ -136,20 +170,51 @@ function Toolbar({
           </select>
         </div>
 
-        {/* Backend Model / Remover Selector */}
+        {/* Backend Model / Remover Selector & Health Badge */}
         <div className="flex items-center gap-1.5 text-xs">
           <select
             value={activeRemoverId}
             onChange={handleRemoverChange}
-            className="bg-gray-800 text-gray-300 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750 font-mono"
-            title="Select local background removal backend"
+            className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750 font-mono"
+            title="Select local background removal engine"
           >
-            {availableRemovers.map((remover) => (
-              <option key={remover.id} value={remover.id}>
-                ⚙️ {remover.name}
-              </option>
-            ))}
+            {availableRemovers.map((remover) => {
+              const isCoreML = remover.id.includes('coreml')
+              const statusTag = isCoreML
+                ? coreMLStatus === 'checking'
+                  ? ' (Checking...)'
+                  : coreMLStatus === 'online'
+                    ? ' (Online)'
+                    : ' (Offline)'
+                : ''
+              const icon = isCoreML ? '⚡' : remover.id.includes('mock') ? '🧪' : '🌐'
+              return (
+                <option key={remover.id} value={remover.id}>
+                  {icon} {remover.name}
+                  {statusTag}
+                </option>
+              )
+            })}
           </select>
+
+          {/* Health Status Indicator */}
+          {coreMLStatus === 'online' ? (
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-950/80 border border-emerald-600/40 text-emerald-400 text-[11px] font-medium shadow-sm"
+              title="Apple Neural Engine / Metal acceleration active on local port"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Core ML Online</span>
+            </div>
+          ) : coreMLStatus === 'offline' ? (
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-gray-800/90 border border-gray-700/80 text-gray-400 text-[11px] font-medium"
+              title="Local Core ML service not detected. Background removal runs via in-browser WebAssembly."
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+              <span>WASM Fallback</span>
+            </div>
+          ) : null}
         </div>
       </div>
 

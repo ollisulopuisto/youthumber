@@ -73,4 +73,18 @@ describe('LocalCoreMLRemover Adapter', () => {
     const remover = new LocalCoreMLRemover('http://127.0.0.1:5055')
     await expect(remover.remove('data:image/jpeg;base64,source')).rejects.toThrow(/Core ML inference failed/)
   })
+
+  it('autoDetectBestRemover selects coreml-local when available', async () => {
+    const { autoDetectBestRemover, defaultRemoverRegistry } = await import('../services/background-removal')
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: 'ready' }),
+    } as any)
+
+    const detected = await autoDetectBestRemover()
+    expect(detected).toBe(true)
+    expect(defaultRemoverRegistry.getActive().id).toContain('coreml-local')
+  })
 })
+

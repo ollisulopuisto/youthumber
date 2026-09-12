@@ -2,6 +2,16 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.57] - 2026-09-12
+
+### Added
+- Core ML status indicator badge in Toolbar with live `/health` check and visual status dot
+- Automatic backend auto-detection (`autoDetectBestRemover`) to seamlessly default to Apple Neural Engine acceleration when available
+- GitHub Actions CI workflow (`.github/workflows/ci.yml`) with Node.js 24 runtime, linting, tests, and Python quality checks via `uv`
+
+### Changed
+- Enhanced removal engine dropdown with engine icons and dynamic `(Online)` / `(Offline)` availability tags
+
 ## [26.09.12.56] - 2026-09-12
 
 ### Documentation
