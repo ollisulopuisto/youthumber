@@ -2,6 +2,12 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.52] - 2026-09-12
+
+### Changed
+- Set default development server port to standard Vite 5173
+- Verify active live server running for local interactive testing
+
 ## [26.09.12.51] - 2026-09-12
 
 ### Changed
