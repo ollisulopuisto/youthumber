@@ -2,6 +2,17 @@
 
 All notable changes to Pix3lCover will be documented in this file.
 
+## [26.09.12.49] - 2026-09-12
+
+### Added
+- Focused MVP UI with 1280x720 canvas preview and direct export
+- Preset composition templates (Dual Debate, Host & Guest, Dramatic Clash)
+- Toolbar with model backend switcher, template selector, and project management
+- Interactive Layers panel supporting reordering and visibility toggles
+- Dedicated Properties panel for selected text, speakers, and background
+- Bottom Assets dock for Speaker 1, Speaker 2, and Background slots with progress bars
+- Project Gallery modal for saving, loading, duplicating, and JSON import/export
+
 ## [26.09.12.48] - 2026-09-12
 
 ### Added
