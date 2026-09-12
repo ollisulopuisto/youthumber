@@ -2,6 +2,12 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.56] - 2026-09-12
+
+### Documentation
+- Updated README with desktop GUI instructions (`uv run youthumber`) and options
+- Configured Vite reverse proxy to backend service on port 5055 for dev hot-reloading
+
 ## [26.09.12.55] - 2026-09-12
 
 ### Added

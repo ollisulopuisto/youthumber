@@ -57,13 +57,31 @@ Compose stunning 1280×720 thumbnails from dual speaker photos (1920×1080) with
 npm install
 ```
 
-### Development
+### Development & Desktop App
+
+#### 1. Native Desktop GUI (Recommended — autoraffkat style)
+
+Launch the standalone desktop application in a native macOS window:
+
+```bash
+uv run youthumber
+```
+
+This starts the embedded FastAPI backend and opens YouThumber in a native WebKit window via `pywebview`.
+
+Options:
+* `uv run youthumber` — Launch native macOS desktop window
+* `uv run youthumber --dev` — Open native window attached to local Vite dev server (`http://localhost:5173`)
+* `uv run youthumber --no-gui` — Run as headless local server on `http://127.0.0.1:8731/`
+* `uv run youthumber --debug` — Enable WebKit developer tools / web inspector
+
+#### 2. Web Development Mode (Vite)
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3010](http://localhost:3010) to view it in your browser.
+Open [http://localhost:5173](http://localhost:5173) to view in your browser.
 
 ### Build
 
