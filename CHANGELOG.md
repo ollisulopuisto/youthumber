@@ -2,6 +2,13 @@
 
 All notable changes to Pix3lCover will be documented in this file.
 
+## [26.09.12.48] - 2026-09-12
+
+### Added
+- LocalCoreMLRemover adapter targeting Apple Silicon Metal / Apple Neural Engine
+- Local Apple Silicon Core ML HTTP service script (`scripts/apple_silicon_remover.py`)
+- Automated health check and fallback handling between local Core ML and WebAssembly
+
 ## [26.09.12.47] - 2026-09-12
 
 ### Added
