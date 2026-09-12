@@ -2,6 +2,14 @@
 
 All notable changes to Pix3lCover will be documented in this file.
 
+## [26.09.12.47] - 2026-09-12
+
+### Added
+- Core thumbnail data model with fixed 1280x720 canvas
+- Dual speaker slots (Speaker 1, Speaker 2) preserving source image, mask, and cutout
+- Composition template support to swap assets while maintaining layout
+- Local-first project persistence and JSON import/export utilities
+
 ## [26.09.12.46] - 2026-09-12
 
 ### Changed
