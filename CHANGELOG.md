@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.54] - 2026-09-12
+
+### Added
+- Real Apple Vision (`VNGeneratePersonSegmentationRequest`) person segmentation in `scripts/apple_silicon_remover.py`
+- Apple Neural Engine / Metal hardware acceleration on macOS for sub-second offline segmentation
+- Dedicated `pyproject.toml` configuration with `uv` dependencies and dev tooling
+- Full support for returning both segmented cutout PNG and binary alpha mask data URLs
+
 ## [26.09.12.53] - 2026-09-12
 
 ### Added

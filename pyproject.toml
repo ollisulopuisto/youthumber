@@ -1,0 +1,16 @@
+[project]
+name = "youthumber-backend"
+version = "26.09.12.54"
+description = "Apple Silicon Vision & Core ML background removal service for YouThumber"
+requires-python = ">=3.11"
+dependencies = [
+    "pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "pyobjc-framework-Vision>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+]

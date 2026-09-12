@@ -32,3 +32,9 @@ dist-ssr
 prompt.md
 improvement.md
 CLAUDE.md
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+
