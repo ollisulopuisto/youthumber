@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.59] - 2026-09-12
+
+### Added
+- Automated GitHub Actions binary build & release workflow (`.github/workflows/build-binaries.yml`)
+- Standalone packaging build script (`scripts/build_binaries.py`) generating native macOS `.app` and compressed `.zip` releases
+- Dedicated PyInstaller desktop launcher (`launcher.py`) with support for frozen bundle resource resolution via `sys._MEIPASS`
+- Convenience npm scripts for desktop execution (`npm run desktop`, `npm run desktop:dev`, `npm run build:binaries`)
+
 ## [26.09.12.58] - 2026-09-12
 
 ### Security

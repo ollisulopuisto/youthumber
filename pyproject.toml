@@ -1,6 +1,6 @@
 [project]
 name = "youthumber"
-version = "26.09.12.58"
+version = "26.09.12.59"
 description = "Local-first YouTube thumbnail editor with Apple Silicon background removal"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,7 @@ dev = [
     "ruff>=0.8.0",
     "pytest>=8.0.0",
     "httpx>=0.27.0",
+    "pyinstaller>=6.22.2",
 ]
 
 [tool.pytest.ini_options]

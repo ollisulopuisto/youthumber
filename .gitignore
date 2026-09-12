@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist_bin
+release
 *.local
 
 # Editor directories and files
@@ -33,10 +35,12 @@ prompt.md
 improvement.md
 CLAUDE.md
 
-# Python / uv
+# Python / uv / PyInstaller
 .venv/
 __pycache__/
 *.pyc
+build/
+*.spec
 
 # Sensitive configuration & credentials
 config.yaml

@@ -7,9 +7,14 @@ import sys
 import threading
 import webbrowser
 
-from .gui import launch_gui
-from .paths import get_dist_dir
-from .server import create_app
+try:
+    from .gui import launch_gui
+    from .paths import get_dist_dir
+    from .server import create_app
+except (ImportError, ValueError):
+    from youthumber.gui import launch_gui
+    from youthumber.paths import get_dist_dir
+    from youthumber.server import create_app
 
 
 def main(argv: list[str] | None = None) -> int:
