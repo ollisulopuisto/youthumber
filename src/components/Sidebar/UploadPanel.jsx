@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import imageCompression from 'browser-image-compression'
-import { removeBackground } from '@imgly/background-removal'
+import { defaultRemoverRegistry } from '../../services/background-removal'
 import CropModal from '../CropModal'
 
 function UploadPanel({ onImageUpload }) {
@@ -167,31 +167,29 @@ function UploadPanel({ onImageUpload }) {
     setRemoveBgProgress(0)
 
     try {
-      // Convert data URL to blob
-      const response = await fetch(previewUrl)
-      const blob = await response.blob()
-
-      // Remove background with progress tracking
-      const resultBlob = await removeBackground(blob, {
-        progress: (key, current, total) => {
-          if (total > 0) {
-            setRemoveBgProgress(Math.round((current / total) * 100))
-          }
+      const remover = defaultRemoverRegistry.getActive()
+      const result = await remover.remove(previewUrl, {
+        onProgress: (pct) => {
+          setRemoveBgProgress(pct)
         }
       })
 
-      // Convert result blob to data URL
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const imageUrl = e.target.result
-        setPreviewUrl(imageUrl)
-        if (onImageUpload) {
-          onImageUpload(imageUrl)
-        }
-        setIsRemovingBg(false)
-        setRemoveBgProgress(0)
+      let imageUrl = result.image
+      if (result.image instanceof Blob) {
+        imageUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = (e) => resolve(e.target.result)
+          reader.onerror = reject
+          reader.readAsDataURL(result.image)
+        })
       }
-      reader.readAsDataURL(resultBlob)
+
+      setPreviewUrl(imageUrl)
+      if (onImageUpload) {
+        onImageUpload(imageUrl)
+      }
+      setIsRemovingBg(false)
+      setRemoveBgProgress(0)
     } catch (error) {
       console.error('Background removal error:', error)
       alert('Error removing background. Please try again.')

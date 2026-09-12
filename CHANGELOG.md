@@ -2,6 +2,14 @@
 
 All notable changes to Pix3lCover will be documented in this file.
 
+## [26.09.12.46] - 2026-09-12
+
+### Changed
+- Isolate background removal into service layer with BackgroundRemover abstraction
+- Decouple UploadPanel component from direct @imgly/background-removal library dependency
+- Add alpha mask extraction and compositing utilities
+- Add CachedBackgroundRemover with key hashing and MockBackgroundRemover for tests
+
 ## [26.09.12.45] - 2026-09-12
 
 ### Added
