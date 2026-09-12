@@ -7,6 +7,13 @@ export interface TransformState {
   flipX?: boolean
 }
 
+export interface MaskRefinementOptions {
+  feather: number // 0 to 20 px
+  threshold: number // 0 to 255 (0 = off)
+  opacity: number // 0 to 1
+  invert?: boolean
+}
+
 export interface SpeakerState {
   id: 'speaker1' | 'speaker2'
   name: string
@@ -20,6 +27,7 @@ export interface SpeakerState {
   error?: string | null
   visible: boolean
   transform: TransformState
+  maskOptions?: MaskRefinementOptions
   removerId?: string
 }
 

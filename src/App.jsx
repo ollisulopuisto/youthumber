@@ -14,6 +14,7 @@ import {
   setSpeakerProcessing,
   setSpeakerCutout,
   updateSpeakerTransform,
+  updateSpeakerMaskOptions,
   toggleSpeakerVisibility,
   removeSpeaker,
   setBackgroundImage,
@@ -30,6 +31,7 @@ import {
 } from './modules/thumbnail/thumbnailStorage'
 
 import { defaultRemoverRegistry } from './services/background-removal'
+import { compositeFromDataUrls } from './services/background-removal/composite'
 
 const blobToDataUrl = async (source) => {
   if (typeof source === 'string') return source
@@ -196,6 +198,42 @@ function App() {
     )
   }
 
+  const handleUpdateSpeakerMaskOptions = useCallback(
+    async (slotId, newOptions) => {
+      setProject((prev) => updateSpeakerMaskOptions(prev, slotId, newOptions))
+
+      const currentSpeaker = project[slotId]
+      if (currentSpeaker?.sourceImageUrl && currentSpeaker?.maskUrl) {
+        const merged = {
+          feather: 0,
+          threshold: 0,
+          opacity: 1,
+          invert: false,
+          ...(currentSpeaker.maskOptions || {}),
+          ...newOptions,
+        }
+        try {
+          const newCutoutUrl = await compositeFromDataUrls(
+            currentSpeaker.sourceImageUrl,
+            currentSpeaker.maskUrl,
+            merged
+          )
+          setProject((prev) => ({
+            ...prev,
+            updatedAt: new Date().toISOString(),
+            [slotId]: {
+              ...prev[slotId],
+              cutoutUrl: newCutoutUrl,
+            },
+          }))
+        } catch (err) {
+          console.warn('Live mask recompositing error:', err)
+        }
+      }
+    },
+    [project]
+  )
+
   // Background Actions
   const handleUploadBackgroundImage = (imageUrl) => {
     setProject((prev) => setBackgroundImage(prev, imageUrl))
@@ -288,6 +326,7 @@ function App() {
             onUpdateSpeakerTransform={handleUpdateSpeakerTransform}
             onUpdateBackground={handleUpdateBackground}
             onResetSpeakerTransform={handleResetSpeakerTransform}
+            onUpdateSpeakerMaskOptions={handleUpdateSpeakerMaskOptions}
           />
         </div>
 

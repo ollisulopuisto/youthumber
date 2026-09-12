@@ -76,6 +76,11 @@ export async function compositeSourceWithMask(
   maskCanvas.height = height
   const maskCtx = maskCanvas.getContext('2d')
   if (!maskCtx) throw new Error('Could not obtain mask 2D context')
+
+  if (options.feather && options.feather > 0) {
+    maskCtx.filter = `blur(${options.feather}px)`
+  }
+
   maskCtx.drawImage(maskImage as CanvasImageSource, 0, 0, width, height)
   const maskImageData = maskCtx.getImageData(0, 0, width, height)
 
@@ -92,4 +97,22 @@ export async function compositeSourceWithMask(
   ctx.putImageData(outputImageData, 0, 0)
 
   return canvas.toDataURL('image/png')
+}
+
+export async function compositeFromDataUrls(
+  sourceUrl: string,
+  maskUrl: string,
+  options: CompositeOptions = {}
+): Promise<string> {
+  const loadImage = (url: string): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = url
+    })
+
+  const [srcImg, maskImg] = await Promise.all([loadImage(sourceUrl), loadImage(maskUrl)])
+  return compositeSourceWithMask(srcImg, maskImg, options)
 }

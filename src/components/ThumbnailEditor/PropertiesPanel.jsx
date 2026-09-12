@@ -5,6 +5,7 @@ function PropertiesPanel({
   onUpdateSpeakerTransform,
   onUpdateBackground,
   onResetSpeakerTransform,
+  onUpdateSpeakerMaskOptions,
 }) {
   if (!selectedLayer) {
     return (
@@ -250,6 +251,99 @@ function PropertiesPanel({
             <span>↔ Flip Horizontal</span>
           </button>
         </div>
+
+        {/* Mask Refinement Controls */}
+        {(speaker.maskUrl || speaker.cutoutUrl) && (
+          <div className="border-t border-gray-800 pt-2.5 mt-1 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sky-400 text-[11px] uppercase tracking-wider">
+                Mask Refinement
+              </h4>
+              <button
+                onClick={() =>
+                  onUpdateSpeakerMaskOptions?.(selectedLayer, {
+                    feather: 0,
+                    threshold: 0,
+                    opacity: 1,
+                    invert: false,
+                  })
+                }
+                className="text-[10px] text-gray-400 hover:text-white underline"
+              >
+                Reset Mask
+              </button>
+            </div>
+
+            {/* Feather slider */}
+            <div>
+              <div className="flex justify-between text-[11px] mb-0.5">
+                <span className="text-gray-400">Edge Feather</span>
+                <span className="font-mono text-gray-200">
+                  {speaker.maskOptions?.feather ?? 0}px
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={20}
+                step={1}
+                value={speaker.maskOptions?.feather ?? 0}
+                onChange={(e) =>
+                  onUpdateSpeakerMaskOptions?.(selectedLayer, {
+                    feather: Number(e.target.value),
+                  })
+                }
+                className="w-full accent-sky-500"
+              />
+            </div>
+
+            {/* Edge Choke / Threshold slider */}
+            <div>
+              <div className="flex justify-between text-[11px] mb-0.5">
+                <span className="text-gray-400">Edge Choke / Threshold</span>
+                <span className="font-mono text-gray-200">
+                  {speaker.maskOptions?.threshold ?? 0}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={255}
+                step={5}
+                value={speaker.maskOptions?.threshold ?? 0}
+                onChange={(e) =>
+                  onUpdateSpeakerMaskOptions?.(selectedLayer, {
+                    threshold: Number(e.target.value),
+                  })
+                }
+                className="w-full accent-sky-500"
+              />
+            </div>
+
+            {/* Opacity slider */}
+            <div>
+              <div className="flex justify-between text-[11px] mb-0.5">
+                <span className="text-gray-400">Speaker Opacity</span>
+                <span className="font-mono text-gray-200">
+                  {Math.round((speaker.maskOptions?.opacity ?? 1) * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.05}
+                max={1}
+                step={0.05}
+                value={speaker.maskOptions?.opacity ?? 1}
+                onChange={(e) =>
+                  onUpdateSpeakerMaskOptions?.(selectedLayer, {
+                    opacity: Number(e.target.value),
+                  })
+                }
+                className="w-full accent-sky-500"
+              />
+            </div>
+          </div>
+        )}
       </div>
     )
   }

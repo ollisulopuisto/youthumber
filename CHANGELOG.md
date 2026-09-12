@@ -2,6 +2,13 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.53] - 2026-09-12
+
+### Added
+- Live Mask Refinement UI in Properties Panel (`feather`, `threshold`/choke-expand, `opacity`, and `invert`)
+- Instant re-compositing of speaker cutouts with custom feathering and edge thresholding
+- Unit test suite for mask refinement edge choke, feathering, and option preservation
+
 ## [26.09.12.52] - 2026-09-12
 
 ### Changed

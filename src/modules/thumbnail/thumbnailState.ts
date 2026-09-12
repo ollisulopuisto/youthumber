@@ -173,6 +173,28 @@ export function updateSpeakerTransform(
   }
 }
 
+export function updateSpeakerMaskOptions(
+  project: ThumbnailProject,
+  speakerId: 'speaker1' | 'speaker2',
+  maskOptions: Partial<import('../../types/thumbnail').MaskRefinementOptions>
+): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    [speakerId]: {
+      ...project[speakerId],
+      maskOptions: {
+        feather: 0,
+        threshold: 0,
+        opacity: 1,
+        invert: false,
+        ...(project[speakerId].maskOptions || {}),
+        ...maskOptions,
+      },
+    },
+  }
+}
+
 export function toggleSpeakerVisibility(
   project: ThumbnailProject,
   speakerId: 'speaker1' | 'speaker2'
