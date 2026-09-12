@@ -38,3 +38,11 @@ CLAUDE.md
 __pycache__/
 *.pyc
 
+# Sensitive configuration & credentials
+config.yaml
+config.yml
+access.json
+*.pem
+*.key
+
+

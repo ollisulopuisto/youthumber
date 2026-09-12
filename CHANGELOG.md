@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.12.58] - 2026-09-12
+
+### Security
+- Hardened `.gitignore` to explicitly ignore sensitive configuration and credentials (`config.yaml`, `access.json`, private keys) prior to public release
+
 ## [26.09.12.57] - 2026-09-12
 
 ### Added
