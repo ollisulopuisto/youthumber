@@ -5,6 +5,8 @@ import LayersPanel from './components/ThumbnailEditor/LayersPanel'
 import PropertiesPanel from './components/ThumbnailEditor/PropertiesPanel'
 import SpeakerSlotsPanel from './components/ThumbnailEditor/SpeakerSlotsPanel'
 import ProjectGalleryModal from './components/ThumbnailEditor/ProjectGalleryModal'
+import ShowPresetModal from './components/ThumbnailEditor/ShowPresetModal'
+import { applyShowPresetToProject } from './modules/shows/showPreferences'
 
 import {
   createDefaultProject,
@@ -55,6 +57,7 @@ function App() {
 
   const [selectedLayer, setSelectedLayer] = useState('text')
   const [showProjectsModal, setShowProjectsModal] = useState(false)
+  const [showShowsModal, setShowShowsModal] = useState(false)
   const canvasRef = useRef(null)
 
   // Auto-save project changes to local storage
@@ -72,6 +75,46 @@ function App() {
 
   const handleSelectTemplate = (template) => {
     setProject((prev) => applyTemplateToProject(prev, template))
+  }
+
+  const handleApplyShowPreset = (showPreset) => {
+    setProject((prev) => applyShowPresetToProject(prev, showPreset))
+  }
+
+  const handleToggleSpeakerCount = () => {
+    setProject((prev) => {
+      const isSingle = !prev.speaker2.visible
+      if (isSingle) {
+        // Switch to 2 speakers
+        return {
+          ...prev,
+          speaker1: {
+            ...prev.speaker1,
+            visible: true,
+            transform: { ...prev.speaker1.transform, x: 350, y: 420, scaleX: 0.9, scaleY: 0.9 },
+          },
+          speaker2: {
+            ...prev.speaker2,
+            visible: true,
+            transform: { ...prev.speaker2.transform, x: 930, y: 420, scaleX: 0.9, scaleY: 0.9 },
+          },
+        }
+      } else {
+        // Switch to 1 speaker
+        return {
+          ...prev,
+          speaker1: {
+            ...prev.speaker1,
+            visible: true,
+            transform: { ...prev.speaker1.transform, x: 640, y: 430, scaleX: 1.05, scaleY: 1.05 },
+          },
+          speaker2: {
+            ...prev.speaker2,
+            visible: false,
+          },
+        }
+      }
+    })
   }
 
   const handleSaveProject = () => {
@@ -202,9 +245,12 @@ function App() {
         project={project}
         onUpdateProjectName={handleUpdateProjectName}
         onSelectTemplate={handleSelectTemplate}
+        onApplyShowPreset={handleApplyShowPreset}
+        onOpenShows={() => setShowShowsModal(true)}
         onSaveProject={handleSaveProject}
         onOpenProjects={() => setShowProjectsModal(true)}
         onExport={handleExport}
+        onToggleSpeakerCount={handleToggleSpeakerCount}
       />
 
       {/* Main Workspace Area */}
@@ -264,6 +310,15 @@ function App() {
           currentProjectId={project.id}
           onLoadProject={(loaded) => setProject(loaded)}
           onClose={() => setShowProjectsModal(false)}
+        />
+      )}
+
+      {/* Show Preset Preferences Modal */}
+      {showShowsModal && (
+        <ShowPresetModal
+          currentProject={project}
+          onApplyShow={handleApplyShowPreset}
+          onClose={() => setShowShowsModal(false)}
         />
       )}
     </div>

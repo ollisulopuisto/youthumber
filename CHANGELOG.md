@@ -2,6 +2,15 @@
 
 All notable changes to Pix3lCover will be documented in this file.
 
+## [26.09.12.50] - 2026-09-12
+
+### Added
+- Per-show saved preferences system (`showPreferences.ts`)
+- Configurable speaker count (1 vs 2 speakers) with auto-centering layout
+- Show-specific background presets (colors/images) and typography styles (fonts, fills, strokes, shadows)
+- `ShowPresetModal` UI for saving current thumbnail composition as a recurring show preset
+- Toolbar quick show switcher and 1/2 speaker toggle button
+
 ## [26.09.12.49] - 2026-09-12
 
 ### Added
