@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { getAllProjects, deleteProject, duplicateProject, getStorageInfo, exportProjectsToJSON, importProjectsFromJSON } from '../../utils/storageUtils'
 
-function ProjectGallery({ currentProjectId, onSave, onLoad, onNew, canvasRef }) {
+function ProjectGallery({ currentProjectId, onSave, onLoad, onNew }) {
   const [projects, setProjects] = useState([])
   const [projectName, setProjectName] = useState('')
   const [showGallery, setShowGallery] = useState(false)

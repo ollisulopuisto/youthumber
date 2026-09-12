@@ -2,7 +2,15 @@
 
 All notable changes to Pix3lCover will be documented in this file.
 
-## [1.3.0] - 2026-01-30
+## [26.09.12.45] - 2026-09-12
+
+### Added
+- Established test suite baseline with Vitest and jsdom
+- Added TypeScript configuration for strict modules and tests
+
+### Fixed
+- Resolved ESLint unused variable errors and prop-types configuration
+
 
 ### Added
 - **Background Removal**: AI-powered background removal running entirely in browser

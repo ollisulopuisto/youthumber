@@ -14,7 +14,7 @@ import StorageIndicator from './components/StorageIndicator'
 import AutoSaveIndicator from './components/AutoSaveIndicator'
 import templates from './data/templates'
 import { exportCanvas } from './utils/exportUtils'
-import { saveProject, loadProject, createProjectFromState, loadAutoSave, clearAutoSave, generateThumbnail } from './utils/storageUtils'
+import { saveProject, createProjectFromState, loadAutoSave, clearAutoSave, generateThumbnail } from './utils/storageUtils'
 import useAutoSave from './hooks/useAutoSave'
 import useHistory from './hooks/useHistory'
 

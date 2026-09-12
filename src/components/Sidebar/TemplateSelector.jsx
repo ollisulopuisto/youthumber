@@ -35,8 +35,6 @@ function TemplateSelector({ selectedTemplate, onSelectTemplate, currentState }) 
     setNewTemplateName('')
   }
 
-  const allTemplates = [...customTemplates, ...templates]
-
   return (
     <section>
       <div className="flex items-center justify-between mb-3">

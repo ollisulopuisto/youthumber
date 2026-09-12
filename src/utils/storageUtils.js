@@ -316,7 +316,6 @@ export const generateThumbnail = (canvas, format = '16:9') => {
   try {
     // Thumbnail dimensions (small for storage efficiency)
     const thumbWidth = format === '16:9' ? 160 : 90
-    const thumbHeight = format === '16:9' ? 90 : 160
 
     // Get canvas data URL at reduced size
     const dataURL = canvas.toDataURL({

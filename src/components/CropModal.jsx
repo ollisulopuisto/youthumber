@@ -7,14 +7,12 @@ function CropModal({ imageUrl, onConfirm, onCancel }) {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 })
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 })
 
   // Load image and set initial crop area
   useEffect(() => {
     const img = new Image()
     img.onload = () => {
-      setImageSize({ width: img.width, height: img.height })
 
       // Calculate display size (fit in container)
       const maxWidth = 600

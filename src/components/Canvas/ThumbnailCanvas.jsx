@@ -799,7 +799,7 @@ const ThumbnailCanvas = forwardRef(({ format, imageUrl, selectedTemplate, titleT
   // Expose canvas instance to parent component
   useImperativeHandle(ref, () => ({
     getCanvas: () => fabricCanvasRef.current,
-    exportCanvas: (options) => {
+    exportCanvas: () => {
       return fabricCanvasRef.current
     }
   }))
