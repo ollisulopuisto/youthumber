@@ -52,7 +52,7 @@ function Toolbar({
             YT
           </div>
           <span className="font-bold text-sm tracking-wide hidden sm:inline text-gray-200">
-            Thumbnail Studio
+            YouThumber
           </span>
         </div>
 

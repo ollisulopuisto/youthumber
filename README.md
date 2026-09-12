@@ -1,12 +1,8 @@
-# Pix3lCover
+# YouThumber (`youthumber`)
 
-A professional web application to create stunning YouTube thumbnails for videos and shorts in under 5 minutes.
+A focused, local-first YouTube thumbnail editor for creators.
 
-**From the [Pix3lTools](https://www.pix3ltools.com/) Collection** - Professional tools for content creators.
-
-![Pix3lCover Screenshot](screenshot.jpg)
-
-[![Watch Demo](https://img.shields.io/badge/Watch_Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=aj5Eh3BlGY8)
+Compose stunning 1280×720 thumbnails from dual speaker photos (1920×1080) with local background removal, customizable show presets, and direct export.
 
 ## Features
 

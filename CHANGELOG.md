@@ -1,6 +1,13 @@
 # Changelog
 
-All notable changes to Pix3lCover will be documented in this file.
+All notable changes to YouThumber will be documented in this file.
+
+## [26.09.12.51] - 2026-09-12
+
+### Changed
+- Rename application to **YouThumber** and repository / package identifier to `youthumber`
+- Update HTML title, toolbar branding, and project documentation
+- Update git remote origin URL to `youthumber.git`
 
 ## [26.09.12.50] - 2026-09-12
 
