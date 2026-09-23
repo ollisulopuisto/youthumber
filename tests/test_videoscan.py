@@ -202,10 +202,12 @@ def test_core_members_excludes_outlier_from_best_frame_pool() -> None:
     assert core
 
 
-@pytest.fixture
-def client() -> TestClient:
-    app = create_app()
-    return TestClient(app)
+@pytest.fixture(params=[True, False], ids=["macos", "no-avfoundation"])
+def client(request, monkeypatch) -> TestClient:
+    # CI runs on Linux, where AVFoundation is missing; there these endpoints answered
+    # "needs macOS" (501) before checking the file (2026-09-23). Run both ways everywhere.
+    monkeypatch.setattr("youthumber.server.HAS_AVFOUNDATION", request.param)
+    return TestClient(create_app())
 
 
 def test_health_reports_video_scan_capability(client: TestClient) -> None:

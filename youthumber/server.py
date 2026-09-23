@@ -66,7 +66,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.67",
+        version="26.09.23.68",
     )
 
     app.add_middleware(
@@ -148,13 +148,13 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     # thread instead of blocking every other request (health checks, frame grabs).
     @app.post("/scan-video-speakers")
     def scan_video_speakers(req: VideoSpeakerScanRequest) -> JSONResponse:
+        if not Path(req.path).is_file():
+            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
         if not HAS_AVFOUNDATION:
             raise HTTPException(
                 status_code=501,
                 detail="Video scanning requires macOS AVFoundation/Vision",
             )
-        if not Path(req.path).is_file():
-            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
 
         try:
             people = scan_video_for_speakers(
@@ -169,12 +169,12 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
 
     @app.post("/grab-frame")
     async def grab_frame(req: GrabFrameRequest) -> JSONResponse:
+        if not Path(req.path).is_file():
+            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
         if not HAS_AVFOUNDATION:
             raise HTTPException(
                 status_code=501, detail="Frame grabbing requires macOS AVFoundation"
             )
-        if not Path(req.path).is_file():
-            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
 
         try:
             data_url = grab_frame_at_time(req.path, req.timestampSeconds)

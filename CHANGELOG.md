@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.68] - 2026-09-23
+
+### Fixed
+- On machines without AVFoundation (CI's Linux runner), the video endpoints answered "needs macOS" before "file not found"; a missing file is now reported first everywhere. Their tests now run both ways on every platform
+
 ## [26.09.23.67] - 2026-09-23
 
 ### Added
