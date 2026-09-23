@@ -120,3 +120,22 @@ def test_matting_model_status_and_download(monkeypatch) -> None:
     assert status["status"] == "missing"
     assert status["sizeMb"] == 444
     assert started.status_code == 202 and model.started
+
+
+def test_remove_falls_back_to_vision_when_birefnet_fails(monkeypatch) -> None:
+    # The first packaged build couldn't run the model ("torchvision::nms does not
+    # exist", 2026-09-23) and every cutout returned 500. Vision's cutout still works.
+    monkeypatch.setattr("youthumber.server.MODEL", _FakeModel("ready"))
+    monkeypatch.setattr("youthumber.server.HAS_VISION", True)
+
+    def broken_matting(image_bytes, matter):
+        raise RuntimeError("operator torchvision::nms does not exist")
+
+    monkeypatch.setattr("youthumber.server.segment_with_matting", broken_matting)
+    client = TestClient(create_app())
+
+    res = client.post("/remove", json={"image": _png_data_url()})
+
+    assert res.status_code == 200
+    assert "birefnet" not in res.json()["metadata"]["modelId"]
+    assert res.json()["objectsMask"] is None

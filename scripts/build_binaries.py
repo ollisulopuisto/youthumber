@@ -8,14 +8,25 @@ from __future__ import annotations
 
 import argparse
 import platform
+import plistlib
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DIST_DIR = ROOT_DIR / "dist"
 RELEASE_DIR = ROOT_DIR / "release"
+BUNDLE_ID = "io.github.ollisulopuisto.youthumber"
+MODEL_PACKAGES = [
+    "torchvision",
+    "timm",
+    "kornia",
+    "einops",
+    "transformers",
+    "safetensors",
+]
 # Drawn by scripts/make_icon.py. PyInstaller converts the PNG for Windows/Linux.
 APP_ICON = (
     ROOT_DIR / "assets" / "YouThumber.icns"
@@ -34,6 +45,22 @@ def build_frontend() -> None:
     if not (DIST_DIR / "index.html").is_file():
         raise RuntimeError(f"Build failed: {DIST_DIR / 'index.html'} not found.")
     print("✓ Frontend build complete.")
+
+
+def project_version() -> str:
+    with (ROOT_DIR / "pyproject.toml").open("rb") as f:
+        return tomllib.load(f)["project"]["version"]
+
+
+def stamp_version(app: Path) -> None:
+    """Puts the CalVer version in Info.plist (PyInstaller leaves 0.0.0) and re-signs,
+    since editing the plist invalidates PyInstaller's ad-hoc signature."""
+    plist_path = app / "Contents" / "Info.plist"
+    info = plistlib.loads(plist_path.read_bytes())
+    info["CFBundleShortVersionString"] = project_version()
+    info["CFBundleVersion"] = project_version()
+    plist_path.write_bytes(plistlib.dumps(info))
+    subprocess.run(["codesign", "--force", "--deep", "-s", "-", str(app)], check=True)
 
 
 def run_pyinstaller() -> None:
@@ -91,6 +118,8 @@ def run_pyinstaller() -> None:
         cmd.extend(
             [
                 "--windowed",
+                "--osx-bundle-identifier",
+                BUNDLE_ID,
                 "--hidden-import",
                 "webview.platforms.cocoa",
                 "--hidden-import",
@@ -99,8 +128,18 @@ def run_pyinstaller() -> None:
                 "Quartz",
                 "--hidden-import",
                 "Foundation",
+                "--hidden-import",
+                "AVFoundation",
+                "--hidden-import",
+                "CoreMedia",
             ]
         )
+        # BiRefNet's model code is loaded at runtime (see youthumber/matting.py), so
+        # PyInstaller can't see what it imports; bundle those packages whole. Without
+        # this the app ran but every cutout failed: "torchvision::nms does not exist",
+        # "No module named 'kornia'" (2026-09-23). `--self-test` checks for them.
+        for package in MODEL_PACKAGES:
+            cmd.extend(["--collect-all", package])
     elif sys.platform == "win32":
         cmd.extend(
             [
@@ -123,6 +162,9 @@ def run_pyinstaller() -> None:
     cmd.append(str(ROOT_DIR / "launcher.py"))
 
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
+
+    if sys.platform == "darwin":
+        stamp_version(RELEASE_DIR / "YouThumber.app")
     print("✓ PyInstaller build complete.")
 
 

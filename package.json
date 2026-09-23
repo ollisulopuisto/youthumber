@@ -1,7 +1,7 @@
 {
   "name": "youthumber",
   "private": true,
-  "version": "26.09.23.77",
+  "version": "26.09.23.78",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,8 @@
     "test": "vitest run",
     "desktop": "uv run youthumber",
     "desktop:dev": "uv run youthumber --dev",
-    "build:binaries": "uv run python scripts/build_binaries.py"
+    "build:binaries": "uv run python scripts/build_binaries.py",
+    "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",

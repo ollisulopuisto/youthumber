@@ -15,7 +15,7 @@ export function applyMaskToImageData(
   width: number,
   height: number,
   options: CompositeOptions = {}
-): Uint8ClampedArray {
+): Uint8ClampedArray<ArrayBuffer> {
   const { opacity = 1, threshold, invert = false } = options
   const totalPixels = width * height
   const output = new Uint8ClampedArray(sourceRgba.length)

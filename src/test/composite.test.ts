@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { compositeSourceWithMask, applyMaskToImageData } from '../services/background-removal/composite'
+import { applyMaskToImageData } from '../services/background-removal/composite'
 
 describe('Mask Compositing (source + alpha mask -> cutout)', () => {
   it('applies grayscale mask to source image data alpha channel', () => {

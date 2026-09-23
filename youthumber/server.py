@@ -80,7 +80,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         lifespan=lifespan,
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.77",
+        version="26.09.23.78",
     )
 
     app.add_middleware(
@@ -114,11 +114,16 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
 
         try:
             image_bytes = decode_base64_image(req.image)
-            objects = None
+            objects, matted = None, False
             if HAS_VISION and MODEL.state()["status"] == "ready":
-                cutout, mask, objects = segment_with_matting(image_bytes, MATTER)
-                model_id = "birefnet-general+apple-vision"
-            else:
+                try:
+                    cutout, mask, objects = segment_with_matting(image_bytes, MATTER)
+                    model_id, matted = "birefnet-general+apple-vision", True
+                except Exception:
+                    # A broken model install (the first packaged build couldn't load
+                    # it) shouldn't cost the cutout: Vision's still works.
+                    logger.exception("BiRefNet failed; using Vision's cutout")
+            if not matted:
                 cutout, mask, model_id = segment_image(image_bytes, model=req.model)
 
             elapsed_ms = int((time.time() - start_time) * 1000)

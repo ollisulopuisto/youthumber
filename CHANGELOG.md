@@ -2,6 +2,19 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.78] - 2026-09-23
+
+### Fixed
+- The packaged app couldn't cut anything out: BiRefNet's code is loaded at runtime, so PyInstaller missed torchvision's compiled ops, kornia, timm, einops and transformers ("torchvision::nms does not exist"). They're now bundled whole
+- A failing BiRefNet no longer fails the cutout (500); it falls back to Vision's
+- The app bundle had version 0.0.0 and no bundle id; it now carries the CalVer version and `io.github.ollisulopuisto.youthumber`
+- Two long-standing TypeScript errors
+
+### Added
+- `youthumber --self-test`: checks an install (source or packaged app) has everything it needs, without downloading the model
+- The desktop app is now built and tested on every push to master (self-test and a server smoke test of the packaged app), not only on tags; a `v*` tag still publishes the Release and must match the version
+- Frontend typecheck in CI; ESLint ignores build output
+
 ## [26.09.23.77] - 2026-09-23
 
 ### Added

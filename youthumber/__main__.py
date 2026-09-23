@@ -62,8 +62,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Do not automatically open web browser in headless mode",
     )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Check this install has everything it needs, then exit (1 on problems)",
+    )
 
     args = parser.parse_args(argv)
+    if args.self_test:
+        from youthumber.selftest import main as self_test
+
+        return self_test()
 
     use_gui = args.gui if args.gui is not None else True
     dist_dir = get_dist_dir()
