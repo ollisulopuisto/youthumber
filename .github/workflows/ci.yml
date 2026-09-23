@@ -62,3 +62,30 @@ jobs:
 
       - name: Run Backend Tests
         run: uv run pytest
+
+  backend-macos:
+    # Vision, AVFoundation and Core Image only exist on macOS; on Ubuntu those tests
+    # skip. Runs on pushes to main only, where nobody is waiting on it.
+    name: Backend (macOS frameworks)
+    if: github.event_name == 'push'
+    runs-on: macos-latest
+    env:
+      YOUTHUMBER_REQUIRE_MACOS: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Run Backend Tests
+        run: uv run pytest -rs

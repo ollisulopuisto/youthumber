@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.69] - 2026-09-23
+
+### Added
+- CI job on a macOS runner (pushes to main) that runs the backend tests with the Apple frameworks present, so Vision/AVFoundation/Core Image tests fail instead of skipping
+
 ## [26.09.23.68] - 2026-09-23
 
 ### Fixed
