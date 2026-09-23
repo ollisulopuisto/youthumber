@@ -138,6 +138,7 @@ export function applyShowPresetToProject(
       type: preset.background.type || 'solid',
       color: preset.background.color || project.background.color,
       imageUrl: preset.background.imageUrl ?? project.background.imageUrl,
+      gradient: preset.background.gradient ?? project.background.gradient,
     },
     speaker1: {
       ...project.speaker1,
@@ -194,6 +195,7 @@ export function createShowPresetFromProject(
       type: project.background.type,
       color: project.background.color,
       imageUrl: project.background.imageUrl,
+      gradient: project.background.gradient,
     },
     text: {
       fontFamily: project.text.fontFamily,

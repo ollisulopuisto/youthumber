@@ -1,6 +1,6 @@
 [project]
 name = "youthumber"
-version = "26.09.12.59"
+version = "26.09.23.60"
 description = "Local-first YouTube thumbnail editor with Apple Silicon background removal"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,6 +13,8 @@ dependencies = [
     "pyobjc-framework-Vision>=10.0; sys_platform == 'darwin'",
     "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
     "pyobjc-framework-WebKit>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-AVFoundation>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-CoreMedia>=10.0; sys_platform == 'darwin'",
 ]
 
 [project.scripts]

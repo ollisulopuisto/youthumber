@@ -18,6 +18,27 @@ from .server import create_app
 logger = logging.getLogger(__name__)
 
 
+class DesktopApi:
+    """Methods exposed to the frontend as ``window.pywebview.api.*``."""
+
+    def pick_video_file(self) -> str | None:
+        """Opens a native file dialog and returns the selected video's absolute path, or None."""
+        import webview
+
+        window = webview.windows[0] if webview.windows else None
+        if window is None:
+            return None
+
+        result = window.create_file_dialog(
+            webview.FileDialog.OPEN,
+            allow_multiple=False,
+            file_types=("Video Files (*.mp4;*.mov;*.m4v)", "All files (*.*)"),
+        )
+        if not result:
+            return None
+        return result[0]
+
+
 def find_free_port(start_port: int = 8731) -> int:
     """Finds an available TCP port starting from start_port."""
     port = start_port
@@ -97,6 +118,7 @@ def launch_gui(
         height=880,
         min_size=(1024, 700),
         background_color="#030712",
+        js_api=DesktopApi(),
     )
 
     def on_closed() -> None:

@@ -1,3 +1,5 @@
+import { backgroundGradientPresets } from '../../data/backgroundGradients'
+
 function PropertiesPanel({
   selectedLayer,
   project,
@@ -384,6 +386,44 @@ function PropertiesPanel({
                 title={hex}
               />
             ))}
+          </div>
+        </div>
+
+        {/* Gradient Generator */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-[10px] font-medium text-gray-400">Gradient</label>
+            {bg.type === 'gradient' && (
+              <button
+                onClick={() => onUpdateBackground({ color: bg.color || '#111827', type: 'solid' })}
+                className="text-[10px] text-red-400 hover:text-red-300 font-medium"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {backgroundGradientPresets.map((preset) => {
+              const isActive =
+                bg.type === 'gradient' &&
+                bg.gradient?.colors?.[0] === preset.colors[0] &&
+                bg.gradient?.colors?.[1] === preset.colors[1]
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() =>
+                    onUpdateBackground({ gradient: { colors: preset.colors, angle: preset.angle } })
+                  }
+                  style={{
+                    background: `linear-gradient(${preset.angle}deg, ${preset.colors.join(', ')})`,
+                  }}
+                  className={`w-full h-8 rounded border hover:scale-105 transition-transform ${
+                    isActive ? 'border-emerald-400 ring-1 ring-emerald-400' : 'border-gray-700/80'
+                  }`}
+                  title={preset.name}
+                />
+              )
+            })}
           </div>
         </div>
       </div>

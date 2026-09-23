@@ -2,6 +2,21 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.60] - 2026-09-23
+
+### Added
+- Scan Video for All Speakers: pick one final-render video, detect every face per sampled frame, group faces by identity (Vision `VNGenerateImageFeaturePrintRequest`), and assign each detected person to a speaker slot (`/scan-video-speakers`, `MultiSpeakerScanModal`)
+- Scan Video for Best Frame per speaker slot: sample a video every 60s and rank frames by Vision face capture quality + sharpness (`/scan-video`, `/grab-frame`, `VideoScanModal`)
+- Native macOS video file picker exposed to the frontend via pywebview `js_api` (desktop app only)
+- Auto-Frame: after background removal, size and position each speaker from the cutout's alpha bounds (left/right thirds, headroom for the headline)
+- Gradient background presets in Background Properties
+- 1920×1080 export option alongside 1280×720
+- `ROADMAP.md`
+
+### Changed
+- New dependencies (macOS only): `pyobjc-framework-AVFoundation`, `pyobjc-framework-CoreMedia`
+- Show presets now save and restore gradient backgrounds
+
 ## [26.09.12.59] - 2026-09-12
 
 ### Added

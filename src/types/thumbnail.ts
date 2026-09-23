@@ -31,10 +31,16 @@ export interface SpeakerState {
   removerId?: string
 }
 
+export interface BackgroundGradient {
+  colors: string[]
+  angle: number
+}
+
 export interface BackgroundState {
-  type: 'image' | 'solid'
+  type: 'image' | 'solid' | 'gradient'
   color: string
   imageUrl: string | null
+  gradient: BackgroundGradient | null
   transform: {
     x: number
     y: number

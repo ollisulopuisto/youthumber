@@ -1,7 +1,8 @@
 export interface ShowBackgroundPreference {
-  type: 'solid' | 'image'
+  type: 'solid' | 'image' | 'gradient'
   color: string
   imageUrl?: string | null
+  gradient?: { colors: string[]; angle: number } | null
 }
 
 export interface ShowTextPreference {

@@ -19,6 +19,7 @@ import {
   removeSpeaker,
   setBackgroundImage,
   setBackgroundColor,
+  setBackgroundGradient,
   updateTextLayer,
   reorderLayers,
   applyTemplateToProject,
@@ -32,6 +33,7 @@ import {
 
 import { defaultRemoverRegistry } from './services/background-removal'
 import { compositeFromDataUrls } from './services/background-removal/composite'
+import { autoFrameSpeaker } from './modules/thumbnail/autoFrame'
 
 const blobToDataUrl = async (source) => {
   if (typeof source === 'string') return source
@@ -124,13 +126,16 @@ function App() {
     alert(`Project "${project.name}" saved to local storage.`)
   }
 
-  const handleExport = ({ format = 'jpeg', quality = 0.95 }) => {
+  const handleExport = ({ format = 'jpeg', quality = 0.95, resolution = 'hd' }) => {
     if (!canvasRef.current) return
     const safeName = project.name.trim().replace(/\s+/g, '-').toLowerCase()
+    const scale = resolution === 'fullhd' ? 1.5 : 1
+    const dims = resolution === 'fullhd' ? '1920x1080' : '1280x720'
     canvasRef.current.exportThumbnail({
       format,
       quality,
-      filename: `${safeName}-1280x720.${format === 'png' ? 'png' : 'jpg'}`,
+      scale,
+      filename: `${safeName}-${dims}.${format === 'png' ? 'png' : 'jpg'}`,
     })
   }
 
@@ -168,10 +173,26 @@ function App() {
           result.metadata?.backendId || activeRemover.id
         )
       )
+
+      // Auto-frame using the Vision-generated cutout mask to find a nice spot
+      handleAutoFrameSpeaker(slotId, cutoutUrl)
     } catch (err) {
       console.error('Background removal failed:', err)
       alert(`Background removal failed: ${err.message}`)
       setProject((prev) => setSpeakerProcessing(prev, slotId, false, 0, undefined, err.message))
+    }
+  }
+
+  const handleAutoFrameSpeaker = async (slotId, cutoutUrlOverride) => {
+    const cutoutUrl = cutoutUrlOverride || project[slotId]?.cutoutUrl
+    if (!cutoutUrl) return
+    try {
+      const transform = await autoFrameSpeaker(cutoutUrl, slotId)
+      if (transform) {
+        setProject((prev) => updateSpeakerTransform(prev, slotId, transform))
+      }
+    } catch (err) {
+      console.warn('Auto-frame failed:', err)
     }
   }
 
@@ -248,12 +269,15 @@ function App() {
         ...prev.background,
         type: 'solid',
         imageUrl: null,
+        gradient: null,
       },
     }))
   }
 
   const handleUpdateBackground = (updates) => {
-    if (updates.color) {
+    if (updates.gradient) {
+      setProject((prev) => setBackgroundGradient(prev, updates.gradient))
+    } else if (updates.color) {
       setProject((prev) => setBackgroundColor(prev, updates.color))
     }
   }
@@ -336,6 +360,7 @@ function App() {
             project={project}
             onUploadSpeakerSource={handleUploadSpeakerSource}
             onTriggerRemoveBackground={handleTriggerRemoveBackground}
+            onAutoFrameSpeaker={handleAutoFrameSpeaker}
             onRemoveSpeaker={handleRemoveSpeaker}
             onUploadBackgroundImage={handleUploadBackgroundImage}
             onClearBackgroundImage={handleClearBackgroundImage}

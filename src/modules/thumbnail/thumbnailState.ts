@@ -55,6 +55,7 @@ export function createDefaultProject(name = 'Untitled Thumbnail'): ThumbnailProj
       type: 'solid',
       color: '#111827', // dark slate
       imageUrl: null,
+      gradient: null,
       transform: {
         x: 0,
         y: 0,
@@ -247,7 +248,23 @@ export function setBackgroundColor(project: ThumbnailProject, color: string): Th
     updatedAt: new Date().toISOString(),
     background: {
       ...project.background,
+      type: 'solid',
       color,
+    },
+  }
+}
+
+export function setBackgroundGradient(
+  project: ThumbnailProject,
+  gradient: { colors: string[]; angle: number }
+): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    background: {
+      ...project.background,
+      type: 'gradient',
+      gradient,
     },
   }
 }

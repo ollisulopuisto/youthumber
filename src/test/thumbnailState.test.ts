@@ -8,6 +8,8 @@ import {
   removeSpeaker,
   reorderLayers,
   applyTemplateToProject,
+  setBackgroundGradient,
+  setBackgroundColor,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
 } from '../modules/thumbnail/thumbnailState'
@@ -129,5 +131,23 @@ describe('Thumbnail State Management', () => {
     expect(applied.text.fontFamily).toBe('Impact')
     expect(applied.text.fontSize).toBe(88)
     expect(applied.text.fillColor).toBe('#FFCC00')
+  })
+
+  it('sets a gradient background and switching back to a solid color clears the gradient type', () => {
+    const project = createDefaultProject()
+    const withGradient = setBackgroundGradient(project, {
+      colors: ['#FF0080', '#7928CA'],
+      angle: 135,
+    })
+
+    expect(withGradient.background.type).toBe('gradient')
+    expect(withGradient.background.gradient).toEqual({
+      colors: ['#FF0080', '#7928CA'],
+      angle: 135,
+    })
+
+    const backToSolid = setBackgroundColor(withGradient, '#111827')
+    expect(backToSolid.background.type).toBe('solid')
+    expect(backToSolid.background.color).toBe('#111827')
   })
 })

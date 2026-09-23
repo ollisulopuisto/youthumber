@@ -24,6 +24,7 @@ function Toolbar({
   const [availableRemovers, setAvailableRemovers] = useState([])
   const [showPresets, setShowPresets] = useState([])
   const [exportFormat, setExportFormat] = useState('jpeg')
+  const [exportResolution, setExportResolution] = useState('hd')
   const [coreMLStatus, setCoreMLStatus] = useState('checking')
 
   useEffect(() => {
@@ -248,12 +249,23 @@ function Toolbar({
           <option value="png">PNG</option>
         </select>
 
+        {/* Resolution Selector */}
+        <select
+          value={exportResolution}
+          onChange={(e) => setExportResolution(e.target.value)}
+          className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
+          title="Export resolution"
+        >
+          <option value="hd">1280×720</option>
+          <option value="fullhd">1920×1080</option>
+        </select>
+
         {/* Export Button */}
         <button
-          onClick={() => onExport({ format: exportFormat, quality: 0.95 })}
+          onClick={() => onExport({ format: exportFormat, quality: 0.95, resolution: exportResolution })}
           className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5"
         >
-          <span>Export 1280×720</span>
+          <span>Export {exportResolution === 'fullhd' ? '1920×1080' : '1280×720'}</span>
         </button>
       </div>
     </header>

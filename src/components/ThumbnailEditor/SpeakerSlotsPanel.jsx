@@ -1,9 +1,13 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import { isDesktopVideoScanAvailable } from '../../services/videoScan'
+import VideoScanModal from './VideoScanModal'
+import MultiSpeakerScanModal from './MultiSpeakerScanModal'
 
 function SpeakerSlotsPanel({
   project,
   onUploadSpeakerSource,
   onTriggerRemoveBackground,
+  onAutoFrameSpeaker,
   onRemoveSpeaker,
   onUploadBackgroundImage,
   onClearBackgroundImage,
@@ -11,6 +15,9 @@ function SpeakerSlotsPanel({
   const speaker1InputRef = useRef(null)
   const speaker2InputRef = useRef(null)
   const bgInputRef = useRef(null)
+  const [videoScanSlot, setVideoScanSlot] = useState(null)
+  const [multiSpeakerScanOpen, setMultiSpeakerScanOpen] = useState(false)
+  const videoScanAvailable = isDesktopVideoScanAvailable()
 
   const handleFileChange = (e, callback) => {
     const file = e.target.files?.[0]
@@ -55,13 +62,24 @@ function SpeakerSlotsPanel({
 
         {/* Card Body */}
         {!hasSource ? (
-          <div
-            onClick={() => inputRef.current?.click()}
-            className="border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-lg p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-gray-800/30 hover:bg-gray-800/60 transition-all text-center group"
-          >
-            <span className="text-2xl group-hover:scale-110 transition-transform">📸</span>
-            <p className="text-xs font-medium text-gray-300">Upload 1920×1080 Photo</p>
-            <p className="text-[10px] text-gray-500">JPG, PNG, WebP supported</p>
+          <div className="flex flex-col gap-2">
+            <div
+              onClick={() => inputRef.current?.click()}
+              className="border-2 border-dashed border-gray-700 hover:border-gray-500 rounded-lg p-4 flex flex-col items-center justify-center gap-1.5 cursor-pointer bg-gray-800/30 hover:bg-gray-800/60 transition-all text-center group"
+            >
+              <span className="text-2xl group-hover:scale-110 transition-transform">📸</span>
+              <p className="text-xs font-medium text-gray-300">Upload 1920×1080 Photo</p>
+              <p className="text-[10px] text-gray-500">JPG, PNG, WebP supported</p>
+            </div>
+            {videoScanAvailable && (
+              <button
+                onClick={() => setVideoScanSlot(slotId)}
+                className="text-xs py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 transition-colors flex items-center justify-center gap-1.5"
+                title="Scan a video file for the best frame using Apple Vision"
+              >
+                🎬 Scan Video for Best Frame
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -137,6 +155,16 @@ function SpeakerSlotsPanel({
                   <span>✨ {hasCutout ? 'Re-run Remover' : 'Remove Background'}</span>
                 </button>
 
+                {hasCutout && (
+                  <button
+                    onClick={() => onAutoFrameSpeaker(slotId)}
+                    className="px-2.5 py-1.5 rounded text-xs bg-gray-800 hover:bg-gray-700 text-emerald-300 border border-gray-700 transition-colors"
+                    title="Auto-frame using Vision-detected person bounds"
+                  >
+                    🎯 Auto-Frame
+                  </button>
+                )}
+
                 <button
                   onClick={() => inputRef.current?.click()}
                   className="px-2.5 py-1.5 rounded text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition-colors"
@@ -144,6 +172,16 @@ function SpeakerSlotsPanel({
                 >
                   Replace
                 </button>
+
+                {videoScanAvailable && (
+                  <button
+                    onClick={() => setVideoScanSlot(slotId)}
+                    className="px-2.5 py-1.5 rounded text-xs bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 transition-colors"
+                    title="Scan a video file for the best frame using Apple Vision"
+                  >
+                    🎬 Scan Video
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -163,7 +201,20 @@ function SpeakerSlotsPanel({
   }
 
   return (
-    <div className="w-full bg-gray-950/90 border-t border-gray-800 p-3 sm:p-4 flex flex-wrap gap-3 sm:gap-4 items-stretch">
+    <div className="w-full bg-gray-950/90 border-t border-gray-800 p-3 sm:p-4 flex flex-col gap-3">
+      {videoScanAvailable && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setMultiSpeakerScanOpen(true)}
+            className="text-xs px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 transition-colors flex items-center gap-1.5"
+            title="Scan one video and auto-detect every speaker in it"
+          >
+            🎬 Scan Video for All Speakers
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3 sm:gap-4 items-stretch">
       {/* Speaker 1 Card */}
       {renderSpeakerCard('speaker1', 'Speaker 1 (Left / Host)', speaker1InputRef, 'text-indigo-400')}
 
@@ -228,6 +279,21 @@ function SpeakerSlotsPanel({
           onChange={(e) => handleFileChange(e, onUploadBackgroundImage)}
         />
       </div>
+      </div>
+
+      {videoScanSlot && (
+        <VideoScanModal
+          onClose={() => setVideoScanSlot(null)}
+          onFrameSelected={(dataUrl) => onUploadSpeakerSource(videoScanSlot, dataUrl)}
+        />
+      )}
+
+      {multiSpeakerScanOpen && (
+        <MultiSpeakerScanModal
+          onClose={() => setMultiSpeakerScanOpen(false)}
+          onAssign={(slotId, dataUrl) => onUploadSpeakerSource(slotId, dataUrl)}
+        />
+      )}
     </div>
   )
 }

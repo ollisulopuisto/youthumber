@@ -18,6 +18,15 @@ from .segmentation import (
     image_to_data_url,
     segment_image,
 )
+from .videoscan import (
+    DEFAULT_INTERVAL_SECONDS,
+    DEFAULT_MAX_CANDIDATES,
+    DEFAULT_MAX_PEOPLE,
+    HAS_AVFOUNDATION,
+    grab_frame_at_time,
+    scan_video_for_best_frames,
+    scan_video_for_speakers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +38,23 @@ class RemovalRequest(BaseModel):
     threshold: float | None = None
 
 
+class VideoScanRequest(BaseModel):
+    path: str = Field(..., description="Absolute path to a local video file")
+    intervalSeconds: float = Field(DEFAULT_INTERVAL_SECONDS, gt=0)
+    maxCandidates: int = Field(DEFAULT_MAX_CANDIDATES, gt=0, le=50)
+
+
+class GrabFrameRequest(BaseModel):
+    path: str = Field(..., description="Absolute path to a local video file")
+    timestampSeconds: float = Field(..., ge=0)
+
+
+class VideoSpeakerScanRequest(BaseModel):
+    path: str = Field(..., description="Absolute path to a local video file")
+    intervalSeconds: float = Field(DEFAULT_INTERVAL_SECONDS, gt=0)
+    maxPeople: int = Field(DEFAULT_MAX_PEOPLE, gt=0, le=20)
+
+
 def create_app(dist_dir: Path | None = None) -> FastAPI:
     """Creates and configures the FastAPI application."""
     if dist_dir is None:
@@ -37,7 +63,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.12.59",
+        version="26.09.23.60",
     )
 
     app.add_middleware(
@@ -58,6 +84,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 "apple-vision-ane",
                 "coreml-local",
             ],
+            "hasVideoScan": HAS_AVFOUNDATION,
         }
 
     @app.post("/remove")
@@ -90,6 +117,56 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             raise HTTPException(
                 status_code=500, detail=f"Segmentation failed: {err}"
             ) from err
+
+    @app.post("/scan-video")
+    async def scan_video(req: VideoScanRequest) -> JSONResponse:
+        if not HAS_AVFOUNDATION:
+            raise HTTPException(
+                status_code=501, detail="Video scanning requires macOS AVFoundation/Vision"
+            )
+        if not Path(req.path).is_file():
+            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
+
+        try:
+            candidates = scan_video_for_best_frames(
+                req.path, req.intervalSeconds, req.maxCandidates
+            )
+            return JSONResponse({"candidates": candidates})
+        except Exception as err:
+            logger.exception("Video scan failed")
+            raise HTTPException(status_code=500, detail=f"Video scan failed: {err}") from err
+
+    @app.post("/scan-video-speakers")
+    async def scan_video_speakers(req: VideoSpeakerScanRequest) -> JSONResponse:
+        if not HAS_AVFOUNDATION:
+            raise HTTPException(
+                status_code=501, detail="Video scanning requires macOS AVFoundation/Vision"
+            )
+        if not Path(req.path).is_file():
+            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
+
+        try:
+            people = scan_video_for_speakers(req.path, req.intervalSeconds, req.maxPeople)
+            return JSONResponse({"people": people})
+        except Exception as err:
+            logger.exception("Multi-speaker video scan failed")
+            raise HTTPException(status_code=500, detail=f"Video scan failed: {err}") from err
+
+    @app.post("/grab-frame")
+    async def grab_frame(req: GrabFrameRequest) -> JSONResponse:
+        if not HAS_AVFOUNDATION:
+            raise HTTPException(
+                status_code=501, detail="Frame grabbing requires macOS AVFoundation"
+            )
+        if not Path(req.path).is_file():
+            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
+
+        try:
+            data_url = grab_frame_at_time(req.path, req.timestampSeconds)
+            return JSONResponse({"image": data_url})
+        except Exception as err:
+            logger.exception("Frame grab failed")
+            raise HTTPException(status_code=500, detail=f"Frame grab failed: {err}") from err
 
     # Serve static assets and SPA
     if dist_dir and dist_dir.is_dir():

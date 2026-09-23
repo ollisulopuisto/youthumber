@@ -128,7 +128,25 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     isUpdatingFromStateRef.current = true
 
     // Set background
-    if (project.background.type === 'solid' || !project.background.imageUrl) {
+    if (project.background.type === 'gradient' && project.background.gradient) {
+      const { colors, angle = 135 } = project.background.gradient
+      const cx = CANVAS_WIDTH / 2
+      const cy = CANVAS_HEIGHT / 2
+      const len = Math.sqrt(CANVAS_WIDTH ** 2 + CANVAS_HEIGHT ** 2) / 2
+      const rad = (angle * Math.PI) / 180
+      const dx = Math.cos(rad) * len
+      const dy = Math.sin(rad) * len
+      const grad = new fabric.Gradient({
+        type: 'linear',
+        coords: { x1: cx - dx, y1: cy - dy, x2: cx + dx, y2: cy + dy },
+        colorStops: colors.map((color, index) => ({
+          offset: index / Math.max(colors.length - 1, 1),
+          color,
+        })),
+      })
+      canvas.setBackgroundColor(grad, () => canvas.renderAll())
+      canvas.setBackgroundImage(null, () => canvas.renderAll())
+    } else if (project.background.type === 'solid' || !project.background.imageUrl) {
       canvas.setBackgroundColor(project.background.color || '#111827', () => canvas.renderAll())
       canvas.setBackgroundImage(null, () => canvas.renderAll())
     } else if (project.background.imageUrl) {
@@ -324,7 +342,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   // Expose imperative API for exact 1280x720 export
   useImperativeHandle(ref, () => ({
     getCanvas: () => fabricCanvasRef.current,
-    exportThumbnail: ({ format = 'jpeg', quality = 0.92, filename }) => {
+    exportThumbnail: ({ format = 'jpeg', quality = 0.92, filename, scale = 1 }) => {
       const canvas = fabricCanvasRef.current
       if (!canvas) return null
 
@@ -332,9 +350,9 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       canvas.discardActiveObject()
       canvas.renderAll()
 
-      // Calculate multiplier so the export is strictly 1280 x 720
+      // Calculate multiplier so the export is exactly 1280x720 * scale
       const currentZoom = canvas.getZoom()
-      const multiplier = 1 / currentZoom
+      const multiplier = (1 / currentZoom) * scale
 
       const dataUrl = canvas.toDataURL({
         format: format === 'png' ? 'png' : 'jpeg',
