@@ -75,6 +75,19 @@ Options:
 * `uv run youthumber --no-gui` — Run as headless local server on `http://127.0.0.1:8731/`
 * `uv run youthumber --debug` — Enable WebKit developer tools / web inspector
 
+**App launcher (Dock, ⌘-Tab, Spotlight):** `uv run youthumber` is a plain `python`
+process, so macOS shows a generic icon and the name "python". To get a real app for this
+checkout, run once:
+
+```bash
+uv run python scripts/make_launcher.py
+```
+
+It creates `~/Applications/YouThumber.app` with the YouThumber name and icon, which runs
+`uv run youthumber` in this repo. The first time you open it, macOS asks whether
+YouThumber may access your Documents folder (if the repo is there): allow it. Output goes
+to `~/Library/Logs/YouThumber.log`. Re-run the script after moving the repo.
+
 #### 2. Web Development Mode (Vite)
 
 ```bash

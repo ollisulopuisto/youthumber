@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.77] - 2026-09-23
+
+### Added
+- `scripts/make_launcher.py` creates `~/Applications/YouThumber.app`, a launcher for the checkout, so the Dock and ⌘-Tab show the YouThumber name and icon instead of a generic "python" process. Its executable is a tiny compiled program (a script executable was refused by macOS with error -10669) that runs `uv run youthumber` in the repo and logs to `~/Library/Logs/YouThumber.log`
+
 ## [26.09.23.76] - 2026-09-23
 
 ### Changed
