@@ -55,11 +55,8 @@ injected fake distance function, real Vision feature-print sanity check,
 real HTTP round-trip against a generated test video), and a full browser
 run-through of the assign-to-slot UI flow with backend calls stubbed.
 
-**Known limitation, not yet addressed:** couldn't validate real 2-distinct-face
-clustering end-to-end — the only test photo on hand had one clean face and
-one too-low-resolution crop that Vision's face detector never picked up.
-The clustering algorithm itself is unit-tested independently of Vision, and
-the feature-print distance primitive was sanity-checked on real (non-face)
-images, but real-world clustering accuracy with two actual different faces
-hasn't been observed firsthand. Worth an eye next time it's used with real
-footage.
+**Real-footage results (2026-09-23):** a fixed similarity threshold split a
+two-person, ~1h render into 6 people; grouping into exactly the known number
+of people instead found the two speakers correctly. Superseded since by the
+1–4 speaker rebuild (v26.09.23.62), where the picker shows up to 12 frames
+per person.

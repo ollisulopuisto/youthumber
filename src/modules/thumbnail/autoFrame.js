@@ -1,5 +1,3 @@
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './thumbnailState'
-
 const SAMPLE_WIDTH = 240
 const ALPHA_THRESHOLD = 24
 
@@ -72,12 +70,11 @@ export async function computeCutoutBBox(cutoutUrl) {
 }
 
 /**
- * Computes a transform that nicely frames the detected person within their
- * half of the 1280x720 canvas: sized to fill the frame vertically, with the
- * subject offset toward the left (speaker1) or right (speaker2) third and
- * headroom reserved at the top for a headline.
+ * Computes a transform that puts the detected person's centre on the slot's
+ * `frame` target (`{ centerX, centerY, personHeight }`, from the current layout)
+ * and scales them to that height.
  */
-export function computeAutoFrameTransform(bbox, slotId) {
+export function computeAutoFrameTransform(bbox, frame) {
   const { width, height, nx1, ny1, nx2, ny2 } = bbox
 
   const personWidthPx = (nx2 - nx1) * width
@@ -89,11 +86,8 @@ export function computeAutoFrameTransform(bbox, slotId) {
   const imageCenterXPx = width / 2
   const imageCenterYPx = height / 2
 
-  const targetX = slotId === 'speaker1' ? CANVAS_WIDTH * 0.27 : CANVAS_WIDTH * 0.73
-  const targetY = CANVAS_HEIGHT * 0.6
-  const targetPersonHeightPx = CANVAS_HEIGHT * 1.05
-
-  const scale = targetPersonHeightPx / personHeightPx
+  const { centerX: targetX, centerY: targetY, personHeight } = frame
+  const scale = personHeight / personHeightPx
 
   const offsetX = (personCenterXPx - imageCenterXPx) * scale
   const offsetY = (personCenterYPx - imageCenterYPx) * scale
@@ -107,8 +101,8 @@ export function computeAutoFrameTransform(bbox, slotId) {
 }
 
 /** Computes a nice auto-framed transform for a speaker cutout, or null if detection failed. */
-export async function autoFrameSpeaker(cutoutUrl, slotId) {
+export async function autoFrameSpeaker(cutoutUrl, frame) {
   const bbox = await computeCutoutBBox(cutoutUrl)
   if (!bbox) return null
-  return computeAutoFrameTransform(bbox, slotId)
+  return computeAutoFrameTransform(bbox, frame)
 }

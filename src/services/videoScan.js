@@ -37,38 +37,17 @@ async function parseErrorResponse(response) {
   }
 }
 
-/** Scans a local video file for the best-scoring, face-containing frames. */
-export async function scanVideoForBestFrames(path, { intervalSeconds, maxCandidates } = {}) {
-  const baseUrl = resolveBaseUrl()
-  const body = { path }
-  if (intervalSeconds != null) body.intervalSeconds = intervalSeconds
-  if (maxCandidates != null) body.maxCandidates = maxCandidates
-
-  const response = await fetch(`${baseUrl}/scan-video`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Video scan failed: ${await parseErrorResponse(response)}`)
-  }
-
-  const data = await response.json()
-  return data.candidates
-}
-
 /**
- * Scans a local video file for every distinct person appearing in it, clustering
- * detected faces by visual identity, and returns each person's best-scoring frame
- * (as a small crop for identification — fetch the full frame separately via
- * grabFullResolutionFrame once the user assigns a person to a speaker slot).
+ * Scans a local video file, groups the faces in it into `numPeople` people, and
+ * returns `[{ frameCount, frames: [{ timestampSeconds, score, image }] }]` — up to
+ * `framesPerPerson` face-crop frames per person, best first. Fetch a chosen frame at
+ * full resolution with grabFullResolutionFrame.
  */
-export async function scanVideoForSpeakers(path, { intervalSeconds, maxPeople } = {}) {
+export async function scanVideoForSpeakers(path, { numPeople, framesPerPerson } = {}) {
   const baseUrl = resolveBaseUrl()
   const body = { path }
-  if (intervalSeconds != null) body.intervalSeconds = intervalSeconds
-  if (maxPeople != null) body.maxPeople = maxPeople
+  if (numPeople != null) body.numPeople = numPeople
+  if (framesPerPerson != null) body.framesPerPerson = framesPerPerson
 
   const response = await fetch(`${baseUrl}/scan-video-speakers`, {
     method: 'POST',

@@ -32,13 +32,14 @@ export interface ShowSpeakerTransform {
 export interface ShowPreferences {
   id: string
   name: string
-  speakerCount: 1 | 2
+  /** 1–4. */
+  speakerCount: number
   background: ShowBackgroundPreference
   text: ShowTextPreference
-  speakerTransforms?: {
-    speaker1?: ShowSpeakerTransform
-    speaker2?: ShowSpeakerTransform
-  }
+  /** Left to right; missing entries fall back to the layout's slot positions. */
+  speakerTransforms?: ShowSpeakerTransform[]
+  /** Left to right, e.g. a recurring host's name. */
+  speakerNames?: string[]
   defaultTitleTemplate?: string
   createdAt?: string
   updatedAt?: string

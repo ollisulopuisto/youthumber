@@ -10,17 +10,14 @@ describe('Canvas 1280x720 & Layer Model Integration', () => {
   })
 
   it('maintains Text above speakers and speakers above background by default', () => {
-    const project = createDefaultProject()
-    expect(project.layerOrder[0]).toBe('background')
-    expect(project.layerOrder[1]).toBe('speaker1')
-    expect(project.layerOrder[2]).toBe('speaker2')
-    expect(project.layerOrder[3]).toBe('text')
+    const project = createDefaultProject('P', 4)
+    expect(project.layerOrder).toEqual(['background', ...project.speakers.map((s) => s.id), 'text'])
   })
 
   it('allows user to customize layer stack while keeping state deterministic', () => {
     const project = createDefaultProject()
-    // Put Speaker 2 behind Speaker 1
-    const customized = reorderLayers(project, ['background', 'speaker2', 'speaker1', 'text'])
-    expect(customized.layerOrder).toEqual(['background', 'speaker2', 'speaker1', 'text'])
+    const [a, b] = project.speakers.map((s) => s.id)
+    const customized = reorderLayers(project, ['background', b, a, 'text'])
+    expect(customized.layerOrder).toEqual(['background', b, a, 'text'])
   })
 })

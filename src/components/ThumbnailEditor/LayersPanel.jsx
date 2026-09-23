@@ -1,10 +1,17 @@
+import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
+
 function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility }) {
   const layerLabels = {
     text: { name: 'Headline Text', icon: 'T', color: 'text-amber-400' },
-    speaker2: { name: 'Speaker 2 (Right/Guest)', icon: '2', color: 'text-sky-400' },
-    speaker1: { name: 'Speaker 1 (Left/Host)', icon: '1', color: 'text-indigo-400' },
     background: { name: 'Background', icon: 'B', color: 'text-emerald-400' },
   }
+  project.speakers.forEach((speaker, i) => {
+    layerLabels[speaker.id] = {
+      name: speakerLabel(project, speaker.id),
+      icon: String(i + 1),
+      color: 'text-sky-400',
+    }
+  })
 
   // Visual order: top of stack first
   const displayOrder = [...project.layerOrder].reverse()
@@ -25,10 +32,9 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
   }
 
   const isVisible = (layerId) => {
-    if (layerId === 'speaker1') return project.speaker1.visible
-    if (layerId === 'speaker2') return project.speaker2.visible
     if (layerId === 'text') return project.text.visible
-    return true
+    const speaker = project.speakers.find((s) => s.id === layerId)
+    return speaker ? speaker.visible : true
   }
 
   return (
@@ -38,7 +44,7 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
           <span>Layers</span>
           <span className="text-[10px] lowercase text-gray-500 font-normal">(top to bottom)</span>
         </h3>
-        <span className="text-[10px] text-gray-500 font-mono">4 items</span>
+        <span className="text-[10px] text-gray-500 font-mono">{project.layerOrder.length} items</span>
       </div>
 
       <div className="flex flex-col gap-1.5 overflow-y-auto">

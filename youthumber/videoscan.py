@@ -1,9 +1,9 @@
-"""Scans a local video file for well-framed, in-focus faces using AVFoundation + Vision.
+"""Finds good frames of each person in a local video, using AVFoundation + Vision.
 
-Samples a frame every ``interval_seconds`` (skipping the very start), scores each
-sampled frame with Apple's own "best frame" API (VNDetectFaceCaptureQualityRequest,
-the same signal Photos uses for Top Shot) plus a cheap sharpness proxy, and returns
-the top-scoring candidates for the user to pick from manually.
+Samples a frame every ``interval_seconds`` (skipping the very start), finds every face
+in it, groups the faces into people, and ranks each person's frames with Apple's own
+"best frame" score (VNDetectFaceCaptureQualityRequest, the signal Photos uses for Top
+Shot) plus a cheap sharpness proxy, for the user to pick from manually.
 """
 
 from __future__ import annotations
@@ -20,8 +20,6 @@ from .segmentation import image_to_data_url
 logger = logging.getLogger(__name__)
 
 # Tunable defaults. Adjust these to change how frames are sampled and ranked.
-DEFAULT_INTERVAL_SECONDS = 60.0
-DEFAULT_MAX_CANDIDATES = 12
 MIN_FACE_HEIGHT_RATIO = 0.08  # reject frames where the largest face is smaller than this (of frame height)
 CAPTURE_QUALITY_WEIGHT = 0.7  # Vision's own face capture-quality score
 SHARPNESS_WEIGHT = 0.3  # blur/sharpness proxy, normalized across the candidate set
@@ -34,6 +32,10 @@ THUMBNAIL_MAX_SIDE = 640
 # speakers the project has, by average-linkage agglomerative clustering, which only
 # needs same-person pairs to be *closer* than different-person pairs.
 DEFAULT_NUM_PEOPLE = 2
+DEFAULT_FRAMES_PER_PERSON = 12
+# Every 30s rather than every minute: sampled frames are split between the people, and
+# the picker wants up to 12 per person. Not yet tuned on real footage.
+DEFAULT_SPEAKER_SCAN_INTERVAL_SECONDS = 30.0
 IDENTITY_CROP_MARGIN = 0.1  # tight crop for the feature print, so background/camera angle weigh less
 THUMBNAIL_CROP_MARGIN = 0.4  # looser crop (hair/shoulders) for the picker thumbnail
 CORE_MEMBER_FRACTION = 0.5  # best frame is picked from the half of a group closest to its centre
@@ -50,16 +52,6 @@ if sys.platform == "darwin":
         HAS_AVFOUNDATION = True
     except ImportError as e:
         logger.warning("AVFoundation/Vision not available for video scanning: %s", e)
-
-
-@dataclass
-class FrameCandidate:
-    timestamp_seconds: float
-    capture_quality: float
-    face_height_ratio: float
-    sharpness: float
-    image: Image.Image
-    score: float = 0.0
 
 
 @dataclass
@@ -113,32 +105,6 @@ def grab_cgimage_at_time(generator, seconds: float):
         logger.debug("Could not decode frame at %.1fs: %s", seconds, error)
         return None
     return cg_image
-
-
-def _face_quality(cg_image) -> tuple[bool, float, float]:
-    """Returns (has_face, capture_quality, largest_face_height_ratio) for a frame."""
-    import Vision
-
-    handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(cg_image, None)
-    quality_request = Vision.VNDetectFaceCaptureQualityRequest.alloc().initWithCompletionHandler_(
-        None
-    )
-    rect_request = Vision.VNDetectFaceRectanglesRequest.alloc().initWithCompletionHandler_(None)
-
-    success, _err = handler.performRequests_error_([quality_request, rect_request], None)
-    if not success:
-        return False, 0.0, 0.0
-
-    rects = rect_request.results() or []
-    qualities = quality_request.results() or []
-    if not rects:
-        return False, 0.0, 0.0
-
-    largest = max(rects, key=lambda r: r.boundingBox().size.height)
-    face_height_ratio = float(largest.boundingBox().size.height)
-    capture_quality = max((float(q.faceCaptureQuality()) for q in qualities), default=0.0)
-
-    return True, capture_quality, face_height_ratio
 
 
 def _detect_all_faces(cg_image) -> list[tuple]:
@@ -287,6 +253,23 @@ def _core_members(
     return ranked[:keep]
 
 
+def _frames_for_person(
+    group: list[FaceInstance],
+    max_frames: int = DEFAULT_FRAMES_PER_PERSON,
+    distance_fn=_feature_print_distance,
+) -> list[FaceInstance]:
+    """A person's frames to offer in the picker, best first.
+
+    The core of the group (most typical shots) comes first, ranked by quality, then the
+    rest — so a stray face grouped with this person can't top the list, but less typical
+    shots (often the more expressive ones) are still offered.
+    """
+    core = _core_members(group, distance_fn=distance_fn)
+    core_ids = {id(f) for f in core}
+    rest = [f for f in group if id(f) not in core_ids]
+    return (_rank_candidates(core) + _rank_candidates(rest))[:max_frames]
+
+
 def _sharpness_score(pil_image: Image.Image) -> float:
     """Cheap blur/sharpness proxy: variance of an edge-detected, downscaled grayscale frame."""
     import numpy as np
@@ -298,12 +281,8 @@ def _sharpness_score(pil_image: Image.Image) -> float:
     return float(np.asarray(edges, dtype="float32").var())
 
 
-def _rank_candidates(candidates: list) -> list:
-    """Combines capture quality and normalized sharpness into a single score, sorted best-first.
-
-    Works on any list of objects with ``.capture_quality``, ``.sharpness`` and a settable
-    ``.score`` — both ``FrameCandidate`` and ``FaceInstance`` qualify.
-    """
+def _rank_candidates(candidates: list[FaceInstance]) -> list[FaceInstance]:
+    """Combines capture quality and normalized sharpness into a single score, sorted best-first."""
     if not candidates:
         return []
 
@@ -318,56 +297,6 @@ def _rank_candidates(candidates: list) -> list:
         )
 
     return sorted(candidates, key=lambda c: c.score, reverse=True)
-
-
-def scan_video_for_best_frames(
-    video_path: str,
-    interval_seconds: float = DEFAULT_INTERVAL_SECONDS,
-    max_candidates: int = DEFAULT_MAX_CANDIDATES,
-) -> list[dict]:
-    """Samples a video at regular intervals and returns the top-scoring, face-containing frames."""
-    if not HAS_AVFOUNDATION:
-        raise RuntimeError("Video scanning requires macOS AVFoundation and Vision")
-
-    asset, generator = _make_generator(video_path)
-    duration = _duration_seconds(asset)
-    if duration <= 0:
-        raise RuntimeError("Could not read video duration")
-
-    candidates: list[FrameCandidate] = []
-    t = min(interval_seconds / 2, duration / 2)
-    while t < duration:
-        cg_image = grab_cgimage_at_time(generator, t)
-        if cg_image is not None:
-            has_face, capture_quality, face_height_ratio = _face_quality(cg_image)
-            if has_face and face_height_ratio >= MIN_FACE_HEIGHT_RATIO:
-                pil_image = _cgimage_to_pil(cg_image)
-                candidates.append(
-                    FrameCandidate(
-                        timestamp_seconds=t,
-                        capture_quality=capture_quality,
-                        face_height_ratio=face_height_ratio,
-                        sharpness=_sharpness_score(pil_image),
-                        image=pil_image,
-                    )
-                )
-        t += interval_seconds
-
-    ranked = _rank_candidates(candidates)[:max_candidates]
-
-    results = []
-    for c in ranked:
-        thumb = c.image.copy()
-        thumb.thumbnail((THUMBNAIL_MAX_SIDE, THUMBNAIL_MAX_SIDE))
-        results.append(
-            {
-                "timestampSeconds": round(c.timestamp_seconds, 1),
-                "score": round(c.score, 4),
-                "captureQuality": round(c.capture_quality, 4),
-                "image": image_to_data_url(thumb, format="JPEG"),
-            }
-        )
-    return results
 
 
 def grab_frame_at_time(video_path: str, timestamp_seconds: float) -> str:
@@ -386,8 +315,9 @@ def grab_frame_at_time(video_path: str, timestamp_seconds: float) -> str:
 
 def scan_video_for_speakers(
     video_path: str,
-    interval_seconds: float = DEFAULT_INTERVAL_SECONDS,
+    interval_seconds: float = DEFAULT_SPEAKER_SCAN_INTERVAL_SECONDS,
     num_people: int = DEFAULT_NUM_PEOPLE,
+    frames_per_person: int = DEFAULT_FRAMES_PER_PERSON,
 ) -> list[dict]:
     """Samples a video, detects every face per frame, groups the faces into
     ``num_people`` people, and returns each person's best-scoring frame — for the caller
@@ -437,18 +367,19 @@ def scan_video_for_speakers(
 
     results = []
     for group in groups:
-        best = _rank_candidates(_core_members(group))[0]
-        thumb = best.crop.copy()
-        thumb.thumbnail((THUMBNAIL_MAX_SIDE, THUMBNAIL_MAX_SIDE))
-        results.append(
-            {
-                "timestampSeconds": round(best.timestamp_seconds, 1),
-                "score": round(best.score, 4),
-                "captureQuality": round(best.capture_quality, 4),
-                "frameCount": len(group),
-                "image": image_to_data_url(thumb, format="JPEG"),
-            }
-        )
+        frames = []
+        for face in _frames_for_person(group, max_frames=frames_per_person):
+            thumb = face.crop.copy()
+            thumb.thumbnail((THUMBNAIL_MAX_SIDE, THUMBNAIL_MAX_SIDE))
+            frames.append(
+                {
+                    "timestampSeconds": round(face.timestamp_seconds, 1),
+                    "score": round(face.score, 4),
+                    "captureQuality": round(face.capture_quality, 4),
+                    "image": image_to_data_url(thumb, format="JPEG"),
+                }
+            )
+        results.append({"frameCount": len(group), "frames": frames})
 
     # Surface the most consistently-appearing people first — likely the main speakers,
     # ahead of background extras or one-off false detections.

@@ -2,6 +2,23 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.62] - 2026-09-23
+
+### Added
+- 1–4 speakers per project, with a layout per speaker count (Solo Centre, the three existing two-speaker layouts, Panel of Three, Panel of Four). New layouts are one entry in `src/modules/thumbnail/layouts.ts`
+- Speaker cards show position + editable name ("Left · Olli") and ← → buttons to swap positions; auto-frame re-fits cutouts to their new slots
+- Video picker: scan once, choose how many people are in the video, see up to 12 frames per person, click a frame to view it large (← → to browse), and put it on any speaker position. The scan is remembered, so filling the next speaker doesn't rescan
+- Show presets save and restore speaker count and names
+
+### Fixed
+- The per-speaker "Scan Video" always returned the same (largest) face whichever slot it was opened from; it now opens the same per-person picker
+- Canvas was cut off at the top and bottom in short windows; it now fits both width and height and always gets at least half the window
+- Background removal kept semi-transparent objects touching the person (a microphone came out as a grey blob); only the main body and its soft edge are kept now
+
+### Changed
+- Projects and show presets saved by earlier versions are converted automatically on load
+- Removed the old single-person `/scan-video` endpoint; `/scan-video-speakers` returns `frames` per person and takes `framesPerPerson`, sampling every 30s by default
+
 ## [26.09.23.61] - 2026-09-23
 
 ### Fixed

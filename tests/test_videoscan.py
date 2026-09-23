@@ -7,21 +7,15 @@ from PIL import Image
 from youthumber.server import create_app
 from youthumber.videoscan import (
     FaceInstance,
-    FrameCandidate,
     _core_members,
+    _frames_for_person,
     _group_faces,
     _rank_candidates,
 )
 
 
-def _candidate(quality: float, sharpness: float, t: float = 0.0) -> FrameCandidate:
-    return FrameCandidate(
-        timestamp_seconds=t,
-        capture_quality=quality,
-        face_height_ratio=0.3,
-        sharpness=sharpness,
-        image=Image.new("RGB", (4, 4)),
-    )
+def _candidate(quality: float, sharpness: float, t: float = 0.0) -> FaceInstance:
+    return _face("a", quality=quality, sharpness=sharpness, t=t)
 
 
 def _face(identity_label: str, quality: float = 0.5, sharpness: float = 100.0, t: float = 0.0) -> FaceInstance:
@@ -35,10 +29,6 @@ def _face(identity_label: str, quality: float = 0.5, sharpness: float = 100.0, t
         crop=Image.new("RGB", (4, 4)),
         feature_print=identity_label,
     )
-
-
-def _label_distance(a: str, b: str) -> float:
-    return 0.0 if a == b else 1.0
 
 
 def test_rank_candidates_prefers_higher_capture_quality() -> None:
@@ -73,16 +63,6 @@ def test_rank_candidates_handles_identical_sharpness_without_division_by_zero() 
 
 def test_rank_candidates_empty_list_returns_empty() -> None:
     assert _rank_candidates([]) == []
-
-
-def test_rank_candidates_also_works_on_face_instances() -> None:
-    # _rank_candidates is shared between FrameCandidate and FaceInstance by duck typing.
-    low = _face("a", quality=0.2, sharpness=100.0)
-    high = _face("a", quality=0.9, sharpness=100.0)
-
-    ranked = _rank_candidates([low, high])
-
-    assert ranked[0] is high
 
 
 def _noisy_distance(a: str, b: str) -> float:
@@ -135,6 +115,26 @@ def test_group_faces_drops_faces_without_feature_print() -> None:
     assert all(f.feature_print is not None for g in groups for f in g)
 
 
+def test_frames_for_person_lists_core_frames_first_then_the_rest_up_to_max() -> None:
+    core = [_face(f"host#{i}", quality=0.3 + i * 0.1, t=float(i)) for i in range(4)]
+    stranger = _face("stranger#0", quality=0.99, t=99.0)
+
+    frames = _frames_for_person(core + [stranger], max_frames=12, distance_fn=_noisy_distance)
+
+    # The typical (core) frames lead; the high-quality stray face is still offered,
+    # just never ahead of them.
+    core_count = len(_core_members(core + [stranger], distance_fn=_noisy_distance))
+    assert all(f.feature_print.startswith("host") for f in frames[:core_count])
+    assert stranger in frames[core_count:]
+    assert len(frames) == 5
+
+
+def test_frames_for_person_caps_at_max_frames() -> None:
+    group = [_face(f"host#{i}", t=float(i)) for i in range(20)]
+
+    assert len(_frames_for_person(group, max_frames=12, distance_fn=_noisy_distance)) == 12
+
+
 def test_core_members_excludes_outlier_from_best_frame_pool() -> None:
     # A one-off face forced into a person's group (a third person, a false detection)
     # must not be picked as that person's best frame, even with the top quality score.
@@ -160,25 +160,12 @@ def test_health_reports_video_scan_capability(client: TestClient) -> None:
     assert "hasVideoScan" in res.json()
 
 
-def test_scan_video_rejects_missing_file(client: TestClient) -> None:
-    res = client.post(
-        "/scan-video",
-        json={"path": "/nonexistent/path/video.mp4", "intervalSeconds": 60, "maxCandidates": 12},
-    )
-    assert res.status_code == 400
-
-
 def test_grab_frame_rejects_missing_file(client: TestClient) -> None:
     res = client.post(
         "/grab-frame",
         json={"path": "/nonexistent/path/video.mp4", "timestampSeconds": 10},
     )
     assert res.status_code == 400
-
-
-def test_scan_video_validates_request_body(client: TestClient) -> None:
-    res = client.post("/scan-video", json={})
-    assert res.status_code == 422
 
 
 def test_scan_video_speakers_rejects_missing_file(client: TestClient) -> None:

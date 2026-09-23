@@ -1,4 +1,5 @@
 import { backgroundGradientPresets } from '../../data/backgroundGradients'
+import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 
 function PropertiesPanel({
   selectedLayer,
@@ -154,15 +155,15 @@ function PropertiesPanel({
   }
 
   // 2. Speaker Properties
-  if (selectedLayer === 'speaker1' || selectedLayer === 'speaker2') {
-    const speaker = project[selectedLayer]
+  const speaker = project.speakers.find((s) => s.id === selectedLayer)
+  if (speaker) {
     const transform = speaker.transform
 
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
         <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <h3 className="font-bold uppercase tracking-wider text-sky-400 text-[11px]">
-            {speaker.name} Controls
+            {speakerLabel(project, speaker.id)}
           </h3>
           <button
             onClick={() => onResetSpeakerTransform(selectedLayer)}

@@ -10,19 +10,26 @@ import { applyShowPresetToProject } from './modules/shows/showPreferences'
 
 import {
   createDefaultProject,
+  getSpeaker,
+  currentLayout,
+  slotFrameFor,
+  isSpeakerLayer,
   setSpeakerSource,
   setSpeakerProcessing,
   setSpeakerCutout,
   updateSpeakerTransform,
   updateSpeakerMaskOptions,
   toggleSpeakerVisibility,
-  removeSpeaker,
+  clearSpeakerImage,
+  renameSpeaker,
+  setSpeakerCount,
+  moveSpeaker,
+  applyLayout,
   setBackgroundImage,
   setBackgroundColor,
   setBackgroundGradient,
   updateTextLayer,
   reorderLayers,
-  applyTemplateToProject,
 } from './modules/thumbnail/thumbnailState'
 
 import {
@@ -56,7 +63,7 @@ function App() {
       const loaded = loadProjectFromStorage(existing[0].id)
       if (loaded) return loaded
     }
-    return createDefaultProject('YouTube Dual Speaker Thumbnail')
+    return createDefaultProject('YouTube Thumbnail')
   })
 
   const [selectedLayer, setSelectedLayer] = useState('text')
@@ -77,48 +84,52 @@ function App() {
     setProject((prev) => ({ ...prev, name, updatedAt: new Date().toISOString() }))
   }
 
-  const handleSelectTemplate = (template) => {
-    setProject((prev) => applyTemplateToProject(prev, template))
+  /** Re-runs auto-frame for every speaker with a cutout, aiming at their slot in `next`. */
+  const reframeSpeakers = async (next) => {
+    for (const speaker of next.speakers) {
+      if (!speaker.cutoutUrl) continue
+      const frame = slotFrameFor(next, speaker.id)
+      if (!frame) continue
+      try {
+        const transform = await autoFrameSpeaker(speaker.cutoutUrl, frame)
+        if (transform) setProject((prev) => updateSpeakerTransform(prev, speaker.id, transform))
+      } catch (err) {
+        console.warn('Auto-frame failed:', err)
+      }
+    }
+  }
+
+  /** Applies a change that moves speakers between slots, then re-frames their cutouts. */
+  const applyAndReframe = (change) => {
+    const next = change(project)
+    if (next === project) return
+    setProject(next)
+    reframeSpeakers(next)
+  }
+
+  const handleSelectLayout = (layout) => {
+    applyAndReframe((prev) => applyLayout(prev, layout))
   }
 
   const handleApplyShowPreset = (showPreset) => {
     setProject((prev) => applyShowPresetToProject(prev, showPreset))
   }
 
-  const handleToggleSpeakerCount = () => {
-    setProject((prev) => {
-      const isSingle = !prev.speaker2.visible
-      if (isSingle) {
-        // Switch to 2 speakers
-        return {
-          ...prev,
-          speaker1: {
-            ...prev.speaker1,
-            visible: true,
-            transform: { ...prev.speaker1.transform, x: 350, y: 420, scaleX: 0.9, scaleY: 0.9 },
-          },
-          speaker2: {
-            ...prev.speaker2,
-            visible: true,
-            transform: { ...prev.speaker2.transform, x: 930, y: 420, scaleX: 0.9, scaleY: 0.9 },
-          },
-        }
-      } else {
-        // Switch to 1 speaker
-        return {
-          ...prev,
-          speaker1: {
-            ...prev.speaker1,
-            visible: true,
-            transform: { ...prev.speaker1.transform, x: 640, y: 430, scaleX: 1.05, scaleY: 1.05 },
-          },
-          speaker2: {
-            ...prev.speaker2,
-            visible: false,
-          },
-        }
-      }
-    })
+  const handleSetSpeakerCount = (count) => {
+    const dropped = project.speakers.slice(count).filter((s) => s.sourceImageUrl)
+    if (dropped.length && !confirm(`Remove ${dropped.map((s) => s.name).join(', ')} and their photos?`)) {
+      return
+    }
+    if (dropped.some((s) => s.id === selectedLayer)) setSelectedLayer(null)
+    applyAndReframe((prev) => setSpeakerCount(prev, count))
+  }
+
+  const handleMoveSpeaker = (speakerId, delta) => {
+    applyAndReframe((prev) => moveSpeaker(prev, speakerId, delta))
+  }
+
+  const handleRenameSpeaker = (speakerId, name) => {
+    setProject((prev) => renameSpeaker(prev, speakerId, name))
   }
 
   const handleSaveProject = () => {
@@ -151,8 +162,8 @@ function App() {
   }
 
   const handleTriggerRemoveBackground = async (slotId) => {
-    const speaker = project[slotId]
-    if (!speaker.sourceImageUrl) return
+    const speaker = getSpeaker(project, slotId)
+    if (!speaker?.sourceImageUrl) return
 
     setProject((prev) =>
       setSpeakerProcessing(prev, slotId, true, 5, 'Initializing background remover...')
@@ -189,10 +200,11 @@ function App() {
   }
 
   const handleAutoFrameSpeaker = async (slotId, cutoutUrlOverride) => {
-    const cutoutUrl = cutoutUrlOverride || project[slotId]?.cutoutUrl
-    if (!cutoutUrl) return
+    const cutoutUrl = cutoutUrlOverride || getSpeaker(project, slotId)?.cutoutUrl
+    const frame = slotFrameFor(project, slotId)
+    if (!cutoutUrl || !frame) return
     try {
-      const transform = await autoFrameSpeaker(cutoutUrl, slotId)
+      const transform = await autoFrameSpeaker(cutoutUrl, frame)
       if (transform) {
         setProject((prev) => updateSpeakerTransform(prev, slotId, transform))
       }
@@ -202,8 +214,7 @@ function App() {
   }
 
   const handleRemoveSpeaker = (slotId) => {
-    setProject((prev) => removeSpeaker(prev, slotId))
-    if (selectedLayer === slotId) setSelectedLayer(null)
+    setProject((prev) => clearSpeakerImage(prev, slotId))
   }
 
   const handleUpdateSpeakerTransform = useCallback((slotId, transform) => {
@@ -211,24 +222,17 @@ function App() {
   }, [])
 
   const handleResetSpeakerTransform = (slotId) => {
-    const defaultX = slotId === 'speaker1' ? 350 : 930
-    setProject((prev) =>
-      updateSpeakerTransform(prev, slotId, {
-        x: defaultX,
-        y: 420,
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 0,
-        flipX: false,
-      })
-    )
+    const index = project.speakers.findIndex((s) => s.id === slotId)
+    const slot = currentLayout(project).slots[index]
+    if (!slot) return
+    setProject((prev) => updateSpeakerTransform(prev, slotId, { ...slot.transform }))
   }
 
   const handleUpdateSpeakerMaskOptions = useCallback(
     async (slotId, newOptions) => {
       setProject((prev) => updateSpeakerMaskOptions(prev, slotId, newOptions))
 
-      const currentSpeaker = project[slotId]
+      const currentSpeaker = getSpeaker(project, slotId)
       if (currentSpeaker?.sourceImageUrl && currentSpeaker?.maskUrl) {
         const merged = {
           feather: 0,
@@ -244,14 +248,15 @@ function App() {
             currentSpeaker.maskUrl,
             merged
           )
-          setProject((prev) => ({
-            ...prev,
-            updatedAt: new Date().toISOString(),
-            [slotId]: {
-              ...prev[slotId],
-              cutoutUrl: newCutoutUrl,
-            },
-          }))
+          setProject((prev) =>
+            setSpeakerCutout(
+              prev,
+              slotId,
+              newCutoutUrl,
+              currentSpeaker.maskUrl,
+              currentSpeaker.removerId
+            )
+          )
         } catch (err) {
           console.warn('Live mask recompositing error:', err)
         }
@@ -298,7 +303,7 @@ function App() {
   }
 
   const handleToggleVisibility = (layerId) => {
-    if (layerId === 'speaker1' || layerId === 'speaker2') {
+    if (isSpeakerLayer(layerId)) {
       setProject((prev) => toggleSpeakerVisibility(prev, layerId))
     } else if (layerId === 'text') {
       setProject((prev) => updateTextLayer(prev, { visible: !prev.text.visible }))
@@ -311,19 +316,21 @@ function App() {
       <Toolbar
         project={project}
         onUpdateProjectName={handleUpdateProjectName}
-        onSelectTemplate={handleSelectTemplate}
+        onSelectLayout={handleSelectLayout}
         onApplyShowPreset={handleApplyShowPreset}
         onOpenShows={() => setShowShowsModal(true)}
         onSaveProject={handleSaveProject}
         onOpenProjects={() => setShowProjectsModal(true)}
         onExport={handleExport}
-        onToggleSpeakerCount={handleToggleSpeakerCount}
+        onSetSpeakerCount={handleSetSpeakerCount}
       />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      {/* The canvas always gets at least half the window height; the panels below scroll
+          rather than squeezing it (with 4 speaker cards it shrank to a sliver). */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {/* 2. Top / Canvas Area (Center 1280x720 Canvas) */}
-        <div className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-0 bg-gray-900/60 overflow-hidden">
+        <div className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden">
           <div className="w-full max-w-5xl h-full flex items-center justify-center">
             <ThumbnailStudioCanvas
               ref={canvasRef}
@@ -359,7 +366,7 @@ function App() {
           />
         </div>
 
-        {/* 4. Bottom Dock: Assets / Speaker 1 / Speaker 2 / Background */}
+        {/* 4. Bottom Dock: one card per speaker + background */}
         <div className="shrink-0">
           <SpeakerSlotsPanel
             project={project}
@@ -367,6 +374,8 @@ function App() {
             onTriggerRemoveBackground={handleTriggerRemoveBackground}
             onAutoFrameSpeaker={handleAutoFrameSpeaker}
             onRemoveSpeaker={handleRemoveSpeaker}
+            onRenameSpeaker={handleRenameSpeaker}
+            onMoveSpeaker={handleMoveSpeaker}
             onUploadBackgroundImage={handleUploadBackgroundImage}
             onClearBackgroundImage={handleClearBackgroundImage}
           />

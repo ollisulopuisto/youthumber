@@ -1,6 +1,10 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { fabric } from 'fabric'
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../modules/thumbnail/thumbnailState'
+import {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  isSpeakerLayer,
+} from '../../modules/thumbnail/thumbnailState'
 import { saveExportedImage } from '../../services/exportImage'
 
 const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
@@ -14,6 +18,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   },
   ref
 ) {
+  const fitRef = useRef(null)
   const containerRef = useRef(null)
   const canvasElRef = useRef(null)
   const fabricCanvasRef = useRef(null)
@@ -65,7 +70,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
       const layerId = obj.data.layerId
 
-      if (layerId === 'speaker1' || layerId === 'speaker2') {
+      if (isSpeakerLayer(layerId)) {
         onUpdateSpeakerTransform?.(layerId, {
           x: Math.round(obj.left || 0),
           y: Math.round(obj.top || 0),
@@ -87,11 +92,18 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       }
     })
 
-    // Handle responsive container scaling
+    // Fit the 16:9 canvas inside the available box — both width and height. Sizing by
+    // width alone cut off the top and bottom whenever the area was wide and short.
     const updateCanvasScale = () => {
-      if (!containerRef.current || !fabricCanvasRef.current) return
-      const containerWidth = containerRef.current.clientWidth
-      const scale = containerWidth / CANVAS_WIDTH
+      if (!fitRef.current || !containerRef.current || !fabricCanvasRef.current) return
+      const box = fitRef.current
+      const fitWidth = Math.min(
+        CANVAS_WIDTH,
+        box.clientWidth,
+        (box.clientHeight || Infinity) * (CANVAS_WIDTH / CANVAS_HEIGHT)
+      )
+      containerRef.current.style.width = `${fitWidth}px`
+      const scale = fitWidth / CANVAS_WIDTH
       const canvas = fabricCanvasRef.current
       canvas.setDimensions({
         width: CANVAS_WIDTH * scale,
@@ -105,8 +117,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       updateCanvasScale()
     })
 
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current)
+    if (fitRef.current) {
+      resizeObserver.observe(fitRef.current)
     }
 
     updateCanvasScale()
@@ -176,11 +188,16 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     // Helper to find existing object by layerId
     const findObj = (layerId) => canvas.getObjects().find((o) => o.data?.layerId === layerId)
 
-    // Sync Speaker 1
-    syncSpeakerObject(canvas, project.speaker1, 'speaker1')
+    // Drop canvas objects for speakers that no longer exist (speaker count went down)
+    const speakerIds = new Set(project.speakers.map((s) => s.id))
+    canvas
+      .getObjects()
+      .filter((o) => o.data?.layerId && isSpeakerLayer(o.data.layerId) && !speakerIds.has(o.data.layerId))
+      .forEach((o) => canvas.remove(o))
 
-    // Sync Speaker 2
-    syncSpeakerObject(canvas, project.speaker2, 'speaker2')
+    for (const speaker of project.speakers) {
+      syncSpeakerObject(canvas, speaker, speaker.id)
+    }
 
     // Sync Text layer
     syncTextObject(canvas, project.text)
@@ -371,12 +388,14 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   }))
 
   return (
-    <div className="w-full flex items-center justify-center p-2 sm:p-4 bg-gray-950/80 rounded-xl border border-gray-800 shadow-2xl">
-      <div
-        ref={containerRef}
-        className="w-full max-w-[1280px] aspect-[16/9] relative overflow-hidden rounded-lg shadow-inner bg-black flex items-center justify-center"
-      >
-        <canvas ref={canvasElRef} />
+    <div className="w-full h-full min-h-0 flex items-center justify-center p-2 sm:p-4 bg-gray-950/80 rounded-xl border border-gray-800 shadow-2xl">
+      <div ref={fitRef} className="w-full h-full min-h-0 flex items-center justify-center">
+        <div
+          ref={containerRef}
+          className="aspect-[16/9] relative overflow-hidden rounded-lg shadow-inner bg-black flex items-center justify-center"
+        >
+          <canvas ref={canvasElRef} />
+        </div>
       </div>
     </div>
   )

@@ -1,142 +1,128 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
-  DEFAULT_SHOW_PRESETS,
   loadShowPresets,
   saveShowPreset,
   deleteShowPreset,
   applyShowPresetToProject,
   createShowPresetFromProject,
 } from '../modules/shows/showPreferences'
-import { createDefaultProject, setSpeakerSource } from '../modules/thumbnail/thumbnailState'
+import {
+  createDefaultProject,
+  renameSpeaker,
+  setSpeakerSource,
+} from '../modules/thumbnail/thumbnailState'
 import type { ShowPreferences } from '../types/showPreset'
+
+const TEXT: ShowPreferences['text'] = {
+  fontFamily: 'Impact',
+  fontSize: 90,
+  fontWeight: '900',
+  textAlign: 'center',
+  fillColor: '#38BDF8',
+  strokeColor: '#000000',
+  strokeWidth: 6,
+}
 
 describe('Per-Show Saved Preferences', () => {
   beforeEach(() => {
     localStorage.clear()
   })
 
-  it('provides default show presets', () => {
+  it('provides default show presets for one and two speakers', () => {
     const presets = loadShowPresets()
-    expect(presets.length).toBeGreaterThanOrEqual(2)
-    const dualShow = presets.find((p) => p.speakerCount === 2)
-    const singleShow = presets.find((p) => p.speakerCount === 1)
-    expect(dualShow).toBeDefined()
-    expect(singleShow).toBeDefined()
+    expect(presets.some((p) => p.speakerCount === 1)).toBe(true)
+    expect(presets.some((p) => p.speakerCount === 2)).toBe(true)
   })
 
-  it('saves and reloads custom show presets from localStorage', () => {
-    const customShow: ShowPreferences = {
+  it('saves, reloads and deletes custom show presets', () => {
+    const show: ShowPreferences = {
       id: 'show_tech_talk',
       name: 'Tech Talk Live',
-      speakerCount: 1,
-      background: {
-        type: 'solid',
-        color: '#0f172a',
-      },
-      text: {
-        fontFamily: 'Bebas Neue',
-        fontSize: 84,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        fillColor: '#F59E0B',
-        strokeColor: '#000000',
-        strokeWidth: 5,
-        shadowColor: 'rgba(0,0,0,0.8)',
-        shadowBlur: 14,
-        shadowOffsetX: 3,
-        shadowOffsetY: 5,
-      },
+      speakerCount: 3,
+      background: { type: 'solid', color: '#0f172a' },
+      text: TEXT,
+      speakerNames: ['Olli', 'Anna', 'Pekka'],
     }
 
-    saveShowPreset(customShow)
-    const presets = loadShowPresets()
-    const found = presets.find((p) => p.id === 'show_tech_talk')
-    expect(found).toBeDefined()
-    expect(found?.name).toBe('Tech Talk Live')
-    expect(found?.text.fontFamily).toBe('Bebas Neue')
-    expect(found?.text.fillColor).toBe('#F59E0B')
+    saveShowPreset(show)
+    const found = loadShowPresets().find((p) => p.id === 'show_tech_talk')
+    expect(found?.speakerNames).toEqual(['Olli', 'Anna', 'Pekka'])
+
+    deleteShowPreset('show_tech_talk')
+    expect(loadShowPresets().some((p) => p.id === 'show_tech_talk')).toBe(false)
   })
 
-  it('deletes custom show preset', () => {
-    const customShow: ShowPreferences = {
-      id: 'to_delete',
-      name: 'Disposable Show',
-      speakerCount: 2,
-      background: { type: 'solid', color: '#000000' },
-      text: {
-        fontFamily: 'Montserrat',
-        fontSize: 60,
-        fontWeight: 'normal',
-        textAlign: 'center',
-        fillColor: '#FFFFFF',
-      },
-    }
+  it('migrates stored v1 presets with speaker1/speaker2 transforms', () => {
+    localStorage.setItem(
+      'yt_thumb_show_presets',
+      JSON.stringify([
+        {
+          id: 'old_show',
+          name: 'Old Show',
+          speakerCount: 2,
+          background: { type: 'solid', color: '#000' },
+          text: TEXT,
+          speakerTransforms: {
+            speaker1: { x: 300, y: 440, scale: 0.9, rotation: 0 },
+            speaker2: { x: 980, y: 440, scale: 0.9, rotation: 0 },
+          },
+        },
+      ])
+    )
 
-    saveShowPreset(customShow)
-    expect(loadShowPresets().some((p) => p.id === 'to_delete')).toBe(true)
+    const old = loadShowPresets().find((p) => p.id === 'old_show')
 
-    deleteShowPreset('to_delete')
-    expect(loadShowPresets().some((p) => p.id === 'to_delete')).toBe(false)
+    expect(old?.speakerTransforms).toEqual([
+      { x: 300, y: 440, scale: 0.9, rotation: 0 },
+      { x: 980, y: 440, scale: 0.9, rotation: 0 },
+    ])
   })
 
-  it('applies show preset to project: configures speaker count, background, and typography', () => {
+  it('applies a show preset: speaker count, names, placement, background and typography', () => {
     let project = createDefaultProject('My Episode')
-    project = setSpeakerSource(project, 'speaker1', 'photo1')
-    project = setSpeakerSource(project, 'speaker2', 'photo2')
+    project = setSpeakerSource(project, project.speakers[0].id, 'photo1')
 
-    const singleSpeakerShow: ShowPreferences = {
-      id: 'solo_breakdown',
-      name: 'Solo Breakdown',
-      speakerCount: 1,
-      background: {
-        type: 'solid',
-        color: '#1e1b4b',
-      },
-      text: {
-        fontFamily: 'Impact',
-        fontSize: 90,
-        fontWeight: '900',
-        textAlign: 'center',
-        fillColor: '#38BDF8',
-        strokeColor: '#000000',
-        strokeWidth: 6,
-      },
-      speakerTransforms: {
-        speaker1: { x: 640, y: 440, scale: 1.1, rotation: 0 },
-      },
+    const show: ShowPreferences = {
+      id: 'panel',
+      name: 'Panel',
+      speakerCount: 3,
+      background: { type: 'solid', color: '#1e1b4b' },
+      text: TEXT,
+      speakerNames: ['Olli', 'Anna', 'Pekka'],
+      speakerTransforms: [{ x: 200, y: 440, scale: 0.7, rotation: 0 }],
     }
 
-    const applied = applyShowPresetToProject(project, singleSpeakerShow)
+    const applied = applyShowPresetToProject(project, show)
 
-    // Speaker 1 is centered and visible, Speaker 2 is hidden
-    expect(applied.speaker1.visible).toBe(true)
-    expect(applied.speaker1.transform.x).toBe(640)
-    expect(applied.speaker1.transform.scaleX).toBe(1.1)
-    expect(applied.speaker2.visible).toBe(false)
-
-    // Existing photos are preserved
-    expect(applied.speaker1.sourceImageUrl).toBe('photo1')
-
-    // Background and typography are updated
+    expect(applied.speakers.map((s) => s.name)).toEqual(['Olli', 'Anna', 'Pekka'])
+    expect(applied.speakers[0].sourceImageUrl).toBe('photo1')
+    expect(applied.speakers[0].transform).toMatchObject({ x: 200, scaleX: 0.7, scaleY: 0.7 })
     expect(applied.background.color).toBe('#1e1b4b')
     expect(applied.text.fontFamily).toBe('Impact')
-    expect(applied.text.fillColor).toBe('#38BDF8')
-    expect(applied.text.fontSize).toBe(90)
   })
 
-  it('creates new ShowPreferences from existing project configuration', () => {
-    const project = createDefaultProject('Custom Live')
-    project.speaker2.visible = false
-    project.background.color = '#7c3aed'
-    project.text.fontFamily = 'Anton'
-    project.text.fillColor = '#22C55E'
+  it('applying a one-speaker show drops the other speakers', () => {
+    const show: ShowPreferences = {
+      id: 'solo',
+      name: 'Solo',
+      speakerCount: 1,
+      background: { type: 'solid', color: '#000' },
+      text: TEXT,
+    }
+
+    expect(applyShowPresetToProject(createDefaultProject(), show).speakers).toHaveLength(1)
+  })
+
+  it('creates a show preset from a project, including count and names', () => {
+    let project = createDefaultProject('Custom Live', 3)
+    project = renameSpeaker(project, project.speakers[0].id, 'Olli')
+    project = { ...project, text: { ...project.text, fontFamily: 'Anton' } }
 
     const preset = createShowPresetFromProject('Friday Live', project)
 
-    expect(preset.name).toBe('Friday Live')
-    expect(preset.speakerCount).toBe(1)
-    expect(preset.background.color).toBe('#7c3aed')
+    expect(preset.speakerCount).toBe(3)
+    expect(preset.speakerNames).toEqual(['Olli', 'Guest', 'Guest 2'])
+    expect(preset.speakerTransforms).toHaveLength(3)
     expect(preset.text.fontFamily).toBe('Anton')
-    expect(preset.text.fillColor).toBe('#22C55E')
   })
 })

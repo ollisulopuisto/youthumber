@@ -10,18 +10,17 @@ import { applyMaskToImageData } from '../services/background-removal/composite'
 describe('Mask Refinement (Feather, Choke/Expand, Opacity)', () => {
   it('updates speaker mask refinement options in project state', () => {
     let project = createDefaultProject()
-    project = setSpeakerSource(project, 'speaker1', 'photo1')
-    project = setSpeakerCutout(project, 'speaker1', 'cutout1', 'mask1')
+    const id = project.speakers[0].id
+    project = setSpeakerSource(project, id, 'photo1')
+    project = setSpeakerCutout(project, id, 'cutout1', 'mask1')
 
-    const updated = updateSpeakerMaskOptions(project, 'speaker1', {
+    const updated = updateSpeakerMaskOptions(project, id, {
       feather: 4,
       threshold: 120,
       opacity: 0.9,
     })
 
-    expect(updated.speaker1.maskOptions?.feather).toBe(4)
-    expect(updated.speaker1.maskOptions?.threshold).toBe(120)
-    expect(updated.speaker1.maskOptions?.opacity).toBe(0.9)
+    expect(updated.speakers[0].maskOptions).toMatchObject({ feather: 4, threshold: 120, opacity: 0.9 })
   })
 
   it('adjusts alpha channel when choke threshold is increased', () => {
@@ -56,11 +55,10 @@ describe('Mask Refinement (Feather, Choke/Expand, Opacity)', () => {
 
   it('preserves existing mask options when partially updating', () => {
     let project = createDefaultProject()
-    project = updateSpeakerMaskOptions(project, 'speaker1', { feather: 5, opacity: 0.8 })
-    project = updateSpeakerMaskOptions(project, 'speaker1', { threshold: 40 })
+    const id = project.speakers[0].id
+    project = updateSpeakerMaskOptions(project, id, { feather: 5, opacity: 0.8 })
+    project = updateSpeakerMaskOptions(project, id, { threshold: 40 })
 
-    expect(project.speaker1.maskOptions?.feather).toBe(5)
-    expect(project.speaker1.maskOptions?.threshold).toBe(40)
-    expect(project.speaker1.maskOptions?.opacity).toBe(0.8)
+    expect(project.speakers[0].maskOptions).toMatchObject({ feather: 5, threshold: 40, opacity: 0.8 })
   })
 })

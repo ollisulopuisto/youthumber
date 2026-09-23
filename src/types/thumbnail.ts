@@ -15,7 +15,9 @@ export interface MaskRefinementOptions {
 }
 
 export interface SpeakerState {
-  id: 'speaker1' | 'speaker2'
+  /** Stable generated id (`spk_…`), also the speaker's canvas/layer id. Position = index in `speakers`. */
+  id: string
+  /** User-editable name shown next to the position label, e.g. "Left · Olli". */
   name: string
   sourceImageUrl: string | null
   sourceImageHash?: string
@@ -67,7 +69,8 @@ export interface TextLayerState {
   visible: boolean
 }
 
-export type LayerId = 'background' | 'speaker1' | 'speaker2' | 'text'
+/** 'background', 'text', or a speaker's id. */
+export type LayerId = string
 
 export interface CanvasDimensions {
   width: 1280
@@ -82,18 +85,32 @@ export interface ThumbnailProject {
   version: number
   canvas: CanvasDimensions
   background: BackgroundState
-  speaker1: SpeakerState
-  speaker2: SpeakerState
+  /** 1–4 speakers, ordered left to right on the thumbnail. */
+  speakers: SpeakerState[]
+  layoutId: string
   text: TextLayerState
   layerOrder: LayerId[]
 }
 
-export interface CompositionTemplate {
+/** Where auto-frame aims a speaker's detected person: centre point and height, in canvas px. */
+export interface SlotFrame {
+  centerX: number
+  centerY: number
+  personHeight: number
+}
+
+export interface SlotLayout {
+  /** Default placement when there's no cutout to auto-frame from. */
+  transform: TransformState
+  frame: SlotFrame
+}
+
+export interface LayoutPreset {
   id: string
   name: string
   description?: string
-  backgroundTransform: { x: number; y: number; scaleX: number; scaleY: number }
-  speaker1Transform: TransformState
-  speaker2Transform: TransformState
+  speakerCount: number
+  /** One per speaker, left to right. */
+  slots: SlotLayout[]
   textStyleAndPosition: Omit<TextLayerState, 'text'> & { defaultText?: string }
 }

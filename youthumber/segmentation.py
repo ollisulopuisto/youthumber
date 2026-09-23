@@ -47,6 +47,67 @@ def image_to_data_url(image: Image.Image, format: str = "PNG") -> str:
     return f"data:{mime};base64,{b64}"
 
 
+# Regions connect only through near-opaque pixels. A mic remnant that touched the host's
+# shoulder had alpha 40-145 vs 255 for the body (2026-09-23): at 64 it stayed attached,
+# at 200 it came off with the body and hair edges intact.
+REGION_CONNECT_THRESHOLD = 200
+REGION_EDGE_GROW = 2  # work-scale pixels of soft edge kept around the body (~8px at 1080p)
+REGION_WORK_WIDTH = 480  # regions are found on a downscaled copy; 1080p masks otherwise take seconds
+
+
+def keep_largest_region(mask: Image.Image) -> Image.Image:
+    """Keeps only the largest connected region of a soft person mask.
+
+    Vision's person segmentation also keeps objects near the person — a microphone in
+    front of the host came out as a floating grey blob (2026-09-23). Anything not
+    connected to the main body is dropped; soft edges of the kept region are preserved.
+    """
+    from collections import deque
+
+    import numpy as np
+
+    full = np.asarray(mask.convert("L"))
+    height, width = full.shape
+    scale = min(1.0, REGION_WORK_WIDTH / width)
+    work_w, work_h = max(1, round(width * scale)), max(1, round(height * scale))
+    small = np.asarray(mask.convert("L").resize((work_w, work_h), Image.Resampling.NEAREST))
+    solid = small > REGION_CONNECT_THRESHOLD
+    if not solid.any():
+        return mask.convert("L")
+
+    labels = np.zeros(solid.shape, dtype=np.int32)
+    sizes = [0]
+    for start in zip(*np.nonzero(solid)):
+        if labels[start]:
+            continue
+        label = len(sizes)
+        labels[start] = label
+        queue, size = deque([start]), 0
+        while queue:
+            y, x = queue.popleft()
+            size += 1
+            for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+                if 0 <= ny < work_h and 0 <= nx < work_w and solid[ny, nx] and not labels[ny, nx]:
+                    labels[ny, nx] = label
+                    queue.append((ny, nx))
+        sizes.append(size)
+
+    # Grow a little so the soft (below-threshold) edge around the body survives.
+    grown = labels == int(np.argmax(sizes))
+    for _ in range(REGION_EDGE_GROW):
+        step = grown.copy()
+        step[1:] |= grown[:-1]
+        step[:-1] |= grown[1:]
+        step[:, 1:] |= grown[:, :-1]
+        step[:, :-1] |= grown[:, 1:]
+        grown = step
+
+    keep_full = np.asarray(
+        Image.fromarray(grown.astype(np.uint8) * 255).resize((width, height), Image.Resampling.NEAREST)
+    )
+    return Image.fromarray(np.where(keep_full > 0, full, 0).astype(np.uint8), mode="L")
+
+
 def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
     """Segments a person using macOS Vision framework (VNGeneratePersonSegmentationRequest).
 
@@ -97,7 +158,7 @@ def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
     Quartz.CGImageDestinationFinalize(dest)
 
     mask_pil = Image.open(io.BytesIO(bytes(data))).convert("L")
-    mask_resized = mask_pil.resize((width, height), Image.Resampling.BILINEAR)
+    mask_resized = keep_largest_region(mask_pil.resize((width, height), Image.Resampling.BILINEAR))
 
     cutout = orig.convert("RGBA")
     cutout.putalpha(mask_resized)

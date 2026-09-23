@@ -19,12 +19,11 @@ from .segmentation import (
     segment_image,
 )
 from .videoscan import (
-    DEFAULT_INTERVAL_SECONDS,
-    DEFAULT_MAX_CANDIDATES,
+    DEFAULT_FRAMES_PER_PERSON,
     DEFAULT_NUM_PEOPLE,
+    DEFAULT_SPEAKER_SCAN_INTERVAL_SECONDS,
     HAS_AVFOUNDATION,
     grab_frame_at_time,
-    scan_video_for_best_frames,
     scan_video_for_speakers,
 )
 
@@ -38,12 +37,6 @@ class RemovalRequest(BaseModel):
     threshold: float | None = None
 
 
-class VideoScanRequest(BaseModel):
-    path: str = Field(..., description="Absolute path to a local video file")
-    intervalSeconds: float = Field(DEFAULT_INTERVAL_SECONDS, gt=0)
-    maxCandidates: int = Field(DEFAULT_MAX_CANDIDATES, gt=0, le=50)
-
-
 class GrabFrameRequest(BaseModel):
     path: str = Field(..., description="Absolute path to a local video file")
     timestampSeconds: float = Field(..., ge=0)
@@ -51,8 +44,9 @@ class GrabFrameRequest(BaseModel):
 
 class VideoSpeakerScanRequest(BaseModel):
     path: str = Field(..., description="Absolute path to a local video file")
-    intervalSeconds: float = Field(DEFAULT_INTERVAL_SECONDS, gt=0)
+    intervalSeconds: float = Field(DEFAULT_SPEAKER_SCAN_INTERVAL_SECONDS, gt=0)
     numPeople: int = Field(DEFAULT_NUM_PEOPLE, gt=0, le=6)
+    framesPerPerson: int = Field(DEFAULT_FRAMES_PER_PERSON, gt=0, le=30)
 
 
 def create_app(dist_dir: Path | None = None) -> FastAPI:
@@ -63,7 +57,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.61",
+        version="26.09.23.62",
     )
 
     app.add_middleware(
@@ -118,24 +112,6 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 status_code=500, detail=f"Segmentation failed: {err}"
             ) from err
 
-    @app.post("/scan-video")
-    async def scan_video(req: VideoScanRequest) -> JSONResponse:
-        if not HAS_AVFOUNDATION:
-            raise HTTPException(
-                status_code=501, detail="Video scanning requires macOS AVFoundation/Vision"
-            )
-        if not Path(req.path).is_file():
-            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
-
-        try:
-            candidates = scan_video_for_best_frames(
-                req.path, req.intervalSeconds, req.maxCandidates
-            )
-            return JSONResponse({"candidates": candidates})
-        except Exception as err:
-            logger.exception("Video scan failed")
-            raise HTTPException(status_code=500, detail=f"Video scan failed: {err}") from err
-
     @app.post("/scan-video-speakers")
     async def scan_video_speakers(req: VideoSpeakerScanRequest) -> JSONResponse:
         if not HAS_AVFOUNDATION:
@@ -146,7 +122,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
 
         try:
-            people = scan_video_for_speakers(req.path, req.intervalSeconds, req.numPeople)
+            people = scan_video_for_speakers(
+                req.path, req.intervalSeconds, req.numPeople, req.framesPerPerson
+            )
             return JSONResponse({"people": people})
         except Exception as err:
             logger.exception("Multi-speaker video scan failed")
