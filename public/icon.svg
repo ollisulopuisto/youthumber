@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
 <title>YouThumber</title>
-<defs><linearGradient id="g0" gradientUnits="userSpaceOnUse" x1="100" y1="924" x2="924" y2="100"><stop offset="0" stop-color="#DC2626"/><stop offset="1" stop-color="#F59E0B"/></linearGradient><linearGradient id="g5" gradientUnits="userSpaceOnUse" x1="232" y1="560" x2="232" y2="665"><stop offset="0" stop-color="#FBBF24"/><stop offset="1" stop-color="#F59E0B"/></linearGradient><clipPath id="c5"><rect x="220" y="368" width="584" height="297" rx="30"/></clipPath></defs>
+<defs><linearGradient id="g0" gradientUnits="userSpaceOnUse" x1="100" y1="924" x2="924" y2="100"><stop offset="0" stop-color="#DC2626"/><stop offset="1" stop-color="#F59E0B"/></linearGradient><clipPath id="c1_0"><ellipse cx="325" cy="510" rx="110" ry="110"/></clipPath><clipPath id="c1_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c2_0"><ellipse cx="325" cy="510" rx="110" ry="110"/></clipPath><clipPath id="c2_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c3_0"><ellipse cx="325" cy="510" rx="110" ry="110"/></clipPath><clipPath id="c3_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c4_0"><ellipse cx="325" cy="510" rx="110" ry="110"/></clipPath><clipPath id="c4_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c5_0"><ellipse cx="325" cy="825" rx="225" ry="187.5"/></clipPath><clipPath id="c5_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c6_0"><ellipse cx="325" cy="825" rx="225" ry="187.5"/></clipPath><clipPath id="c6_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c7_0"><ellipse cx="325" cy="825" rx="225" ry="187.5"/></clipPath><clipPath id="c7_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c8_0"><ellipse cx="325" cy="825" rx="225" ry="187.5"/></clipPath><clipPath id="c8_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c9_0"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath><clipPath id="c10_0"><rect x="0" y="0" width="1024" height="814"/></clipPath><clipPath id="c10_1"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath></defs>
 <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#g0)"/>
-<rect x="184" y="352" width="656" height="369" rx="60" fill="#7F1D1D" fill-opacity="0.35"/>
-<rect x="184" y="332" width="656" height="369" rx="60" fill="#FFFFFF"/>
-<rect x="220" y="368" width="584" height="297" rx="30" fill="#111827"/>
-<ellipse cx="370" cy="482" rx="64" ry="64" fill="#FBBF24"/>
-<ellipse cx="370" cy="670" rx="138" ry="110" fill="url(#g5)" clip-path="url(#c5)"/>
-<rect x="536" y="446" width="214" height="56" rx="28" fill="#FFFFFF"/>
-<rect x="536" y="530" width="150" height="56" rx="28" fill="#FBBF24"/>
-<rect x="672" y="604" width="196" height="140" rx="40" fill="#7F1D1D" fill-opacity="0.35"/>
-<rect x="672" y="588" width="196" height="140" rx="40" fill="#DC2626"/>
-<polygon points="748,624 748,692 806,658" fill="#FFFFFF"/>
+<g clip-path="url(#c1_1)"><g clip-path="url(#c1_0)"><rect x="75" y="400" width="500" height="524" fill="#E5E7EB"/></g></g>
+<g clip-path="url(#c2_1)"><g clip-path="url(#c2_0)"><rect x="75" y="650" width="250" height="250" fill="#9CA3AF"/></g></g>
+<g clip-path="url(#c3_1)"><g clip-path="url(#c3_0)"><rect x="325" y="400" width="250" height="250" fill="#9CA3AF"/></g></g>
+<g clip-path="url(#c4_1)"><g clip-path="url(#c4_0)"><rect x="325" y="900" width="250" height="250" fill="#9CA3AF"/></g></g>
+<g clip-path="url(#c5_1)"><g clip-path="url(#c5_0)"><rect x="75" y="400" width="500" height="524" fill="#E5E7EB"/></g></g>
+<g clip-path="url(#c6_1)"><g clip-path="url(#c6_0)"><rect x="75" y="650" width="250" height="250" fill="#9CA3AF"/></g></g>
+<g clip-path="url(#c7_1)"><g clip-path="url(#c7_0)"><rect x="325" y="400" width="250" height="250" fill="#9CA3AF"/></g></g>
+<g clip-path="url(#c8_1)"><g clip-path="url(#c8_0)"><rect x="325" y="900" width="250" height="250" fill="#9CA3AF"/></g></g>
+<g clip-path="url(#c9_0)"><ellipse cx="685" cy="400" rx="110" ry="110" fill="#FFFFFF"/></g>
+<g clip-path="url(#c10_1)"><g clip-path="url(#c10_0)"><ellipse cx="685" cy="715" rx="225" ry="187.5" fill="#FFFFFF"/></g></g>
 </svg>

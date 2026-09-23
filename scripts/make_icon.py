@@ -1,15 +1,20 @@
 """Draws the YouThumber app icon from vector shapes.
 
-The icon is described once, as shapes on a 1024 canvas, and written out twice:
-- ``public/icon.svg``: the browser favicon and the toolbar logo.
-- PNGs drawn with macOS CoreGraphics (vector, anti-aliased at every size), for the dock
-  icon (``public/favicon.png``) and the app bundle (``assets/YouThumber.icns``).
+The picture: a person lifted out of a photo, leaving a see-through (checkerboard) hole,
+which is what the app does to a video frame.
+
+The icon is described once, as shapes on a 1024 canvas, in two levels of detail:
+- detailed (64 px and up): dark tile, photo card, fine checkerboard, shadows.
+- small (16 and 32 pt): the tile is the photo, bigger shapes, a 2x2 checkerboard, no
+  shadows, so it still scans in a browser tab or a Finder list.
+
+Outputs:
+- ``public/icon.svg`` (small art): favicon and toolbar logo, shown at 16-36 px.
+- PNGs drawn with macOS CoreGraphics (vector, anti-aliased at every size):
+  ``public/favicon.png`` (dock icon) and ``assets/YouThumber.icns`` (app bundle).
 
 Run: ``uv run python scripts/make_icon.py`` (the PNG/ICNS part needs macOS).
 Edit this file, not the outputs; a test checks the committed SVG matches it.
-
-The picture: a thumbnail card (16:9, white frame) on the brand's red→amber tile, with
-a speaker cut out on the left, two headline bars on the right and a red play badge.
 """
 
 from __future__ import annotations
@@ -23,11 +28,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SIZE = 1024
 
-RED = "#DC2626"  # Tailwind red-600, as the toolbar badge used
+RED = "#DC2626"  # Tailwind red-600
 AMBER = "#F59E0B"  # amber-500
-AMBER_LIGHT = "#FBBF24"  # amber-400
-SCREEN = "#111827"  # gray-900, the editor's own background
+TILE_TOP, TILE_BOTTOM = "#1F2937", "#0B0F19"  # the editor's dark greys
+CHECK_LIGHT, CHECK_DARK = "#E5E7EB", "#9CA3AF"  # the usual "transparent" pattern
 WHITE = "#FFFFFF"
+SHADOW = "#000000"
 
 
 @dataclass
@@ -41,56 +47,128 @@ class Gradient:
 
 @dataclass
 class Shape:
-    kind: str  # "rect" (rounded), "ellipse" or "polygon"
-    box: tuple[float, float, float, float]  # x, y, width, height (unused for polygon)
-    fill: str | Gradient
+    kind: str  # "rect" (rounded) or "ellipse"
+    box: tuple[float, float, float, float]  # x, y, width, height
+    fill: str | Gradient | None = None
     radius: float = 0.0
     opacity: float = 1.0
-    clip: tuple[float, float, float, float, float] | None = None  # x, y, w, h, radius
-    points: tuple[tuple[float, float], ...] = field(default_factory=tuple)
+    clip: list[Shape] = field(default_factory=list)  # drawn only inside all of these
 
 
-# macOS icon grid: the tile is 824 px inside a 1024 canvas, corner radius ~185.
-TILE = (100, 100, 824, 824)
-CARD = (184, 332, 656, 369)  # 16:9
-CARD_RADIUS = 60
-SCREEN_BOX = (220, 368, 584, 297)
-SCREEN_RADIUS = 30
-SCREEN_CLIP = (*SCREEN_BOX, SCREEN_RADIUS)
+TILE = (100, 100, 824, 824)  # macOS icon grid: 824 px tile inside the 1024 canvas
+TILE_RADIUS = 185
+WARM = Gradient((100, 924), (924, 100), (RED, AMBER))
+DARK = Gradient((100, 100), (100, 924), (TILE_TOP, TILE_BOTTOM))
 
-SHAPES = [
-    Shape("rect", TILE, Gradient((100, 924), (924, 100), (RED, AMBER)), radius=185),
-    # Flat drop shadow under the card: crisp at every size, unlike a blur.
-    Shape("rect", (184, 352, 656, 369), "#7F1D1D", radius=CARD_RADIUS, opacity=0.35),
-    Shape("rect", CARD, WHITE, radius=CARD_RADIUS),
-    Shape("rect", SCREEN_BOX, SCREEN, radius=SCREEN_RADIUS),
-    # The speaker: head and shoulders, shoulders cut off by the screen's bottom edge.
-    Shape("ellipse", (306, 418, 128, 128), AMBER_LIGHT),
-    Shape(
-        "ellipse",
-        (232, 560, 276, 220),
-        Gradient((232, 560), (232, 665), (AMBER_LIGHT, AMBER)),
-        clip=SCREEN_CLIP,
-    ),
-    # Headline text bars.
-    Shape("rect", (536, 446, 214, 56), WHITE, radius=28),
-    Shape("rect", (536, 530, 150, 56), AMBER_LIGHT, radius=28),
-    # A play badge over the card's corner, so it reads as a video thumbnail.
-    Shape("rect", (672, 604, 196, 140), "#7F1D1D", radius=40, opacity=0.35),
-    Shape("rect", (672, 588, 196, 140), RED, radius=40),
-    Shape("polygon", (0, 0, 0, 0), WHITE, points=((748, 624), (748, 692), (806, 658))),
-]
+
+def _person(cx: float, top: float, scale: float) -> tuple[Shape, Shape]:
+    """Head and shoulders outlines; ``cx`` is the centre line, ``top`` the top of the head."""
+    head_r = 88 * scale
+    head = Shape("ellipse", (cx - head_r, top, 2 * head_r, 2 * head_r))
+    body_w, body_h = 360 * scale, 300 * scale
+    body = Shape(
+        "ellipse", (cx - body_w / 2, top + 2 * head_r + 14 * scale, body_w, body_h)
+    )
+    return head, body
+
+
+def shapes(detail: bool) -> list[Shape]:
+    if detail:
+        card, card_r, scale, person_x, lift, top_gap = (
+            (150, 300, 724, 424),
+            44,
+            1.0,
+            215,
+            (250, -110),
+            34,
+        )
+    else:
+        card, card_r, scale, person_x, lift, top_gap = (
+            TILE,
+            TILE_RADIUS,
+            1.25,
+            225,
+            (360, -110),
+            300,
+        )
+    cx, cy, cw, ch = card
+    card_clip = Shape("rect", card, radius=card_r)
+    hole_x, top = cx + person_x, cy + top_gap
+    head, body = _person(hole_x, top, scale)
+
+    out: list[Shape] = []
+    if detail:
+        out += [
+            Shape("rect", TILE, DARK, radius=TILE_RADIUS),
+            Shape("rect", (cx, cy + 18, cw, ch), SHADOW, card_r, opacity=0.35),
+        ]
+    out.append(Shape("rect", card, WARM, radius=card_r))
+
+    # The hole the person left: a checkerboard, the usual sign for "transparent".
+    hole = (hole_x - 200 * scale, top, 400 * scale, cy + ch - top)
+    columns = 6 if detail else 2
+    cell = hole[2] / columns
+    rows = int(hole[3] / cell) + 1
+    for part in (head, body):
+        clip = [part, card_clip]
+        out.append(Shape("rect", hole, CHECK_LIGHT, clip=clip))
+        for i in range(columns):
+            for j in range(rows):
+                if (i + j) % 2:
+                    square = (hole[0] + i * cell, hole[1] + j * cell, cell, cell)
+                    out.append(Shape("rect", square, CHECK_DARK, clip=clip))
+
+    # The person, lifted up and to the right, cut straight where it left the photo.
+    dx, dy = lift
+    lifted_head, lifted_body = _person(hole_x + dx, top + dy, scale)
+    cut = Shape("rect", (0, 0, SIZE, cy + ch + dy))
+    if detail:
+        for part, extra_clip in ((lifted_head, []), (lifted_body, [cut])):
+            x, y, w, h = part.box
+            shadow_clip = [Shape("rect", (0, 0, SIZE, cy + ch + dy + 22))]
+            out.append(
+                Shape(
+                    "ellipse",
+                    (x + 16, y + 22, w, h),
+                    SHADOW,
+                    opacity=0.3,
+                    clip=shadow_clip if extra_clip else [],
+                )
+            )
+        out += [
+            Shape("ellipse", lifted_head.box, WHITE),
+            Shape("ellipse", lifted_body.box, WHITE, clip=[cut]),
+        ]
+    else:
+        out += [
+            Shape("ellipse", lifted_head.box, WHITE, clip=[card_clip]),
+            Shape("ellipse", lifted_body.box, WHITE, clip=[cut, card_clip]),
+        ]
+    return out
 
 
 def _fmt(value: float) -> str:
-    return f"{value:g}"
+    return f"{round(value, 3):g}"
 
 
-def to_svg() -> str:
+def _svg_outline(shape: Shape, extra: str = "") -> str:
+    x, y, w, h = shape.box
+    if shape.kind == "ellipse":
+        return (
+            f'<ellipse cx="{_fmt(x + w / 2)}" cy="{_fmt(y + h / 2)}" '
+            f'rx="{_fmt(w / 2)}" ry="{_fmt(h / 2)}"{extra}/>'
+        )
+    radius = f' rx="{_fmt(shape.radius)}"' if shape.radius else ""
+    return (
+        f'<rect x="{_fmt(x)}" y="{_fmt(y)}" width="{_fmt(w)}" '
+        f'height="{_fmt(h)}"{radius}{extra}/>'
+    )
+
+
+def to_svg(detail: bool = False) -> str:
     defs: list[str] = []
     body: list[str] = []
-    for index, shape in enumerate(SHAPES):
-        attrs = []
+    for index, shape in enumerate(shapes(detail)):
         if isinstance(shape.fill, Gradient):
             gid = f"g{index}"
             (x1, y1), (x2, y2) = shape.fill.start, shape.fill.end
@@ -101,34 +179,18 @@ def to_svg() -> str:
                 f'<stop offset="0" stop-color="{c1}"/>'
                 f'<stop offset="1" stop-color="{c2}"/></linearGradient>'
             )
-            attrs.append(f'fill="url(#{gid})"')
+            fill = f' fill="url(#{gid})"'
         else:
-            attrs.append(f'fill="{shape.fill}"')
+            fill = f' fill="{shape.fill}"'
         if shape.opacity != 1.0:
-            attrs.append(f'fill-opacity="{_fmt(shape.opacity)}"')
-        if shape.clip:
-            cid = f"c{index}"
-            cx, cy, cw, ch, cr = shape.clip
-            defs.append(
-                f'<clipPath id="{cid}"><rect x="{_fmt(cx)}" y="{_fmt(cy)}" '
-                f'width="{_fmt(cw)}" height="{_fmt(ch)}" rx="{_fmt(cr)}"/></clipPath>'
-            )
-            attrs.append(f'clip-path="url(#{cid})"')
-        x, y, w, h = shape.box
-        if shape.kind == "polygon":
-            coords = " ".join(f"{_fmt(px)},{_fmt(py)}" for px, py in shape.points)
-            geometry = f'<polygon points="{coords}"'
-        elif shape.kind == "rect":
-            geometry = (
-                f'<rect x="{_fmt(x)}" y="{_fmt(y)}" width="{_fmt(w)}" '
-                f'height="{_fmt(h)}" rx="{_fmt(shape.radius)}"'
-            )
-        else:
-            geometry = (
-                f'<ellipse cx="{_fmt(x + w / 2)}" cy="{_fmt(y + h / 2)}" '
-                f'rx="{_fmt(w / 2)}" ry="{_fmt(h / 2)}"'
-            )
-        body.append(f"{geometry} {' '.join(attrs)}/>")
+            fill += f' fill-opacity="{_fmt(shape.opacity)}"'
+        element = _svg_outline(shape, fill)
+        # Several clips = nested groups, one clip-path each.
+        for depth, clip in enumerate(shape.clip):
+            cid = f"c{index}_{depth}"
+            defs.append(f'<clipPath id="{cid}">{_svg_outline(clip)}</clipPath>')
+            element = f'<g clip-path="url(#{cid})">{element}</g>'
+        body.append(element)
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" '
         'width="1024" height="1024">\n'
@@ -143,7 +205,7 @@ def _rgba(hex_color: str, alpha: float = 1.0) -> tuple[float, float, float, floa
     return r, g, b, alpha
 
 
-def render_png(size: int, path: Path) -> None:
+def render_png(size: int, path: Path, detail: bool) -> None:
     """Draws the icon at ``size`` px with CoreGraphics (macOS only)."""
     import Quartz
 
@@ -157,28 +219,20 @@ def render_png(size: int, path: Path) -> None:
     Quartz.CGContextTranslateCTM(ctx, 0, size)
     Quartz.CGContextScaleCTM(ctx, scale, -scale)
 
-    def outline(kind, box, radius, points=()):
-        if kind == "polygon":
-            path = Quartz.CGPathCreateMutable()
-            Quartz.CGPathMoveToPoint(path, None, *points[0])
-            for point in points[1:]:
-                Quartz.CGPathAddLineToPoint(path, None, *point)
-            Quartz.CGPathCloseSubpath(path)
-            return path
-        rect = Quartz.CGRectMake(*box)
-        if kind == "ellipse":
+    def outline(shape: Shape):
+        rect = Quartz.CGRectMake(*shape.box)
+        if shape.kind == "ellipse":
             return Quartz.CGPathCreateWithEllipseInRect(rect, None)
-        return Quartz.CGPathCreateWithRoundedRect(rect, radius, radius, None)
-
-    for shape in SHAPES:
-        Quartz.CGContextSaveGState(ctx)
-        if shape.clip:
-            cx, cy, cw, ch, cr = shape.clip
-            Quartz.CGContextAddPath(ctx, outline("rect", (cx, cy, cw, ch), cr))
-            Quartz.CGContextClip(ctx)
-        Quartz.CGContextAddPath(
-            ctx, outline(shape.kind, shape.box, shape.radius, shape.points)
+        return Quartz.CGPathCreateWithRoundedRect(
+            rect, shape.radius, shape.radius, None
         )
+
+    for shape in shapes(detail):
+        Quartz.CGContextSaveGState(ctx)
+        for clip in shape.clip:
+            Quartz.CGContextAddPath(ctx, outline(clip))
+            Quartz.CGContextClip(ctx)
+        Quartz.CGContextAddPath(ctx, outline(shape))
         if isinstance(shape.fill, Gradient):
             Quartz.CGContextClip(ctx)
             colors = [
@@ -209,17 +263,19 @@ def render_png(size: int, path: Path) -> None:
         raise RuntimeError(f"Could not write {path}")
 
 
-ICONSET_SIZES = [16, 32, 128, 256, 512]
+# Point sizes in a macOS iconset; up to 32 pt uses the small art, also at @2x.
+ICONSET_POINTS = [16, 32, 128, 256, 512]
+SMALL_UP_TO_POINTS = 32
 
 
 def main() -> None:
-    (ROOT / "public" / "icon.svg").write_text(to_svg())
+    (ROOT / "public" / "icon.svg").write_text(to_svg(detail=False))
     print("wrote public/icon.svg")
     if sys.platform != "darwin":
         print("PNG/ICNS need macOS CoreGraphics; skipped")
         return
 
-    render_png(512, ROOT / "public" / "favicon.png")
+    render_png(512, ROOT / "public" / "favicon.png", detail=True)
     print("wrote public/favicon.png")
 
     assets = ROOT / "assets"
@@ -227,9 +283,10 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         iconset = Path(tmp) / "YouThumber.iconset"
         iconset.mkdir()
-        for base in ICONSET_SIZES:
-            render_png(base, iconset / f"icon_{base}x{base}.png")
-            render_png(base * 2, iconset / f"icon_{base}x{base}@2x.png")
+        for points in ICONSET_POINTS:
+            detail = points > SMALL_UP_TO_POINTS
+            render_png(points, iconset / f"icon_{points}x{points}.png", detail)
+            render_png(points * 2, iconset / f"icon_{points}x{points}@2x.png", detail)
         subprocess.run(
             [
                 "iconutil",

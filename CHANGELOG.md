@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.76] - 2026-09-23
+
+### Changed
+- New app icon: a person lifted out of a photo, leaving a see-through checkerboard hole. Simpler art for 16 and 32 pt (the tile is the photo, bigger shapes, no shadows) so it still reads in a browser tab or a Finder list; the detailed version from 64 px up
+
 ## [26.09.23.75] - 2026-09-23
 
 ### Fixed

@@ -23,6 +23,15 @@ def test_committed_svg_is_what_the_script_draws() -> None:
     assert (ROOT / "public" / "icon.svg").read_text() == _make_icon().to_svg()
 
 
+def test_small_sizes_use_simpler_art() -> None:
+    # 16/32 px must still scan: no shadows, a coarse checkerboard, fewer shapes.
+    icon = _make_icon()
+    small, detailed = icon.shapes(detail=False), icon.shapes(detail=True)
+
+    assert all(s.opacity == 1.0 for s in small)
+    assert len(small) < len(detailed)
+
+
 def test_svg_is_a_square_1024_canvas() -> None:
     root = ET.fromstring(_make_icon().to_svg())
 
