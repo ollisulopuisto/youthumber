@@ -51,7 +51,25 @@ Compose stunning 1280×720 thumbnails from dual speaker photos (1920×1080) with
 
 ## Getting Started
 
-### Installation
+### Download the Mac app
+
+Download `YouThumber-macOS-arm64.zip` from the
+[latest release](https://github.com/ollisulopuisto/youthumber/releases/latest)
+(Apple Silicon Macs), unzip it and move `YouThumber.app` to Applications.
+
+**The app isn't signed with an Apple Developer ID, so macOS blocks it the first time**
+("Apple could not verify YouThumber is free of malware"). To open it anyway:
+
+- **macOS 15 Sequoia and later:** try to open it once and dismiss the warning. Then go
+  to System Settings → Privacy & Security, scroll down to the message about YouThumber,
+  click **Open Anyway** and confirm with your password.
+- **macOS 14 and earlier:** right-click (Control-click) the app → **Open** → **Open**.
+- **Or, in Terminal** (any version): `xattr -dr com.apple.quarantine /Applications/YouThumber.app`
+
+You only need to do this once per downloaded version. For the sharpest cutouts, click
+**Get sharper cutout edges** in the app once; it downloads the 445 MB model.
+
+### Installation (from source)
 
 ```bash
 npm install

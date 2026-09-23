@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.79] - 2026-09-23
+
+### Added
+- README: downloading the Mac app, and how to open it although it isn't signed with an Apple Developer ID (Open Anyway in Privacy & Security on macOS 15+, right-click → Open on 14 and earlier, or `xattr -dr com.apple.quarantine`)
+
 ## [26.09.23.78] - 2026-09-23
 
 ### Fixed
