@@ -15,13 +15,13 @@ The pure scoring rules live in ``framescoring``.
 
 from __future__ import annotations
 
-import io
 import logging
 import sys
 from dataclasses import dataclass
 
 from PIL import Image, ImageFilter
 
+from .cgimage import cgimage_to_pil as _cgimage_to_pil
 from .framescoring import (
     assign_hands_to_faces,
     expression_score,
@@ -49,8 +49,12 @@ DEFAULT_FRAMES_PER_PERSON = 12  # per sort mode, so up to 3x this many per perso
 # Smiles and gestures last a second or two; at 30s the scan (2026-09-23) found none.
 # Every 5s is ~6x the work of 30s. Not yet timed on a full-length real video.
 DEFAULT_SPEAKER_SCAN_INTERVAL_SECONDS = 5.0
-IDENTITY_CROP_MARGIN = 0.1  # tight crop for the feature print, so background/camera angle weigh less
-CORE_MEMBER_FRACTION = 0.5  # quality picks come from the half of a group closest to its centre
+IDENTITY_CROP_MARGIN = (
+    0.1  # tight crop for the feature print, so background/camera angle weigh less
+)
+CORE_MEMBER_FRACTION = (
+    0.5  # quality picks come from the half of a group closest to its centre
+)
 # Pairwise clustering is O(n^2) distances and O(n^3) merging: fine for a few hundred
 # faces, hours for the ~2000 a 90-min video gives at 5s. Cluster a sample, assign the rest.
 MAX_FACES_TO_CLUSTER = 300
@@ -86,17 +90,6 @@ class FaceInstance:
     score: float = 0.0
 
 
-def _cgimage_to_pil(cg_image) -> Image.Image:
-    """Converts a CGImage to a PIL Image via a lossless PNG round-trip."""
-    import Quartz
-
-    data = Quartz.CFDataCreateMutable(None, 0)
-    dest = Quartz.CGImageDestinationCreateWithData(data, "public.png", 1, None)
-    Quartz.CGImageDestinationAddImage(dest, cg_image, None)
-    Quartz.CGImageDestinationFinalize(dest)
-    return Image.open(io.BytesIO(bytes(data))).convert("RGB")
-
-
 def _crop_cgimage(cg_image, box: tuple[int, int, int, int]):
     """Crops a CGImage to a (left, top, right, bottom) pixel box, top-left origin."""
     import Quartz
@@ -129,7 +122,9 @@ def grab_cgimage_at_time(generator, seconds: float):
     import CoreMedia
 
     time_value = CoreMedia.CMTimeMakeWithSeconds(seconds, 600)
-    cg_image, error = generator.copyCGImageAtTime_actualTime_error_(time_value, None, None)
+    cg_image, error = generator.copyCGImageAtTime_actualTime_error_(
+        time_value, None, None
+    )
     if cg_image is None:
         logger.debug("Could not decode frame at %.1fs: %s", seconds, error)
         return None
@@ -201,22 +196,34 @@ def _analyse_frame(cg_image, width: int, height: int) -> list[dict]:
     """Every usable face in a frame: its box, capture quality, expression and gesture."""
     import Vision
 
-    handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(cg_image, None)
-    quality = Vision.VNDetectFaceCaptureQualityRequest.alloc().initWithCompletionHandler_(None)
+    handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(
+        cg_image, None
+    )
+    quality = (
+        Vision.VNDetectFaceCaptureQualityRequest.alloc().initWithCompletionHandler_(
+            None
+        )
+    )
     success, _err = handler.performRequests_error_([quality], None)
     if not success:
         return []
     faces = [
-        f for f in (quality.results() or []) if f.boundingBox().size.height >= MIN_FACE_HEIGHT_RATIO
+        f
+        for f in (quality.results() or [])
+        if f.boundingBox().size.height >= MIN_FACE_HEIGHT_RATIO
     ]
     if not faces:
         return []
 
-    landmarks = Vision.VNDetectFaceLandmarksRequest.alloc().initWithCompletionHandler_(None)
+    landmarks = Vision.VNDetectFaceLandmarksRequest.alloc().initWithCompletionHandler_(
+        None
+    )
     landmarks.setInputFaceObservations_(faces)
     hands = Vision.VNDetectHumanHandPoseRequest.alloc().initWithCompletionHandler_(None)
     hands.setMaximumHandCount_(6)
-    bodies = Vision.VNDetectHumanBodyPoseRequest.alloc().initWithCompletionHandler_(None)
+    bodies = Vision.VNDetectHumanBodyPoseRequest.alloc().initWithCompletionHandler_(
+        None
+    )
     handler.performRequests_error_([landmarks, hands, bodies], None)
 
     # Landmark results carry the same boxes and capture quality as the faces passed in.
@@ -224,11 +231,22 @@ def _analyse_frame(cg_image, width: int, height: int) -> list[dict]:
     boxes = []
     for f in observed:
         b = f.boundingBox()
-        boxes.append((float(b.origin.x), float(b.origin.y), float(b.size.width), float(b.size.height)))
+        boxes.append(
+            (
+                float(b.origin.x),
+                float(b.origin.y),
+                float(b.size.width),
+                float(b.size.height),
+            )
+        )
 
-    hand_list = [h for h in (_hand_joints(o) for o in (hands.results() or [])) if "wrist" in h]
+    hand_list = [
+        h for h in (_hand_joints(o) for o in (hands.results() or [])) if "wrist" in h
+    ]
     body_list = [_body_joints(o) for o in (bodies.results() or [])]
-    owners = assign_hands_to_faces(boxes, body_list, [h["wrist"][:2] for h in hand_list])
+    owners = assign_hands_to_faces(
+        boxes, body_list, [h["wrist"][:2] for h in hand_list]
+    )
     aspect = width / height if height else 16 / 9
 
     analysed = []
@@ -239,7 +257,9 @@ def _analyse_frame(cg_image, width: int, height: int) -> list[dict]:
                 "bbox": box,
                 "quality": float(observation.faceCaptureQuality() or 0.0),
                 "expression": expression_score(_landmarks(observation)),
-                "gesture": max((gesture_score(h, box, aspect) for h in own_hands), default=0.0),
+                "gesture": max(
+                    (gesture_score(h, box, aspect) for h in own_hands), default=0.0
+                ),
             }
         )
     return analysed
@@ -249,8 +269,14 @@ def _feature_print(cg_image):
     """Computes a Vision feature print for an image, or None if it fails."""
     import Vision
 
-    handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(cg_image, None)
-    request = Vision.VNGenerateImageFeaturePrintRequest.alloc().initWithCompletionHandler_(None)
+    handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(
+        cg_image, None
+    )
+    request = (
+        Vision.VNGenerateImageFeaturePrintRequest.alloc().initWithCompletionHandler_(
+            None
+        )
+    )
     success, _err = handler.performRequests_error_([request], None)
     if not success:
         return None
@@ -272,7 +298,9 @@ def _evenly_spaced(items: list, count: int) -> list:
     return [items[int(i * step)] for i in range(count)]
 
 
-def _agglomerate(faces: list[FaceInstance], num_people: int, distance_fn) -> list[list[FaceInstance]]:
+def _agglomerate(
+    faces: list[FaceInstance], num_people: int, distance_fn
+) -> list[list[FaceInstance]]:
     """Average-linkage agglomerative clustering into ``num_people`` groups."""
     import numpy as np
 
@@ -280,7 +308,9 @@ def _agglomerate(faces: list[FaceInstance], num_people: int, distance_fn) -> lis
     dist = np.zeros((n, n), dtype="float64")
     for i in range(n):
         for j in range(i + 1, n):
-            dist[i, j] = dist[j, i] = distance_fn(faces[i].feature_print, faces[j].feature_print)
+            dist[i, j] = dist[j, i] = distance_fn(
+                faces[i].feature_print, faces[j].feature_print
+            )
 
     members: list[list[int]] = [[i] for i in range(n)]
     active = list(range(n))
@@ -332,7 +362,8 @@ def _group_faces(
         if id(face) in sampled:
             continue
         mean_distances = [
-            sum(distance_fn(face.feature_print, r.feature_print) for r in refs) / len(refs)
+            sum(distance_fn(face.feature_print, r.feature_print) for r in refs)
+            / len(refs)
             for refs in references
         ]
         groups[mean_distances.index(min(mean_distances))].append(face)
@@ -358,7 +389,11 @@ def _core_members(
     references = _evenly_spaced(group, max_references)
 
     def mean_distance(face: FaceInstance) -> float:
-        others = [distance_fn(face.feature_print, r.feature_print) for r in references if r is not face]
+        others = [
+            distance_fn(face.feature_print, r.feature_print)
+            for r in references
+            if r is not face
+        ]
         return sum(others) / len(others)
 
     ranked = sorted(group, key=mean_distance)
@@ -424,7 +459,8 @@ def _rank_candidates(candidates: list[FaceInstance]) -> list[FaceInstance]:
     for c in candidates:
         normalized_sharpness = (c.sharpness - lo) / spread
         c.score = (
-            CAPTURE_QUALITY_WEIGHT * c.capture_quality + SHARPNESS_WEIGHT * normalized_sharpness
+            CAPTURE_QUALITY_WEIGHT * c.capture_quality
+            + SHARPNESS_WEIGHT * normalized_sharpness
         )
 
     return sorted(candidates, key=lambda c: c.score, reverse=True)
@@ -472,7 +508,10 @@ def scan_video_for_speakers(
     while t < duration:
         cg_image = grab_cgimage_at_time(generator, t)
         if cg_image is not None:
-            width, height = Quartz.CGImageGetWidth(cg_image), Quartz.CGImageGetHeight(cg_image)
+            width, height = (
+                Quartz.CGImageGetWidth(cg_image),
+                Quartz.CGImageGetHeight(cg_image),
+            )
             for face in _analyse_frame(cg_image, width, height):
                 box = head_shoulders_box(
                     face["bbox"],

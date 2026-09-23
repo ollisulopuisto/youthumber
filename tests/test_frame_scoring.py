@@ -10,7 +10,12 @@ from youthumber.framescoring import (
 
 def _lips(corner_y: float, width: float, mid_y: float, inner_open: float) -> dict:
     left, right = 0.5 - width / 2, 0.5 + width / 2
-    outer = [(left, corner_y), (0.5, mid_y + 0.03), (right, corner_y), (0.5, mid_y - 0.03)]
+    outer = [
+        (left, corner_y),
+        (0.5, mid_y + 0.03),
+        (right, corner_y),
+        (0.5, mid_y - 0.03),
+    ]
     inner = [(0.45, mid_y + inner_open / 2), (0.55, mid_y - inner_open / 2)]
     return {"outerLips": outer, "innerLips": inner}
 
@@ -29,7 +34,10 @@ def test_a_smile_scores_higher_than_a_neutral_mouth() -> None:
 
 
 def test_an_open_mouth_scores_higher_than_a_closed_one() -> None:
-    talking = {**NEUTRAL, **_lips(corner_y=0.25, width=0.40, mid_y=0.25, inner_open=0.16)}
+    talking = {
+        **NEUTRAL,
+        **_lips(corner_y=0.25, width=0.40, mid_y=0.25, inner_open=0.16),
+    }
 
     assert expression_score(talking) > expression_score(NEUTRAL) + 0.1
 
@@ -45,7 +53,12 @@ def test_expression_score_is_between_0_and_1_and_tolerates_missing_regions() -> 
     assert expression_score({}) == 0.0
 
 
-FACE = (0.4, 0.5, 0.2, 0.3)  # x, y (bottom, y up), width, height — normalized image coords
+FACE = (
+    0.4,
+    0.5,
+    0.2,
+    0.3,
+)  # x, y (bottom, y up), width, height — normalized image coords
 
 
 def _hand(wrist_y: float, index_ext: float, others_ext: float) -> dict:
@@ -53,7 +66,12 @@ def _hand(wrist_y: float, index_ext: float, others_ext: float) -> dict:
     wrist = (0.5, wrist_y)
     mcp_y = wrist_y + 0.06
     hand = {"wrist": (*wrist, 0.9)}
-    for finger, ext in [("index", index_ext), ("middle", others_ext), ("ring", others_ext), ("little", others_ext)]:
+    for finger, ext in [
+        ("index", index_ext),
+        ("middle", others_ext),
+        ("ring", others_ext),
+        ("little", others_ext),
+    ]:
         hand[f"{finger}MCP"] = (0.5, mcp_y, 0.9)
         hand[f"{finger}Tip"] = (0.5, mcp_y + 0.06 * ext, 0.9)
     return hand
@@ -86,7 +104,10 @@ def test_hands_are_linked_to_people_through_their_arm_not_the_nearest_face() -> 
     host_face = (0.12, 0.55, 0.18, 0.32)
     guest_face = (0.69, 0.5, 0.16, 0.3)
     bodies = [
-        {"nose": (0.206, 0.708, 0.76), "wrists": [(0.565, 0.329, 0.73), (0.155, 0.357, 0.74)]},
+        {
+            "nose": (0.206, 0.708, 0.76),
+            "wrists": [(0.565, 0.329, 0.73), (0.155, 0.357, 0.74)],
+        },
         {"nose": (0.742, 0.65, 0.82), "wrists": []},
     ]
     hand_wrists = [(0.57, 0.35), (0.16, 0.36)]

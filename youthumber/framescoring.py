@@ -17,7 +17,9 @@ Joint = tuple[float, float, float]  # x, y, confidence
 Box = tuple[float, float, float, float]  # x, y (bottom edge), width, height
 
 MIN_JOINT_CONFIDENCE = 0.3
-MAX_ARM_DISTANCE = 0.08  # how close a hand's wrist must be to a body-pose wrist to belong to it
+MAX_ARM_DISTANCE = (
+    0.08  # how close a hand's wrist must be to a body-pose wrist to belong to it
+)
 
 
 def _clamp01(value: float) -> float:
@@ -42,10 +44,14 @@ def expression_score(landmarks: dict[str, list[Point]]) -> float:
 
     mid_y = _mean([p[1] for p in outer])
     corner_lift = ((left[1] + right[1]) / 2 - mid_y) / width
-    smile = 0.5 * _clamp01((corner_lift + 0.02) / 0.14) + 0.5 * _clamp01((width - 0.40) / 0.15)
+    smile = 0.5 * _clamp01((corner_lift + 0.02) / 0.14) + 0.5 * _clamp01(
+        (width - 0.40) / 0.15
+    )
 
     inner = landmarks.get("innerLips") or []
-    opening = (max(p[1] for p in inner) - min(p[1] for p in inner)) / width if inner else 0.0
+    opening = (
+        (max(p[1] for p in inner) - min(p[1] for p in inner)) / width if inner else 0.0
+    )
     mouth_open = _clamp01((opening - 0.08) / 0.35)
 
     brow_raise = 0.0
@@ -81,7 +87,9 @@ def gesture_score(hand: dict[str, Joint], face: Box, aspect: float = 16 / 9) -> 
         return math.dist(tip, mcp) / palm if tip and mcp else None
 
     index = extension("index")
-    others = [e for e in (extension(f) for f in ("middle", "ring", "little")) if e is not None]
+    others = [
+        e for e in (extension(f) for f in ("middle", "ring", "little")) if e is not None
+    ]
     pointing = 0.0
     if index is not None and others:
         pointing = _clamp01((index - 0.6) / 0.3) * _clamp01((0.8 - _mean(others)) / 0.3)
@@ -97,7 +105,9 @@ def _face_center(face: Box) -> Point:
 def _nearest_face(faces: list[Box], point: Point) -> int | None:
     if not faces:
         return None
-    return min(range(len(faces)), key=lambda i: math.dist(_face_center(faces[i]), point))
+    return min(
+        range(len(faces)), key=lambda i: math.dist(_face_center(faces[i]), point)
+    )
 
 
 def assign_hands_to_faces(

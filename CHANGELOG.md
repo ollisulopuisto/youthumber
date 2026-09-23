@@ -2,6 +2,17 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.67] - 2026-09-23
+
+### Added
+- GPU texture backgrounds made with Apple Core Image (Metal) on the local engine: Film grain, Smoke, Sunbeams, Light halo, Stained glass, Hex tiles, Halftone and Bokeh. Pick two colours, preview all eight live, Shuffle for new variations, click to use one at 1920×1080. It becomes the background photo, so blur, darken and vignette apply to it
+- `/textures` and `/texture` engine endpoints
+
+### Fixed
+- CI had failed on every push since 26.09.23.60 at the `ruff format --check` step, so it never reached the Python tests; the code is now formatted
+- Parallel requests on a freshly started engine could fail: PyObjC loads Quartz functions lazily and that isn't thread-safe; texture renders now run one at a time
+- An unexpected texture error showed in the page as "Failed to fetch" (the error response had no CORS headers); it now reports the actual error
+
 ## [26.09.23.66] - 2026-09-23
 
 ### Added

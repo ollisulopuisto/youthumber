@@ -55,13 +55,17 @@ def test_keep_largest_region_fades_edges_instead_of_cutting_blocky_steps() -> No
     width = 1920
     row = np.zeros(width, dtype=np.float64)
     row[:100] = 255
-    row[100:140] = np.linspace(255, 0, 40)  # a wide soft edge, like hair or a dark chair
+    row[100:140] = np.linspace(
+        255, 0, 40
+    )  # a wide soft edge, like hair or a dark chair
     mask = Image.fromarray(np.tile(row, (64, 1)).astype(np.uint8), mode="L")
 
     out = np.asarray(keep_largest_region(mask), dtype=np.int32)[32]
 
     largest_drop = int(np.max(out[:-1] - out[1:]))
-    assert largest_drop <= 40, f"edge drops by {largest_drop} between neighbouring pixels"
+    assert largest_drop <= 40, (
+        f"edge drops by {largest_drop} between neighbouring pixels"
+    )
 
 
 def test_keep_largest_region_keeps_size_and_mode() -> None:

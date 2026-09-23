@@ -2,11 +2,15 @@ import { backgroundGradientPresets } from '../../data/backgroundGradients'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { cssGradient } from '../../modules/thumbnail/backgroundRender'
 import FontPicker from './FontPicker'
+import TexturePicker from './TexturePicker'
 
 // "Blurred speaker photo" background: enough blur to read as a soft studio backdrop,
 // darkened so the cutouts and headline stand out. Starting points; both are sliders.
 const STUDIO_BLUR_PX = 16
 const STUDIO_DARKEN = 0.35
+// Textures need a dark base and a bright accent: light-based ones (halo, bokeh,
+// sunbeams) were invisible when they inherited two dark gradient colours.
+const DEFAULT_TEXTURE_COLORS = ['#0F172A', '#F59E0B']
 
 function PropertiesPanel({
   selectedLayer,
@@ -485,6 +489,17 @@ function PropertiesPanel({
               <span className="font-mono w-8 text-right">{customGradient.angle}°</span>
             </label>
           )}
+        </div>
+
+        {/* Texture */}
+        <div>
+          <label className="block text-[10px] font-medium text-gray-400 mb-1.5">Texture</label>
+          <TexturePicker
+            initialColors={DEFAULT_TEXTURE_COLORS}
+            onPick={(imageUrl) =>
+              onUpdateBackground({ type: 'image', imageUrl, imageBlur: 0, imageDarken: 0 })
+            }
+          />
         </div>
 
         {/* Photo */}

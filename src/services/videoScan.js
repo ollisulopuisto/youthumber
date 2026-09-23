@@ -3,17 +3,7 @@
  * native file dialog, then ask the local CoreML backend to sample it at intervals
  * and score each frame with Apple Vision to find well-framed, in-focus faces.
  */
-
-function resolveBaseUrl() {
-  if (
-    typeof window !== 'undefined' &&
-    window.location?.origin?.startsWith('http') &&
-    !window.location.origin.includes(':5173')
-  ) {
-    return window.location.origin.replace(/\/+$/, '')
-  }
-  return 'http://127.0.0.1:5055'
-}
+import { parseErrorResponse, resolveBaseUrl } from './backend'
 
 export function isDesktopVideoScanAvailable() {
   return typeof window !== 'undefined' && !!window.pywebview?.api?.pick_video_file
@@ -25,16 +15,6 @@ export async function pickVideoFile() {
     throw new Error('The native video picker is only available in the YouThumber desktop app')
   }
   return window.pywebview.api.pick_video_file()
-}
-
-async function parseErrorResponse(response) {
-  const text = await response.text().catch(() => response.statusText)
-  try {
-    const json = JSON.parse(text)
-    return json.detail || text
-  } catch {
-    return text
-  }
 }
 
 /**

@@ -58,7 +58,9 @@ REGION_EDGE_GROW = 2  # work-scale pixels of soft edge kept at full strength aro
 # cut, 24 with fade 1 and 14 with fade 2; 1 leaves less haze where a removed object
 # touched the body (2026-09-23).
 REGION_FADE = 1
-REGION_WORK_WIDTH = 480  # regions are found on a downscaled copy; 1080p masks otherwise take seconds
+REGION_WORK_WIDTH = (
+    480  # regions are found on a downscaled copy; 1080p masks otherwise take seconds
+)
 
 
 def keep_largest_region(mask: Image.Image) -> Image.Image:
@@ -76,7 +78,9 @@ def keep_largest_region(mask: Image.Image) -> Image.Image:
     height, width = full.shape
     scale = min(1.0, REGION_WORK_WIDTH / width)
     work_w, work_h = max(1, round(width * scale)), max(1, round(height * scale))
-    small = np.asarray(mask.convert("L").resize((work_w, work_h), Image.Resampling.NEAREST))
+    small = np.asarray(
+        mask.convert("L").resize((work_w, work_h), Image.Resampling.NEAREST)
+    )
     solid = small > REGION_CONNECT_THRESHOLD
     if not solid.any():
         return mask.convert("L")
@@ -93,7 +97,12 @@ def keep_largest_region(mask: Image.Image) -> Image.Image:
             y, x = queue.popleft()
             size += 1
             for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
-                if 0 <= ny < work_h and 0 <= nx < work_w and solid[ny, nx] and not labels[ny, nx]:
+                if (
+                    0 <= ny < work_h
+                    and 0 <= nx < work_w
+                    and solid[ny, nx]
+                    and not labels[ny, nx]
+                ):
                     labels[ny, nx] = label
                     queue.append((ny, nx))
         sizes.append(size)
@@ -171,7 +180,9 @@ def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
     Quartz.CGImageDestinationFinalize(dest)
 
     mask_pil = Image.open(io.BytesIO(bytes(data))).convert("L")
-    mask_resized = keep_largest_region(mask_pil.resize((width, height), Image.Resampling.BILINEAR))
+    mask_resized = keep_largest_region(
+        mask_pil.resize((width, height), Image.Resampling.BILINEAR)
+    )
 
     cutout = orig.convert("RGBA")
     cutout.putalpha(mask_resized)

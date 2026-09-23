@@ -128,7 +128,9 @@ def test_frames_for_person_lists_core_frames_first_then_the_rest_up_to_max() -> 
     core = [_face(f"host#{i}", quality=0.3 + i * 0.1, t=float(i)) for i in range(4)]
     stranger = _face("stranger#0", quality=0.99, t=99.0)
 
-    frames = _frames_for_person(core + [stranger], max_frames=12, distance_fn=_noisy_distance)
+    frames = _frames_for_person(
+        core + [stranger], max_frames=12, distance_fn=_noisy_distance
+    )
 
     # The typical (core) frames lead; the high-quality stray face is still offered,
     # just never ahead of them.
@@ -141,17 +143,23 @@ def test_frames_for_person_lists_core_frames_first_then_the_rest_up_to_max() -> 
 def test_frames_for_person_caps_at_max_frames() -> None:
     group = [_face(f"host#{i}", t=float(i)) for i in range(20)]
 
-    assert len(_frames_for_person(group, max_frames=12, distance_fn=_noisy_distance)) == 12
+    assert (
+        len(_frames_for_person(group, max_frames=12, distance_fn=_noisy_distance)) == 12
+    )
 
 
-def test_group_faces_clusters_a_sample_then_assigns_everyone_when_there_are_many_faces() -> None:
+def test_group_faces_clusters_a_sample_then_assigns_everyone_when_there_are_many_faces() -> (
+    None
+):
     # At one frame every 5s a 90-min video yields ~2000 faces; clustering all of them
     # pairwise would take hours, so only a sample is clustered and the rest assigned.
     faces = [_face(f"host#{i}", t=float(i)) for i in range(60)] + [
         _face(f"guest#{i}", t=100.0 + i) for i in range(40)
     ]
 
-    groups = _group_faces(faces, num_people=2, distance_fn=_noisy_distance, max_samples=20)
+    groups = _group_faces(
+        faces, num_people=2, distance_fn=_noisy_distance, max_samples=20
+    )
 
     assert sum(len(g) for g in groups) == 100
     people = {frozenset(f.feature_print.split("#")[0] for f in g) for g in groups}
@@ -159,14 +167,18 @@ def test_group_faces_clusters_a_sample_then_assigns_everyone_when_there_are_many
 
 
 def test_core_members_uses_a_sample_of_references_for_big_groups() -> None:
-    group = [_face(f"host#{i}", quality=0.5) for i in range(50)] + [_face("stranger#0", quality=0.99)]
+    group = [_face(f"host#{i}", quality=0.5) for i in range(50)] + [
+        _face("stranger#0", quality=0.99)
+    ]
 
     core = _core_members(group, distance_fn=_noisy_distance, max_references=10)
 
     assert all(f.feature_print.startswith("host") for f in core)
 
 
-def test_select_frames_covers_quality_expression_and_gesture_without_duplicates() -> None:
+def test_select_frames_covers_quality_expression_and_gesture_without_duplicates() -> (
+    None
+):
     group = [_face(f"host#{i}", quality=0.9 - i * 0.01, t=float(i)) for i in range(30)]
     group[25].expression = 0.95  # low quality, but the best smile
     group[28].gesture = 0.9  # low quality, but pointing
@@ -213,7 +225,11 @@ def test_grab_frame_rejects_missing_file(client: TestClient) -> None:
 def test_scan_video_speakers_rejects_missing_file(client: TestClient) -> None:
     res = client.post(
         "/scan-video-speakers",
-        json={"path": "/nonexistent/path/video.mp4", "intervalSeconds": 60, "numPeople": 2},
+        json={
+            "path": "/nonexistent/path/video.mp4",
+            "intervalSeconds": 60,
+            "numPeople": 2,
+        },
     )
     assert res.status_code == 400
 

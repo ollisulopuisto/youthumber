@@ -18,6 +18,7 @@ from .segmentation import (
     image_to_data_url,
     segment_image,
 )
+from .textures import HAS_CORE_IMAGE, TEXTURE_PRESETS, render_texture
 from .videoscan import (
     DEFAULT_FRAMES_PER_PERSON,
     DEFAULT_NUM_PEOPLE,
@@ -42,6 +43,14 @@ class GrabFrameRequest(BaseModel):
     timestampSeconds: float = Field(..., ge=0)
 
 
+class TextureRequest(BaseModel):
+    preset: str
+    colors: list[str] = Field(..., min_length=2, max_length=2)
+    seed: int = 1
+    width: int = Field(1920, gt=0, le=1920)
+    height: int = Field(1080, gt=0, le=1080)
+
+
 class VideoSpeakerScanRequest(BaseModel):
     path: str = Field(..., description="Absolute path to a local video file")
     intervalSeconds: float = Field(DEFAULT_SPEAKER_SCAN_INTERVAL_SECONDS, gt=0)
@@ -57,7 +66,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.66",
+        version="26.09.23.67",
     )
 
     app.add_middleware(
@@ -112,13 +121,37 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 status_code=500, detail=f"Segmentation failed: {err}"
             ) from err
 
+    @app.get("/textures")
+    def list_textures() -> dict[str, Any]:
+        return {"textures": TEXTURE_PRESETS, "available": HAS_CORE_IMAGE}
+
+    @app.post("/texture")
+    def texture(req: TextureRequest) -> JSONResponse:
+        try:
+            image = render_texture(
+                req.preset, req.colors, req.seed, req.width, req.height
+            )
+        except ValueError as err:
+            raise HTTPException(status_code=400, detail=str(err)) from err
+        except RuntimeError as err:
+            raise HTTPException(status_code=501, detail=str(err)) from err
+        except Exception as err:
+            # An unhandled error skips the CORS headers, so the page only saw
+            # "Failed to fetch"; report it as a normal error response instead.
+            logger.exception("Texture render failed")
+            raise HTTPException(
+                status_code=500, detail=f"Texture failed: {err}"
+            ) from err
+        return JSONResponse({"image": image_to_data_url(image, format="JPEG")})
+
     # Plain `def`: a scan takes minutes, and FastAPI runs sync handlers in a worker
     # thread instead of blocking every other request (health checks, frame grabs).
     @app.post("/scan-video-speakers")
     def scan_video_speakers(req: VideoSpeakerScanRequest) -> JSONResponse:
         if not HAS_AVFOUNDATION:
             raise HTTPException(
-                status_code=501, detail="Video scanning requires macOS AVFoundation/Vision"
+                status_code=501,
+                detail="Video scanning requires macOS AVFoundation/Vision",
             )
         if not Path(req.path).is_file():
             raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
@@ -130,7 +163,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             return JSONResponse({"people": people})
         except Exception as err:
             logger.exception("Multi-speaker video scan failed")
-            raise HTTPException(status_code=500, detail=f"Video scan failed: {err}") from err
+            raise HTTPException(
+                status_code=500, detail=f"Video scan failed: {err}"
+            ) from err
 
     @app.post("/grab-frame")
     async def grab_frame(req: GrabFrameRequest) -> JSONResponse:
@@ -146,7 +181,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             return JSONResponse({"image": data_url})
         except Exception as err:
             logger.exception("Frame grab failed")
-            raise HTTPException(status_code=500, detail=f"Frame grab failed: {err}") from err
+            raise HTTPException(
+                status_code=500, detail=f"Frame grab failed: {err}"
+            ) from err
 
     # Serve static assets and SPA
     if dist_dir and dist_dir.is_dir():
