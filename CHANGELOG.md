@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.70] - 2026-09-23
+
+### Fixed
+- Video scans longer than 60 seconds failed with "Load failed" and nothing in the log: the desktop window's WebKit drops any request after 60 s, while the scan finished unseen in the engine. A scan is now a background job the page polls, so it works at any length
+
+### Added
+- Scan progress bar with percentage
+
 ## [26.09.23.69] - 2026-09-23
 
 ### Added

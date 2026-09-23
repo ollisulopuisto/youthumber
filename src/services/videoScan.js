@@ -19,11 +19,17 @@ export async function pickVideoFile() {
 
 /**
  * Scans a local video file, groups the faces in it into `numPeople` people, and
- * returns `[{ frameCount, frames: [{ timestampSeconds, score, image }] }]` — up to
+ * returns `[{ frameCount, frames: [{ timestampSeconds, image, scores }] }]` — up to
  * `framesPerPerson` face-crop frames per person, best first. Fetch a chosen frame at
  * full resolution with grabFullResolutionFrame.
+ *
+ * A scan takes minutes and the desktop window drops any request after 60 s, so the
+ * engine runs it as a job: this starts it, then polls, calling `onProgress(0–1)`.
  */
-export async function scanVideoForSpeakers(path, { numPeople, framesPerPerson } = {}) {
+export async function scanVideoForSpeakers(
+  path,
+  { numPeople, framesPerPerson, onProgress, pollMs = 1000 } = {}
+) {
   const baseUrl = resolveBaseUrl()
   const body = { path }
   if (numPeople != null) body.numPeople = numPeople
@@ -34,13 +40,22 @@ export async function scanVideoForSpeakers(path, { numPeople, framesPerPerson } 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-
   if (!response.ok) {
     throw new Error(`Video scan failed: ${await parseErrorResponse(response)}`)
   }
+  const { jobId } = await response.json()
 
-  const data = await response.json()
-  return data.people
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, pollMs))
+    const poll = await fetch(`${baseUrl}/scan-video-speakers/${jobId}`)
+    if (!poll.ok) {
+      throw new Error(`Video scan failed: ${await parseErrorResponse(poll)}`)
+    }
+    const job = await poll.json()
+    if (job.status === 'error') throw new Error(job.error)
+    onProgress?.(job.progress)
+    if (job.status === 'done') return job.people
+  }
 }
 
 const FRAMES_SHOWN = 12

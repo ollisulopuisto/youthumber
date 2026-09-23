@@ -1,7 +1,9 @@
 """FastAPI application serving YouThumber web UI and Core ML segmentation APIs."""
 
 import logging
+import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -66,7 +68,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.69",
+        version="26.09.23.70",
     )
 
     app.add_middleware(
@@ -144,10 +146,32 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             ) from err
         return JSONResponse({"image": image_to_data_url(image, format="JPEG")})
 
-    # Plain `def`: a scan takes minutes, and FastAPI runs sync handlers in a worker
-    # thread instead of blocking every other request (health checks, frame grabs).
-    @app.post("/scan-video-speakers")
-    def scan_video_speakers(req: VideoSpeakerScanRequest) -> JSONResponse:
+    # A scan takes minutes, but the desktop window's WebKit drops any request after
+    # 60 s ("Load failed") while the scan carries on unseen. So POST starts a job in a
+    # thread and returns at once; the page polls GET for progress and the result.
+    scan_jobs: dict[str, dict[str, Any]] = {}
+
+    def run_scan_job(job: dict[str, Any], req: VideoSpeakerScanRequest) -> None:
+        def report(fraction: float) -> None:
+            job["progress"] = round(min(max(fraction, 0.0), 1.0), 3)
+
+        try:
+            job["people"] = scan_video_for_speakers(
+                req.path,
+                req.intervalSeconds,
+                req.numPeople,
+                req.framesPerPerson,
+                progress=report,
+            )
+            job["progress"] = 1.0
+            job["status"] = "done"
+        except Exception as err:
+            logger.exception("Multi-speaker video scan failed")
+            job["error"] = f"Video scan failed: {err}"
+            job["status"] = "error"
+
+    @app.post("/scan-video-speakers", status_code=202)
+    def scan_video_speakers(req: VideoSpeakerScanRequest) -> dict[str, str]:
         if not Path(req.path).is_file():
             raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
         if not HAS_AVFOUNDATION:
@@ -156,16 +180,21 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 detail="Video scanning requires macOS AVFoundation/Vision",
             )
 
-        try:
-            people = scan_video_for_speakers(
-                req.path, req.intervalSeconds, req.numPeople, req.framesPerPerson
-            )
-            return JSONResponse({"people": people})
-        except Exception as err:
-            logger.exception("Multi-speaker video scan failed")
-            raise HTTPException(
-                status_code=500, detail=f"Video scan failed: {err}"
-            ) from err
+        job_id = uuid.uuid4().hex
+        job: dict[str, Any] = {"status": "running", "progress": 0.0}
+        scan_jobs[job_id] = job
+        threading.Thread(target=run_scan_job, args=(job, req), daemon=True).start()
+        return {"jobId": job_id}
+
+    @app.get("/scan-video-speakers/{job_id}")
+    def scan_job_status(job_id: str) -> dict[str, Any]:
+        job = scan_jobs.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="Unknown scan job")
+        if job["status"] != "running":
+            # Delivered once; a finished scan holds ~70 thumbnails in memory.
+            del scan_jobs[job_id]
+        return dict(job)
 
     @app.post("/grab-frame")
     async def grab_frame(req: GrabFrameRequest) -> JSONResponse:

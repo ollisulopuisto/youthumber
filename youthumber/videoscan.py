@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from PIL import Image, ImageFilter
@@ -485,6 +486,7 @@ def scan_video_for_speakers(
     interval_seconds: float = DEFAULT_SPEAKER_SCAN_INTERVAL_SECONDS,
     num_people: int = DEFAULT_NUM_PEOPLE,
     frames_per_person: int = DEFAULT_FRAMES_PER_PERSON,
+    progress: Callable[[float], None] | None = None,
 ) -> list[dict]:
     """Samples a video, scores every face, groups the faces into ``num_people`` people,
     and returns each person's candidate frames with all three scores.
@@ -492,6 +494,7 @@ def scan_video_for_speakers(
     Returns ``[{frameCount, frames: [{timestampSeconds, image, scores}]}]``, most-seen
     person first. ``image`` is a head-and-shoulders thumbnail for the picker; the full
     frame is fetched with ``grab_frame_at_time`` once the user picks one.
+    ``progress`` is called with the fraction done (0–1) after each sampled frame.
     """
     import Quartz
 
@@ -537,6 +540,9 @@ def scan_video_for_speakers(
                     )
                 )
         t += interval_seconds
+        if progress is not None:
+            # Sampling is nearly all the work; clustering and thumbnails take seconds.
+            progress(0.95 * min(t / duration, 1.0))
 
     groups = _group_faces(faces, num_people=num_people)
     selections = [_select_frames(group, per_mode=frames_per_person) for group in groups]

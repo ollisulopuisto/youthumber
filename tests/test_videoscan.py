@@ -1,5 +1,7 @@
 """Unit tests for video frame scanning: pure ranking/clustering logic and endpoint error paths."""
 
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -239,3 +241,65 @@ def test_scan_video_speakers_rejects_missing_file(client: TestClient) -> None:
 def test_scan_video_speakers_validates_request_body(client: TestClient) -> None:
     res = client.post("/scan-video-speakers", json={})
     assert res.status_code == 422
+
+
+# The desktop window's WebKit drops any request that runs past 60 s ("Load failed"),
+# while the scan carried on and finished unseen (2026-09-23). A scan is now a job:
+# POST starts it and returns at once, GET polls its progress and result.
+def _poll(client: TestClient, job_id: str) -> dict:
+    for _ in range(200):
+        body = client.get(f"/scan-video-speakers/{job_id}").json()
+        if body["status"] != "running":
+            return body
+        time.sleep(0.01)
+    raise AssertionError("scan job never finished")
+
+
+@pytest.fixture
+def mac_client(monkeypatch) -> TestClient:
+    monkeypatch.setattr("youthumber.server.HAS_AVFOUNDATION", True)
+    return TestClient(create_app())
+
+
+def test_scan_video_speakers_returns_a_job_at_once_and_polls_to_the_result(
+    mac_client: TestClient, monkeypatch, tmp_path
+) -> None:
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+    people = [{"frameCount": 3, "frames": []}]
+
+    def fake_scan(path, interval, num_people, frames_per_person, progress=None):
+        progress(0.5)
+        return people
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", fake_scan)
+
+    res = mac_client.post("/scan-video-speakers", json={"path": str(video)})
+
+    assert res.status_code == 202
+    body = _poll(mac_client, res.json()["jobId"])
+    assert body == {"status": "done", "progress": 1.0, "people": people}
+
+
+def test_scan_job_reports_a_failed_scan(
+    mac_client: TestClient, monkeypatch, tmp_path
+) -> None:
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+
+    def broken_scan(*args, **kwargs):
+        raise RuntimeError("Could not read video duration")
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", broken_scan)
+
+    job_id = mac_client.post("/scan-video-speakers", json={"path": str(video)}).json()[
+        "jobId"
+    ]
+
+    body = _poll(mac_client, job_id)
+    assert body["status"] == "error"
+    assert "Could not read video duration" in body["error"]
+
+
+def test_scan_job_unknown_id_is_404(mac_client: TestClient) -> None:
+    assert mac_client.get("/scan-video-speakers/nope").status_code == 404

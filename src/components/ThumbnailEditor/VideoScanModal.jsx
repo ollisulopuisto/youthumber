@@ -40,6 +40,7 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   const [pendingSpeakerId, setPendingSpeakerId] = useState(null)
   const [assigned, setAssigned] = useState({}) // speakerId -> timestampSeconds
   const [sortMode, setSortMode] = useState('quality')
+  const [progress, setProgress] = useState(0)
 
   const people = scan?.people ?? []
 
@@ -48,8 +49,9 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
     try {
       const path = await pickVideoFile()
       if (!path) return
+      setProgress(0)
       setPhase('scanning')
-      const result = await scanVideoForSpeakers(path, { numPeople })
+      const result = await scanVideoForSpeakers(path, { numPeople, onProgress: setProgress })
       if (!result.length) {
         setError(
           'No clear, well-framed faces were found. The video may be too dark, too zoomed out, or people are rarely on camera.'
@@ -183,6 +185,17 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
         {phase === 'scanning' && (
           <div className="flex flex-col items-center justify-center gap-3 py-16">
             <div className="w-8 h-8 border-2 border-gray-700 border-t-amber-500 rounded-full animate-spin" />
+            <div
+              className="w-64 h-1.5 bg-gray-800 rounded-full overflow-hidden"
+              role="progressbar"
+              aria-label="Scan progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+            >
+              <div className="h-full bg-amber-500 transition-all" style={{ width: `${progress * 100}%` }} />
+            </div>
+            <p className="text-xs text-gray-300 tabular-nums">{Math.round(progress * 100)}%</p>
             <p className="text-xs text-gray-400 text-center max-w-md">
               Looking at a frame every 5 seconds for faces, expressions and hands — roughly 5
               minutes per hour of video…
