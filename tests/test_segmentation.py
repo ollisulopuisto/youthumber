@@ -28,7 +28,8 @@ def test_keep_largest_region_keeps_soft_edges_of_the_person() -> None:
 
     cleaned = keep_largest_region(mask)
 
-    assert cleaned.getpixel((202, 200)) == 128
+    # Right next to the body the edge is kept (within rounding of the fade's tail).
+    assert cleaned.getpixel((202, 200)) >= 124
 
 
 def test_keep_largest_region_drops_a_semi_opaque_blob_touching_the_body() -> None:
@@ -43,6 +44,23 @@ def test_keep_largest_region_drops_a_semi_opaque_blob_touching_the_body() -> Non
 
     assert cleaned.getpixel((280, 120)) == 0
     assert cleaned.getpixel((120, 200)) == 255
+
+
+def test_keep_largest_region_fades_edges_instead_of_cutting_blocky_steps() -> None:
+    # The region search runs on a 4x-downscaled copy of a 1080p mask; cutting with it
+    # directly left 4px square stair steps along soft edges ("gritty", 2026-09-23).
+    import numpy as np
+
+    width = 1920
+    row = np.zeros(width, dtype=np.float64)
+    row[:100] = 255
+    row[100:140] = np.linspace(255, 0, 40)  # a wide soft edge, like hair or a dark chair
+    mask = Image.fromarray(np.tile(row, (64, 1)).astype(np.uint8), mode="L")
+
+    out = np.asarray(keep_largest_region(mask), dtype=np.int32)[32]
+
+    largest_drop = int(np.max(out[:-1] - out[1:]))
+    assert largest_drop <= 40, f"edge drops by {largest_drop} between neighbouring pixels"
 
 
 def test_keep_largest_region_keeps_size_and_mode() -> None:

@@ -43,6 +43,21 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
     fabricCanvasRef.current = canvas
 
+    // With preserveObjectStacking, Fabric gives every click to the topmost object under
+    // the pointer, so a selected speaker partly covered by another couldn't be dragged.
+    // Keep the selected layer while the click lands on it (or its handles).
+    const findTopmostTarget = canvas.findTarget.bind(canvas)
+    canvas.findTarget = (e, skipGroup) => {
+      const active = canvas.getActiveObject()
+      if (active && !skipGroup) {
+        const pointer = canvas.getPointer(e, true)
+        if (active._findTargetCorner(pointer) || canvas._searchPossibleTargets([active], pointer)) {
+          return active
+        }
+      }
+      return findTopmostTarget(e, skipGroup)
+    }
+
     // Selection event listeners
     canvas.on('selection:created', (e) => {
       const activeObj = e.selected?.[0]
@@ -259,6 +274,9 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
             flipX: !!speakerState.transform.flipX,
             originX: 'center',
             originY: 'center',
+            // Clicks on a cutout's transparent area reach whatever is visible below it.
+            perPixelTargetFind: true,
+            targetFindTolerance: 6,
             cornerColor: '#38BDF8',
             cornerSize: 12,
             transparentCorners: false,

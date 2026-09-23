@@ -2,6 +2,12 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.63] - 2026-09-23
+
+### Fixed
+- Gritty, stair-stepped cutout edges: the stray-object cleanup (added in .62) cut soft edges along the blocky outline of a 4x-downscaled mask. It now fades the cut out smoothly; the worst jump between neighbouring edge pixels went from 156 to 24
+- Hard to select or move layers on the canvas: a click always went to the topmost object, even on transparent parts of a cutout and even when another layer was already selected. Cutouts are now hit-tested per pixel, and the selected layer keeps clicks that land on it
+
 ## [26.09.23.62] - 2026-09-23
 
 ### Added

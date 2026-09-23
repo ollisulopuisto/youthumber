@@ -51,7 +51,12 @@ def image_to_data_url(image: Image.Image, format: str = "PNG") -> str:
 # shoulder had alpha 40-145 vs 255 for the body (2026-09-23): at 64 it stayed attached,
 # at 200 it came off with the body and hair edges intact.
 REGION_CONNECT_THRESHOLD = 200
-REGION_EDGE_GROW = 2  # work-scale pixels of soft edge kept around the body (~8px at 1080p)
+REGION_EDGE_GROW = 2  # work-scale pixels of soft edge kept at full strength around the body (~8px at 1080p)
+# Further work-scale pixels over which the rest fades out instead of a hard cut. On a
+# 1080p soft-edge ramp the worst jump between neighbouring pixels was 156 with a hard
+# cut, 24 with fade 1 and 14 with fade 2; 1 leaves less haze where a removed object
+# touched the body (2026-09-23).
+REGION_FADE = 1
 REGION_WORK_WIDTH = 480  # regions are found on a downscaled copy; 1080p masks otherwise take seconds
 
 
@@ -92,9 +97,9 @@ def keep_largest_region(mask: Image.Image) -> Image.Image:
                     queue.append((ny, nx))
         sizes.append(size)
 
-    # Grow a little so the soft (below-threshold) edge around the body survives.
+    # Grow past the body so its soft (below-threshold) edge survives, plus a ring to fade in.
     grown = labels == int(np.argmax(sizes))
-    for _ in range(REGION_EDGE_GROW):
+    for _ in range(REGION_EDGE_GROW + REGION_FADE):
         step = grown.copy()
         step[1:] |= grown[:-1]
         step[:-1] |= grown[1:]
@@ -102,10 +107,17 @@ def keep_largest_region(mask: Image.Image) -> Image.Image:
         step[:, :-1] |= grown[:, 1:]
         grown = step
 
-    keep_full = np.asarray(
-        Image.fromarray(grown.astype(np.uint8) * 255).resize((width, height), Image.Resampling.NEAREST)
+    # Scale the kept area back up smoothly and fade it out, rather than cutting with the
+    # blocky low-res shape — that left 4px stair steps along soft edges.
+    from PIL import ImageFilter
+
+    weight = (
+        Image.fromarray(grown.astype(np.uint8) * 255)
+        .resize((width, height), Image.Resampling.BILINEAR)
+        .filter(ImageFilter.GaussianBlur(radius=(REGION_FADE / 2) / scale))
     )
-    return Image.fromarray(np.where(keep_full > 0, full, 0).astype(np.uint8), mode="L")
+    faded = full.astype(np.float32) * (np.asarray(weight, dtype=np.float32) / 255.0)
+    return Image.fromarray(np.round(faded).astype(np.uint8), mode="L")
 
 
 def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
