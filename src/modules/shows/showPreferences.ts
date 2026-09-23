@@ -133,6 +133,9 @@ export function applyShowPresetToProject(
       color: preset.background.color || resized.background.color,
       imageUrl: preset.background.imageUrl ?? resized.background.imageUrl,
       gradient: preset.background.gradient ?? resized.background.gradient,
+      imageBlur: preset.background.imageBlur ?? resized.background.imageBlur,
+      imageDarken: preset.background.imageDarken ?? resized.background.imageDarken,
+      vignette: preset.background.vignette ?? resized.background.vignette,
     },
     speakers: resized.speakers.map((speaker, i) => {
       const t = preset.speakerTransforms?.[i]
@@ -184,6 +187,9 @@ export function createShowPresetFromProject(
       color: project.background.color,
       imageUrl: project.background.imageUrl,
       gradient: project.background.gradient,
+      imageBlur: project.background.imageBlur,
+      imageDarken: project.background.imageDarken,
+      vignette: project.background.vignette,
     },
     text: {
       fontFamily: project.text.fontFamily,

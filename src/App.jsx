@@ -26,8 +26,7 @@ import {
   moveSpeaker,
   applyLayout,
   setBackgroundImage,
-  setBackgroundColor,
-  setBackgroundGradient,
+  updateBackground,
   updateTextLayer,
   reorderLayers,
 } from './modules/thumbnail/thumbnailState'
@@ -285,11 +284,7 @@ function App() {
   }
 
   const handleUpdateBackground = (updates) => {
-    if (updates.gradient) {
-      setProject((prev) => setBackgroundGradient(prev, updates.gradient))
-    } else if (updates.color) {
-      setProject((prev) => setBackgroundColor(prev, updates.color))
-    }
+    setProject((prev) => updateBackground(prev, updates))
   }
 
   // Text Actions
@@ -344,7 +339,7 @@ function App() {
         </div>
 
         {/* 3. Middle Section: Layers and Properties */}
-        <div className="h-44 sm:h-52 bg-gray-950 px-4 py-2 border-t border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 overflow-y-auto">
+        <div className="min-h-44 sm:min-h-52 bg-gray-950 px-4 py-2 border-t border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 items-start">
           {/* Layers Panel */}
           <LayersPanel
             project={project}

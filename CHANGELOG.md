@@ -2,6 +2,21 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.66] - 2026-09-23
+
+### Added
+- Font picker with 28 headline fonts in four groups (Bold & condensed, Sans-serif, Serif, Fun), each shown in its own typeface; adds Inter, League Spartan, Bangers and Luckiest Guy
+- Regular / Bold / Black weight buttons, limited to the weights each font actually has
+- Background: 16 gradient presets (including radial Spotlight, Studio Blue, Warm Glow), a custom gradient (two colours, angle, linear or radial), photo blur and darken, one-click "blurred speaker photo" backgrounds, and a vignette
+- Show presets keep photo blur, darken and vignette
+
+### Fixed
+- Layout presets asked for Montserrat 900 but only 400/700 were loaded, so the browser faked the black weight; 800/900 are loaded now (a test checks every offered font and weight is loaded)
+- The font list offered Inter, which was never loaded and silently fell back
+- A newly picked font could draw in the fallback font until something else redrew the canvas; the headline now redraws once the font has loaded
+- Gradient swatches drew at a different angle from the canvas (CSS measures 0° as up, the canvas as left-to-right)
+- The Layers/Properties strip was a fixed 208px; it now grows with its content
+
 ## [26.09.23.65] - 2026-09-23
 
 ### Added

@@ -1,5 +1,12 @@
 import { backgroundGradientPresets } from '../../data/backgroundGradients'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
+import { cssGradient } from '../../modules/thumbnail/backgroundRender'
+import FontPicker from './FontPicker'
+
+// "Blurred speaker photo" background: enough blur to read as a soft studio backdrop,
+// darkened so the cutouts and headline stand out. Starting points; both are sliders.
+const STUDIO_BLUR_PX = 16
+const STUDIO_DARKEN = 0.35
 
 function PropertiesPanel({
   selectedLayer,
@@ -45,24 +52,18 @@ function PropertiesPanel({
           />
         </div>
 
-        {/* Font Family & Size */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-[10px] font-medium text-gray-400 mb-1">Font Family</label>
-            <select
-              value={textState.fontFamily}
-              onChange={(e) => onUpdateText({ fontFamily: e.target.value })}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white outline-none focus:border-amber-500"
-            >
-              <option value="Montserrat">Montserrat</option>
-              <option value="Bebas Neue">Bebas Neue</option>
-              <option value="Impact">Impact</option>
-              <option value="Oswald">Oswald</option>
-              <option value="Inter">Inter</option>
-              <option value="Anton">Anton</option>
-            </select>
-          </div>
+        {/* Font */}
+        <div>
+          <label className="block text-[10px] font-medium text-gray-400 mb-1">Font</label>
+          <FontPicker
+            fontFamily={textState.fontFamily}
+            fontWeight={textState.fontWeight}
+            onChange={onUpdateText}
+          />
+        </div>
 
+        {/* Size */}
+        <div>
           <div>
             <label className="block text-[10px] font-medium text-gray-400 mb-1">
               Size ({textState.fontSize}px)
@@ -354,8 +355,19 @@ function PropertiesPanel({
   // 3. Background Properties
   if (selectedLayer === 'background') {
     const bg = project.background
+    // The custom gradient edits the current gradient, or starts from the first preset.
+    const base = bg.gradient ?? backgroundGradientPresets[0]
+    const customGradient = {
+      colors: [base.colors[0], base.colors[base.colors.length - 1]],
+      angle: base.angle ?? 135,
+      type: base.type ?? 'linear',
+    }
+    const setGradient = (changes) =>
+      onUpdateBackground({ type: 'gradient', gradient: { ...customGradient, ...changes } })
+    const speakersWithPhotos = project.speakers.filter((s) => s.sourceImageUrl)
+
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
         <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <h3 className="font-bold uppercase tracking-wider text-emerald-400 text-[11px]">
             Background Properties
@@ -390,7 +402,7 @@ function PropertiesPanel({
           </div>
         </div>
 
-        {/* Gradient Generator */}
+        {/* Gradient presets */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-[10px] font-medium text-gray-400">Gradient</label>
@@ -405,28 +417,151 @@ function PropertiesPanel({
           </div>
           <div className="grid grid-cols-4 gap-1.5">
             {backgroundGradientPresets.map((preset) => {
+              const gradient = { colors: preset.colors, angle: preset.angle, type: preset.type ?? 'linear' }
               const isActive =
                 bg.type === 'gradient' &&
-                bg.gradient?.colors?.[0] === preset.colors[0] &&
-                bg.gradient?.colors?.[1] === preset.colors[1]
+                bg.gradient?.colors?.join() === preset.colors.join() &&
+                (bg.gradient?.type ?? 'linear') === gradient.type
               return (
                 <button
                   key={preset.id}
-                  onClick={() =>
-                    onUpdateBackground({ gradient: { colors: preset.colors, angle: preset.angle } })
-                  }
-                  style={{
-                    background: `linear-gradient(${preset.angle}deg, ${preset.colors.join(', ')})`,
-                  }}
+                  onClick={() => onUpdateBackground({ type: 'gradient', gradient })}
+                  style={{ background: cssGradient(gradient) }}
                   className={`w-full h-8 rounded border hover:scale-105 transition-transform ${
                     isActive ? 'border-emerald-400 ring-1 ring-emerald-400' : 'border-gray-700/80'
                   }`}
                   title={preset.name}
+                  aria-label={`${preset.name} gradient`}
                 />
               )
             })}
           </div>
         </div>
+
+        {/* Custom gradient */}
+        <div>
+          <label className="block text-[10px] font-medium text-gray-400 mb-1.5">Custom gradient</label>
+          <div className="flex items-center gap-2">
+            {[0, 1].map((i) => (
+              <input
+                key={i}
+                type="color"
+                aria-label={`Gradient colour ${i + 1}`}
+                value={customGradient.colors[i]}
+                onChange={(e) => {
+                  const colors = [...customGradient.colors]
+                  colors[i] = e.target.value
+                  setGradient({ colors })
+                }}
+                className="w-8 h-8 rounded border border-gray-700 cursor-pointer bg-transparent"
+              />
+            ))}
+            <div className="flex rounded border border-gray-700 overflow-hidden text-[10px]" role="group" aria-label="Gradient shape">
+              {['linear', 'radial'].map((shape) => (
+                <button
+                  key={shape}
+                  onClick={() => setGradient({ type: shape })}
+                  aria-pressed={customGradient.type === shape}
+                  className={`px-2 py-1 capitalize ${
+                    customGradient.type === shape ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {shape}
+                </button>
+              ))}
+            </div>
+          </div>
+          {customGradient.type === 'linear' && (
+            <label className="flex items-center gap-2 mt-2 text-[10px] text-gray-400">
+              Angle
+              <input
+                type="range"
+                min={0}
+                max={359}
+                value={customGradient.angle}
+                onChange={(e) => setGradient({ angle: Number(e.target.value) })}
+                className="flex-1 accent-emerald-500"
+              />
+              <span className="font-mono w-8 text-right">{customGradient.angle}°</span>
+            </label>
+          )}
+        </div>
+
+        {/* Photo */}
+        <div>
+          <label className="block text-[10px] font-medium text-gray-400 mb-1.5">Photo</label>
+          {speakersWithPhotos.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {speakersWithPhotos.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() =>
+                    onUpdateBackground({
+                      type: 'image',
+                      imageUrl: s.sourceImageUrl,
+                      imageBlur: STUDIO_BLUR_PX,
+                      imageDarken: STUDIO_DARKEN,
+                    })
+                  }
+                  className="text-[10px] px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700"
+                  title="Use this speaker's photo, blurred, as the background"
+                >
+                  Blurred {speakerLabel(project, s.id)}
+                </button>
+              ))}
+            </div>
+          )}
+          {bg.type === 'image' && bg.imageUrl ? (
+            <div className="flex flex-col gap-1.5">
+              <label className="flex items-center gap-2 text-[10px] text-gray-400">
+                <span className="w-10">Blur</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={40}
+                  value={bg.imageBlur ?? 0}
+                  onChange={(e) => onUpdateBackground({ imageBlur: Number(e.target.value) })}
+                  className="flex-1 accent-emerald-500"
+                />
+                <span className="font-mono w-10 text-right">{bg.imageBlur ?? 0}px</span>
+              </label>
+              <label className="flex items-center gap-2 text-[10px] text-gray-400">
+                <span className="w-10">Darken</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={0.8}
+                  step={0.05}
+                  value={bg.imageDarken ?? 0}
+                  onChange={(e) => onUpdateBackground({ imageDarken: Number(e.target.value) })}
+                  className="flex-1 accent-emerald-500"
+                />
+                <span className="font-mono w-10 text-right">{Math.round((bg.imageDarken ?? 0) * 100)}%</span>
+              </label>
+            </div>
+          ) : (
+            <p className="text-[10px] text-gray-500">
+              Upload a photo in the Background card below
+              {speakersWithPhotos.length > 0 && ', or use a speaker photo above'}.
+            </p>
+          )}
+        </div>
+
+        {/* Vignette */}
+        <label className="flex items-center gap-2 text-[10px] text-gray-400">
+          <span className="font-medium">Vignette</span>
+          <input
+            type="range"
+            min={0}
+            max={0.8}
+            step={0.05}
+            value={bg.vignette ?? 0}
+            onChange={(e) => onUpdateBackground({ vignette: Number(e.target.value) })}
+            className="flex-1 accent-emerald-500"
+            aria-label="Vignette strength"
+          />
+          <span className="font-mono w-10 text-right">{Math.round((bg.vignette ?? 0) * 100)}%</span>
+        </label>
       </div>
     )
   }

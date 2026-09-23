@@ -6,6 +6,19 @@ import {
   isSpeakerLayer,
 } from '../../modules/thumbnail/thumbnailState'
 import { saveExportedImage } from '../../services/exportImage'
+import {
+  gradientSpec,
+  photoFilterValues,
+  vignetteColorStops,
+} from '../../modules/thumbnail/backgroundRender'
+
+const MAX_BACKGROUND_SIDE = 4096
+// Fabric builds its WebGL filter backend at load time with a 2048px texture limit, so
+// raising textureSize alone does nothing; rebuild the backend after raising it.
+if (fabric.textureSize < MAX_BACKGROUND_SIDE) {
+  fabric.textureSize = MAX_BACKGROUND_SIDE
+  fabric.filterBackend = fabric.initFilterBackend()
+}
 
 const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   {
@@ -19,6 +32,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   ref
 ) {
   const fitRef = useRef(null)
+  const backgroundImageRef = useRef(null) // { url, img, blur, brightness }
+  const latestBackgroundRef = useRef(project.background)
   const containerRef = useRef(null)
   const canvasElRef = useRef(null)
   const fabricCanvasRef = useRef(null)
@@ -141,6 +156,9 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
     return () => {
       resizeObserver.disconnect()
+      // The cached background photo belongs to this canvas; a remount (React StrictMode
+      // mounts twice in dev) must load it again for the new one.
+      backgroundImageRef.current = null
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.dispose()
         fabricCanvasRef.current = null
@@ -156,49 +174,21 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     isUpdatingFromStateRef.current = true
 
     // Set background
-    if (project.background.type === 'gradient' && project.background.gradient) {
-      const { colors, angle = 135 } = project.background.gradient
-      const cx = CANVAS_WIDTH / 2
-      const cy = CANVAS_HEIGHT / 2
-      const len = Math.sqrt(CANVAS_WIDTH ** 2 + CANVAS_HEIGHT ** 2) / 2
-      const rad = (angle * Math.PI) / 180
-      const dx = Math.cos(rad) * len
-      const dy = Math.sin(rad) * len
-      const grad = new fabric.Gradient({
-        type: 'linear',
-        coords: { x1: cx - dx, y1: cy - dy, x2: cx + dx, y2: cy + dy },
-        colorStops: colors.map((color, index) => ({
-          offset: index / Math.max(colors.length - 1, 1),
-          color,
-        })),
-      })
-      canvas.setBackgroundColor(grad, () => canvas.renderAll())
-      canvas.setBackgroundImage(null, () => canvas.renderAll())
-    } else if (project.background.type === 'solid' || !project.background.imageUrl) {
-      canvas.setBackgroundColor(project.background.color || '#111827', () => canvas.renderAll())
-      canvas.setBackgroundImage(null, () => canvas.renderAll())
-    } else if (project.background.imageUrl) {
-      fabric.Image.fromURL(
-        project.background.imageUrl,
-        (img) => {
-          if (!fabricCanvasRef.current) return
-          // Scale to cover 1280x720 canvas
-          const scale = Math.max(CANVAS_WIDTH / (img.width || 1), CANVAS_HEIGHT / (img.height || 1))
-          img.set({
-            originX: 'center',
-            originY: 'center',
-            left: CANVAS_WIDTH / 2,
-            top: CANVAS_HEIGHT / 2,
-            scaleX: scale,
-            scaleY: scale,
-            selectable: false,
-            evented: false,
-          })
-          canvas.setBackgroundImage(img, () => canvas.renderAll())
-        },
-        { crossOrigin: 'anonymous' }
+    const bg = project.background
+    latestBackgroundRef.current = bg
+    if (bg.type === 'gradient' && bg.gradient) {
+      canvas.setBackgroundColor(
+        new fabric.Gradient(gradientSpec(bg.gradient, CANVAS_WIDTH, CANVAS_HEIGHT)),
+        () => canvas.renderAll()
       )
+      canvas.setBackgroundImage(null, () => canvas.renderAll())
+    } else if (bg.type === 'solid' || !bg.imageUrl) {
+      canvas.setBackgroundColor(bg.color || '#111827', () => canvas.renderAll())
+      canvas.setBackgroundImage(null, () => canvas.renderAll())
+    } else {
+      syncBackgroundImage(canvas, bg)
     }
+    syncVignette(canvas, bg.vignette || 0)
 
     // Helper to find existing object by layerId
     const findObj = (layerId) => canvas.getObjects().find((o) => o.data?.layerId === layerId)
@@ -219,6 +209,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
     // Reorder layers according to project.layerOrder
     reorderCanvasObjects(canvas, project.layerOrder)
+    const vignette = canvas.getObjects().find((o) => o.data?.role === 'vignette')
+    if (vignette) canvas.sendToBack(vignette)
 
     // Handle active selection sync
     if (selectedLayer) {
@@ -231,6 +223,94 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     canvas.renderAll()
     isUpdatingFromStateRef.current = false
   }, [project, selectedLayer])
+
+  // Background photo: loaded once per URL, filters re-applied only when blur/darken change
+  // (re-loading a full-HD photo and re-blurring it on every edit made sliders crawl).
+  const syncBackgroundImage = (canvasAtCall, bg) => {
+    const cached = backgroundImageRef.current
+    const applyFilters = (entry) => {
+      // Photos load asynchronously; draw on whichever canvas is live by then.
+      const canvas = fabricCanvasRef.current ?? canvasAtCall
+      const { blur, brightness } = photoFilterValues(latestBackgroundRef.current)
+      if (entry.blur === blur && entry.brightness === brightness && canvas.backgroundImage === entry.img) {
+        return
+      }
+      entry.img.filters = [
+        blur > 0 && new fabric.Image.filters.Blur({ blur }),
+        brightness !== 0 && new fabric.Image.filters.Brightness({ brightness }),
+      ].filter(Boolean)
+      entry.img.applyFilters()
+      entry.blur = blur
+      entry.brightness = brightness
+      canvas.setBackgroundImage(entry.img, () => canvas.renderAll())
+    }
+
+    if (cached?.url === bg.imageUrl) {
+      if (cached.img) applyFilters(cached)
+      return
+    }
+
+    const entry = { url: bg.imageUrl, img: null, blur: null, brightness: null }
+    backgroundImageRef.current = entry
+    fabric.Image.fromURL(
+      bg.imageUrl,
+      (loaded) => {
+        if (!fabricCanvasRef.current || backgroundImageRef.current !== entry) return
+        // WebGL filters fail on textures larger than fabric.textureSize; shrink huge photos.
+        let img = loaded
+        const longest = Math.max(loaded.width || 1, loaded.height || 1)
+        if (longest > MAX_BACKGROUND_SIDE) {
+          const shrink = MAX_BACKGROUND_SIDE / longest
+          const el = document.createElement('canvas')
+          el.width = Math.round(loaded.width * shrink)
+          el.height = Math.round(loaded.height * shrink)
+          el.getContext('2d').drawImage(loaded.getElement(), 0, 0, el.width, el.height)
+          img = new fabric.Image(el)
+        }
+        const scale = Math.max(CANVAS_WIDTH / (img.width || 1), CANVAS_HEIGHT / (img.height || 1))
+        img.set({
+          originX: 'center',
+          originY: 'center',
+          left: CANVAS_WIDTH / 2,
+          top: CANVAS_HEIGHT / 2,
+          scaleX: scale,
+          scaleY: scale,
+          selectable: false,
+          evented: false,
+        })
+        entry.img = img
+        applyFilters(entry)
+      },
+      { crossOrigin: 'anonymous' }
+    )
+  }
+
+  // Vignette: a click-through radial overlay just above the background, below everything else.
+  const syncVignette = (canvas, strength) => {
+    let vignette = canvas.getObjects().find((o) => o.data?.role === 'vignette')
+    if (!strength) {
+      if (vignette) canvas.remove(vignette)
+      return
+    }
+    if (!vignette) {
+      vignette = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        selectable: false,
+        evented: false,
+        data: { role: 'vignette' },
+      })
+      canvas.add(vignette)
+    }
+    vignette.set({
+      fill: new fabric.Gradient({
+        ...gradientSpec({ colors: ['#000', '#000'], type: 'radial' }, CANVAS_WIDTH, CANVAS_HEIGHT),
+        colorStops: vignetteColorStops(strength),
+      }),
+    })
+  }
 
   // Helper function to sync a speaker object
   const syncSpeakerObject = (canvas, speakerState, layerId) => {
@@ -361,6 +441,22 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
       canvas.add(textObj)
       reorderCanvasObjects(canvas, project.layerOrder)
+    }
+
+    // Web fonts load on demand. Until one has, Fabric measures and draws the fallback
+    // and caches that, so a newly picked font didn't show until some other redraw.
+    const family = textState.fontFamily || 'Montserrat'
+    const fontSpec = `${textState.fontWeight || 'bold'} 64px "${family}"`
+    if (document.fonts && !document.fonts.check(fontSpec)) {
+      document.fonts.load(fontSpec).then(() => {
+        const textObj = fabricCanvasRef.current?.getObjects().find((o) => o.data?.layerId === 'text')
+        if (!textObj || textObj.fontFamily !== family) return
+        fabric.util.clearFabricFontCache(family)
+        textObj.initDimensions()
+        textObj.setCoords()
+        textObj.dirty = true
+        fabricCanvasRef.current.requestRenderAll()
+      })
     }
   }
 

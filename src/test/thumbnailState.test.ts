@@ -16,6 +16,7 @@ import {
   isSpeakerLayer,
   setBackgroundGradient,
   setBackgroundColor,
+  updateBackground,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
 } from '../modules/thumbnail/thumbnailState'
@@ -233,6 +234,27 @@ describe('Thumbnail State Management', () => {
     const centre = project.speakers[1].id
 
     expect(slotFrameFor(project, centre)).toEqual(getDefaultLayout(3).slots[1].frame)
+  })
+
+  it('updates background settings, keeping the ones not mentioned', () => {
+    const project = setBackgroundGradient(createDefaultProject(), { colors: ['#000', '#fff'], angle: 90 })
+
+    const withPhoto = updateBackground(project, {
+      type: 'image',
+      imageUrl: 'data:image/jpeg;base64,photo',
+      imageBlur: 12,
+      imageDarken: 0.35,
+    })
+    const withVignette = updateBackground(withPhoto, { vignette: 0.5 })
+
+    expect(withVignette.background).toMatchObject({
+      type: 'image',
+      imageUrl: 'data:image/jpeg;base64,photo',
+      imageBlur: 12,
+      imageDarken: 0.35,
+      vignette: 0.5,
+      gradient: { colors: ['#000', '#fff'], angle: 90 },
+    })
   })
 
   it('sets a gradient background and switching back to a solid color clears the gradient type', () => {

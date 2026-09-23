@@ -344,6 +344,18 @@ export function applyLayout(project: ThumbnailProject, layout: LayoutPreset): Th
   }
 }
 
+/** Merges any background settings (type, colour, gradient, photo, blur, darken, vignette). */
+export function updateBackground(
+  project: ThumbnailProject,
+  updates: Partial<ThumbnailProject['background']>
+): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    background: { ...project.background, ...updates },
+  }
+}
+
 export function setBackgroundImage(project: ThumbnailProject, imageUrl: string): ThumbnailProject {
   return {
     ...project,

@@ -113,6 +113,23 @@ describe('Per-Show Saved Preferences', () => {
     expect(applyShowPresetToProject(createDefaultProject(), show).speakers).toHaveLength(1)
   })
 
+  it('round-trips photo blur, darken and vignette through a show preset', () => {
+    const project = createDefaultProject('Styled')
+    project.background = {
+      ...project.background,
+      type: 'image',
+      imageUrl: 'data:image/jpeg;base64,studio',
+      imageBlur: 16,
+      imageDarken: 0.35,
+      vignette: 0.5,
+    }
+
+    const preset = createShowPresetFromProject('Studio look', project)
+    const applied = applyShowPresetToProject(createDefaultProject('Next episode'), preset)
+
+    expect(applied.background).toMatchObject({ imageBlur: 16, imageDarken: 0.35, vignette: 0.5 })
+  })
+
   it('creates a show preset from a project, including count and names', () => {
     let project = createDefaultProject('Custom Live', 3)
     project = renameSpeaker(project, project.speakers[0].id, 'Olli')

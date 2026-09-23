@@ -36,6 +36,8 @@ export interface SpeakerState {
 export interface BackgroundGradient {
   colors: string[]
   angle: number
+  /** Missing on gradients saved before radial existed; treated as linear. */
+  type?: 'linear' | 'radial'
 }
 
 export interface BackgroundState {
@@ -43,6 +45,12 @@ export interface BackgroundState {
   color: string
   imageUrl: string | null
   gradient: BackgroundGradient | null
+  /** Photo blur in canvas pixels (0 = sharp). */
+  imageBlur?: number
+  /** Photo darkening, 0–1. */
+  imageDarken?: number
+  /** Edge darkening over any background, 0–1. */
+  vignette?: number
   transform: {
     x: number
     y: number

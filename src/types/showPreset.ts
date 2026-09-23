@@ -2,7 +2,10 @@ export interface ShowBackgroundPreference {
   type: 'solid' | 'image' | 'gradient'
   color: string
   imageUrl?: string | null
-  gradient?: { colors: string[]; angle: number } | null
+  gradient?: { colors: string[]; angle: number; type?: 'linear' | 'radial' } | null
+  imageBlur?: number
+  imageDarken?: number
+  vignette?: number
 }
 
 export interface ShowTextPreference {

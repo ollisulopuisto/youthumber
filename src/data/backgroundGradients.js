@@ -1,5 +1,6 @@
 /**
- * Preset gradients for the Background Layer generator.
+ * Preset gradients for the background. `angle` is in canvas terms (0 = left to right);
+ * `type` defaults to linear.
  */
 
 export const backgroundGradientPresets = [
@@ -11,4 +12,12 @@ export const backgroundGradientPresets = [
   { id: 'fire', name: 'Fire', colors: ['#FF3B1F', '#7A0C0C'], angle: 90 },
   { id: 'royal-gold', name: 'Royal Gold', colors: ['#D4AF37', '#1A140E'], angle: 135 },
   { id: 'cool-slate', name: 'Cool Slate', colors: ['#334155', '#0F172A'], angle: 180 },
+  { id: 'spotlight', name: 'Spotlight', colors: ['#3F3F46', '#09090B'], angle: 0, type: 'radial' },
+  { id: 'studio-blue', name: 'Studio Blue', colors: ['#1D4ED8', '#0B1026'], angle: 0, type: 'radial' },
+  { id: 'warm-glow', name: 'Warm Glow', colors: ['#F59E0B', '#431407'], angle: 0, type: 'radial' },
+  { id: 'mustard', name: 'Mustard', colors: ['#D6B53A', '#3A2A0A'], angle: 20 },
+  { id: 'forest', name: 'Forest', colors: ['#166534', '#052E16'], angle: 135 },
+  { id: 'ocean', name: 'Ocean', colors: ['#0EA5E9', '#1E3A8A'], angle: 60 },
+  { id: 'crimson', name: 'Crimson', colors: ['#BE123C', '#1C0510'], angle: 45 },
+  { id: 'violet-haze', name: 'Violet Haze', colors: ['#7C3AED', '#DB2777', '#F59E0B'], angle: 30 },
 ]
