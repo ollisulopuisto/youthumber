@@ -18,8 +18,40 @@ from .server import create_app
 logger = logging.getLogger(__name__)
 
 
+def write_data_url_to_path(data_url: str, path: str) -> None:
+    """Decodes a base64 data URL and writes its bytes to ``path``."""
+    import base64
+
+    _, encoded = data_url.split(",", 1)
+    Path(path).write_bytes(base64.b64decode(encoded))
+
+
 class DesktopApi:
     """Methods exposed to the frontend as ``window.pywebview.api.*``."""
+
+    def save_image(self, data_url: str, filename: str) -> str | None:
+        """Asks where to save an exported thumbnail via a native Save dialog, then writes it.
+
+        pywebview ships with downloads disabled, so the browser-style ``<a download>``
+        export silently does nothing inside the desktop window. Returns the saved path,
+        or None if the user cancelled.
+        """
+        import webview
+
+        window = webview.windows[0] if webview.windows else None
+        if window is None:
+            return None
+
+        result = window.create_file_dialog(
+            webview.FileDialog.SAVE,
+            directory=str(Path.home() / "Downloads"),
+            save_filename=filename,
+        )
+        if not result:
+            return None
+        path = result if isinstance(result, str) else result[0]
+        write_data_url_to_path(data_url, path)
+        return path
 
     def pick_video_file(self) -> str | None:
         """Opens a native file dialog and returns the selected video's absolute path, or None."""

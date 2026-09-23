@@ -5,9 +5,10 @@ import {
   grabFullResolutionFrame,
 } from '../../services/videoScan'
 
+// Same wording as the speaker cards in the main window ("Speaker 1 (Left / Host)").
 const SLOT_LABELS = {
-  speaker1: 'Speaker 1',
-  speaker2: 'Speaker 2',
+  speaker1: 'Left (Host)',
+  speaker2: 'Right (Guest)',
 }
 
 function formatTimestamp(seconds) {
@@ -121,8 +122,9 @@ function MultiSpeakerScanModal({ onClose, onAssign }) {
         {phase === 'results' && (
           <>
             <p className="text-[11px] text-gray-500 -mt-1">
-              Found {people.length} distinct {people.length === 1 ? 'person' : 'people'}, ranked
-              by how often each appears. Assign each one to a speaker slot.
+              Grouped the faces into {people.length}{' '}
+              {people.length === 1 ? 'person' : 'people'}, most-seen first. Put each one on the
+              left (host) or right (guest) side of the thumbnail.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {people.map((person, index) => {

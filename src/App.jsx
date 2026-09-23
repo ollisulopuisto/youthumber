@@ -126,17 +126,22 @@ function App() {
     alert(`Project "${project.name}" saved to local storage.`)
   }
 
-  const handleExport = ({ format = 'jpeg', quality = 0.95, resolution = 'hd' }) => {
+  const handleExport = async ({ format = 'jpeg', quality = 0.95, resolution = 'hd' }) => {
     if (!canvasRef.current) return
     const safeName = project.name.trim().replace(/\s+/g, '-').toLowerCase()
     const scale = resolution === 'fullhd' ? 1.5 : 1
     const dims = resolution === 'fullhd' ? '1920x1080' : '1280x720'
-    canvasRef.current.exportThumbnail({
-      format,
-      quality,
-      scale,
-      filename: `${safeName}-${dims}.${format === 'png' ? 'png' : 'jpg'}`,
-    })
+    try {
+      const result = await canvasRef.current.exportThumbnail({
+        format,
+        quality,
+        scale,
+        filename: `${safeName}-${dims}.${format === 'png' ? 'png' : 'jpg'}`,
+      })
+      if (result?.savedPath) alert(`Exported to ${result.savedPath}`)
+    } catch (err) {
+      alert(`Export failed: ${err.message}`)
+    }
   }
 
   // Speaker Actions

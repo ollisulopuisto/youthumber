@@ -8,7 +8,8 @@ from youthumber.server import create_app
 from youthumber.videoscan import (
     FaceInstance,
     FrameCandidate,
-    _cluster_faces_by_identity,
+    _core_members,
+    _group_faces,
     _rank_candidates,
 )
 
@@ -84,61 +85,67 @@ def test_rank_candidates_also_works_on_face_instances() -> None:
     assert ranked[0] is high
 
 
-def test_cluster_faces_groups_same_identity_together() -> None:
-    alice1 = _face("alice", t=0.0)
-    alice2 = _face("alice", t=60.0)
-    bob1 = _face("bob", t=30.0)
+def _noisy_distance(a: str, b: str) -> float:
+    # Mirrors real footage: the same person across camera angles is NOT near-zero
+    # distance (0.45 here), just consistently closer than two different people (0.9).
+    # A fixed "same person below 0.3" threshold split 2 real people into 6 cards.
+    if a == b:
+        return 0.0
+    same_person = a.split("#")[0] == b.split("#")[0]
+    return 0.45 if same_person else 0.9
 
-    clusters = _cluster_faces_by_identity(
-        [alice1, bob1, alice2], distance_fn=_label_distance, threshold=0.5
+
+def test_group_faces_finds_two_people_despite_high_same_person_distance() -> None:
+    faces = [_face(f"host#{i}", t=float(i)) for i in range(5)] + [
+        _face(f"guest#{i}", t=100.0 + i) for i in range(4)
+    ]
+
+    groups = _group_faces(faces, num_people=2, distance_fn=_noisy_distance)
+
+    assert len(groups) == 2
+    people = {frozenset(f.feature_print.split("#")[0] for f in g) for g in groups}
+    assert people == {frozenset({"host"}), frozenset({"guest"})}
+
+
+def test_group_faces_returns_fewer_groups_when_fewer_faces_than_people() -> None:
+    groups = _group_faces([_face("host#0")], num_people=2, distance_fn=_noisy_distance)
+
+    assert len(groups) == 1
+
+
+def test_group_faces_empty_list_returns_empty() -> None:
+    assert _group_faces([], num_people=2, distance_fn=_noisy_distance) == []
+
+
+def test_group_faces_drops_faces_without_feature_print() -> None:
+    faces = [_face("host#0"), _face("host#1")]
+    faces.append(
+        FaceInstance(
+            timestamp_seconds=9.0,
+            capture_quality=0.9,
+            face_height_ratio=0.3,
+            sharpness=100.0,
+            crop=Image.new("RGB", (4, 4)),
+            feature_print=None,
+        )
     )
 
-    assert len(clusters) == 2
-    identities = {frozenset(f.feature_print for f in cluster) for cluster in clusters}
-    assert identities == {frozenset({"alice"}), frozenset({"bob"})}
+    groups = _group_faces(faces, num_people=2, distance_fn=_noisy_distance)
+
+    assert all(f.feature_print is not None for g in groups for f in g)
 
 
-def test_cluster_faces_respects_max_clusters_cap() -> None:
-    faces = [_face(f"person-{i}", t=float(i)) for i in range(10)]
+def test_core_members_excludes_outlier_from_best_frame_pool() -> None:
+    # A one-off face forced into a person's group (a third person, a false detection)
+    # must not be picked as that person's best frame, even with the top quality score.
+    group = [_face(f"host#{i}", quality=0.5) for i in range(4)] + [
+        _face("stranger#0", quality=0.99)
+    ]
 
-    clusters = _cluster_faces_by_identity(
-        faces, distance_fn=_label_distance, threshold=0.5, max_clusters=3
-    )
+    core = _core_members(group, distance_fn=_noisy_distance)
 
-    assert len(clusters) == 3
-    # Faces beyond the cap are dropped, not merged into an existing cluster.
-    assert sum(len(c) for c in clusters) == 3
-
-
-def test_cluster_faces_empty_list_returns_empty() -> None:
-    assert _cluster_faces_by_identity([], distance_fn=_label_distance) == []
-
-
-def test_cluster_faces_treats_missing_feature_print_as_always_distinct() -> None:
-    # The real _feature_print_distance returns inf for None inputs, so a face whose
-    # feature print extraction failed should never merge into another cluster.
-    from youthumber.videoscan import _feature_print_distance
-
-    a = FaceInstance(
-        timestamp_seconds=0.0,
-        capture_quality=0.5,
-        face_height_ratio=0.3,
-        sharpness=100.0,
-        crop=Image.new("RGB", (4, 4)),
-        feature_print=None,
-    )
-    b = FaceInstance(
-        timestamp_seconds=1.0,
-        capture_quality=0.5,
-        face_height_ratio=0.3,
-        sharpness=100.0,
-        crop=Image.new("RGB", (4, 4)),
-        feature_print=None,
-    )
-
-    clusters = _cluster_faces_by_identity([a, b], distance_fn=_feature_print_distance)
-
-    assert len(clusters) == 2
+    assert all(f.feature_print.startswith("host") for f in core)
+    assert core
 
 
 @pytest.fixture
@@ -177,7 +184,7 @@ def test_scan_video_validates_request_body(client: TestClient) -> None:
 def test_scan_video_speakers_rejects_missing_file(client: TestClient) -> None:
     res = client.post(
         "/scan-video-speakers",
-        json={"path": "/nonexistent/path/video.mp4", "intervalSeconds": 60, "maxPeople": 6},
+        json={"path": "/nonexistent/path/video.mp4", "intervalSeconds": 60, "numPeople": 2},
     )
     assert res.status_code == 400
 

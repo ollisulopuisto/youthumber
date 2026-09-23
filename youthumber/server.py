@@ -21,7 +21,7 @@ from .segmentation import (
 from .videoscan import (
     DEFAULT_INTERVAL_SECONDS,
     DEFAULT_MAX_CANDIDATES,
-    DEFAULT_MAX_PEOPLE,
+    DEFAULT_NUM_PEOPLE,
     HAS_AVFOUNDATION,
     grab_frame_at_time,
     scan_video_for_best_frames,
@@ -52,7 +52,7 @@ class GrabFrameRequest(BaseModel):
 class VideoSpeakerScanRequest(BaseModel):
     path: str = Field(..., description="Absolute path to a local video file")
     intervalSeconds: float = Field(DEFAULT_INTERVAL_SECONDS, gt=0)
-    maxPeople: int = Field(DEFAULT_MAX_PEOPLE, gt=0, le=20)
+    numPeople: int = Field(DEFAULT_NUM_PEOPLE, gt=0, le=6)
 
 
 def create_app(dist_dir: Path | None = None) -> FastAPI:
@@ -63,7 +63,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.60",
+        version="26.09.23.61",
     )
 
     app.add_middleware(
@@ -146,7 +146,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
 
         try:
-            people = scan_video_for_speakers(req.path, req.intervalSeconds, req.maxPeople)
+            people = scan_video_for_speakers(req.path, req.intervalSeconds, req.numPeople)
             return JSONResponse({"people": people})
         except Exception as err:
             logger.exception("Multi-speaker video scan failed")

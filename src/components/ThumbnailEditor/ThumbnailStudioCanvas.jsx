@@ -1,6 +1,7 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { fabric } from 'fabric'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../modules/thumbnail/thumbnailState'
+import { saveExportedImage } from '../../services/exportImage'
 
 const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   {
@@ -360,20 +361,12 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         multiplier: multiplier,
       })
 
-      // Trigger browser download
       const name =
         filename ||
         `youtube-thumbnail-1280x720-${new Date().toISOString().slice(0, 10)}.${
           format === 'png' ? 'png' : 'jpg'
         }`
-      const link = document.createElement('a')
-      link.download = name
-      link.href = dataUrl
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      return dataUrl
+      return saveExportedImage(dataUrl, name)
     },
   }))
 

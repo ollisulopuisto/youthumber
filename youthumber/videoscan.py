@@ -27,14 +27,16 @@ CAPTURE_QUALITY_WEIGHT = 0.7  # Vision's own face capture-quality score
 SHARPNESS_WEIGHT = 0.3  # blur/sharpness proxy, normalized across the candidate set
 THUMBNAIL_MAX_SIDE = 640
 
-# Multi-speaker identity clustering (VNGenerateImageFeaturePrintRequest is a generic
-# image-similarity feature print, not a dedicated face-recognition embedding — it's a
-# well-known Apple-native stand-in for "are these two face crops the same person" that
-# needs no bundled model. The threshold below is empirical; tune if people get merged
-# or split incorrectly.
-FACE_SIMILARITY_THRESHOLD = 0.3  # feature-print distance below this = same person
-FACE_CROP_MARGIN = 0.4  # extra context (hair/shoulders) around each face bbox, as a fraction of its size
-DEFAULT_MAX_PEOPLE = 6  # safety cap so a noisy video doesn't explode into dozens of "people"
+# Multi-speaker grouping. VNGenerateImageFeaturePrintRequest is a generic image-similarity
+# feature print, not a face-recognition embedding, so there is no reliable absolute
+# "same person" distance: a fixed threshold of 0.3 split a real two-person, 1h render
+# into 6 people (2026-09-23). Instead faces are grouped into exactly the number of
+# speakers the project has, by average-linkage agglomerative clustering, which only
+# needs same-person pairs to be *closer* than different-person pairs.
+DEFAULT_NUM_PEOPLE = 2
+IDENTITY_CROP_MARGIN = 0.1  # tight crop for the feature print, so background/camera angle weigh less
+THUMBNAIL_CROP_MARGIN = 0.4  # looser crop (hair/shoulders) for the picker thumbnail
+CORE_MEMBER_FRACTION = 0.5  # best frame is picked from the half of a group closest to its centre
 
 HAS_AVFOUNDATION = False
 if sys.platform == "darwin":
@@ -160,7 +162,7 @@ def _detect_all_faces(cg_image) -> list[tuple]:
     ]
 
 
-def _crop_face(pil_image: Image.Image, bbox, margin: float = FACE_CROP_MARGIN) -> Image.Image:
+def _crop_face(pil_image: Image.Image, bbox, margin: float = THUMBNAIL_CROP_MARGIN) -> Image.Image:
     """Crops a face region from a full frame given Vision's normalized bbox.
 
     Vision's bounding box origin is bottom-left; PIL's is top-left. ``margin`` expands
@@ -216,33 +218,73 @@ def _feature_print_distance(a, b) -> float:
     return float(a.computeDistanceToFeaturePrintObservation_error_(b, None))
 
 
-def _cluster_faces_by_identity(
+def _group_faces(
     faces: list[FaceInstance],
+    num_people: int = DEFAULT_NUM_PEOPLE,
     distance_fn=_feature_print_distance,
-    threshold: float = FACE_SIMILARITY_THRESHOLD,
-    max_clusters: int = DEFAULT_MAX_PEOPLE,
 ) -> list[list[FaceInstance]]:
-    """Greedily groups face instances by visual identity.
+    """Groups faces into ``num_people`` people by average-linkage agglomerative clustering.
 
-    Each face joins the closest existing cluster (compared against that cluster's
-    first face) if under ``threshold``, else starts a new cluster, up to
-    ``max_clusters``. Faces beyond the cap are dropped (most likely false-positive
-    detections rather than a 7th speaker).
+    Starts with every face in its own group and repeatedly merges the two groups with
+    the smallest mean pairwise distance until ``num_people`` remain. Faces whose
+    feature print couldn't be computed are dropped.
     """
-    clusters: list[list[FaceInstance]] = []
-    for face in faces:
-        best_cluster = None
-        best_distance = threshold
-        for cluster in clusters:
-            distance = distance_fn(face.feature_print, cluster[0].feature_print)
-            if distance < best_distance:
-                best_distance = distance
-                best_cluster = cluster
-        if best_cluster is not None:
-            best_cluster.append(face)
-        elif len(clusters) < max_clusters:
-            clusters.append([face])
-    return clusters
+    import numpy as np
+
+    faces = [f for f in faces if f.feature_print is not None]
+    n = len(faces)
+    if n == 0:
+        return []
+
+    dist = np.zeros((n, n), dtype="float64")
+    for i in range(n):
+        for j in range(i + 1, n):
+            dist[i, j] = dist[j, i] = distance_fn(faces[i].feature_print, faces[j].feature_print)
+
+    members: list[list[int]] = [[i] for i in range(n)]
+    active = list(range(n))
+    np.fill_diagonal(dist, np.inf)
+
+    while len(active) > max(1, num_people):
+        sub = dist[np.ix_(active, active)]
+        flat = int(np.argmin(sub))
+        a, b = active[flat // len(active)], active[flat % len(active)]
+        if a == b:  # every remaining distance is inf; nothing meaningful left to merge
+            break
+
+        # Lance-Williams update for average linkage: distance to the merged group is the
+        # size-weighted mean of the distances to its two halves.
+        size_a, size_b = len(members[a]), len(members[b])
+        merged = (size_a * dist[a] + size_b * dist[b]) / (size_a + size_b)
+        dist[a], dist[:, a] = merged, merged
+        dist[a, a] = np.inf
+        members[a].extend(members[b])
+        active.remove(b)
+
+    return [[faces[i] for i in members[g]] for g in active]
+
+
+def _core_members(
+    group: list[FaceInstance],
+    distance_fn=_feature_print_distance,
+    keep_fraction: float = CORE_MEMBER_FRACTION,
+) -> list[FaceInstance]:
+    """Returns the part of a group closest to its centre (lowest mean distance to the rest).
+
+    Forcing faces into a fixed number of groups means a stray third person or false
+    detection lands in someone's group; picking the best frame only from the core keeps
+    it from becoming that person's thumbnail.
+    """
+    if len(group) <= 2:
+        return list(group)
+
+    def mean_distance(face: FaceInstance) -> float:
+        others = [distance_fn(face.feature_print, o.feature_print) for o in group if o is not face]
+        return sum(others) / len(others)
+
+    ranked = sorted(group, key=mean_distance)
+    keep = max(1, round(len(group) * keep_fraction))
+    return ranked[:keep]
 
 
 def _sharpness_score(pil_image: Image.Image) -> float:
@@ -345,11 +387,11 @@ def grab_frame_at_time(video_path: str, timestamp_seconds: float) -> str:
 def scan_video_for_speakers(
     video_path: str,
     interval_seconds: float = DEFAULT_INTERVAL_SECONDS,
-    max_people: int = DEFAULT_MAX_PEOPLE,
+    num_people: int = DEFAULT_NUM_PEOPLE,
 ) -> list[dict]:
-    """Samples a video, detects every face per frame, clusters faces by visual identity,
-    and returns each detected person's best-scoring frame — for the caller to let the
-    user assign each detected person to a speaker slot.
+    """Samples a video, detects every face per frame, groups the faces into
+    ``num_people`` people, and returns each person's best-scoring frame — for the caller
+    to let the user assign each person to a speaker slot.
 
     The returned frame is only a face-crop thumbnail for identification in a picker UI;
     the actual full frame (for background removal / auto-framing) is fetched separately
@@ -375,26 +417,27 @@ def scan_video_for_speakers(
                     continue
                 if frame_pil is None:
                     frame_pil = _cgimage_to_pil(cg_image)
-                crop = _crop_face(frame_pil, bbox)
-                if crop.width < 8 or crop.height < 8:
+                crop = _crop_face(frame_pil, bbox, THUMBNAIL_CROP_MARGIN)
+                identity_crop = _crop_face(frame_pil, bbox, IDENTITY_CROP_MARGIN)
+                if identity_crop.width < 8 or identity_crop.height < 8:
                     continue
                 faces.append(
                     FaceInstance(
                         timestamp_seconds=t,
                         capture_quality=capture_quality,
                         face_height_ratio=float(bbox.size.height),
-                        sharpness=_sharpness_score(crop),
+                        sharpness=_sharpness_score(identity_crop),
                         crop=crop,
-                        feature_print=_feature_print(crop),
+                        feature_print=_feature_print(identity_crop),
                     )
                 )
         t += interval_seconds
 
-    clusters = _cluster_faces_by_identity(faces, max_clusters=max_people)
+    groups = _group_faces(faces, num_people=num_people)
 
     results = []
-    for cluster in clusters:
-        best = _rank_candidates(list(cluster))[0]
+    for group in groups:
+        best = _rank_candidates(_core_members(group))[0]
         thumb = best.crop.copy()
         thumb.thumbnail((THUMBNAIL_MAX_SIDE, THUMBNAIL_MAX_SIDE))
         results.append(
@@ -402,7 +445,7 @@ def scan_video_for_speakers(
                 "timestampSeconds": round(best.timestamp_seconds, 1),
                 "score": round(best.score, 4),
                 "captureQuality": round(best.capture_quality, 4),
-                "frameCount": len(cluster),
+                "frameCount": len(group),
                 "image": image_to_data_url(thumb, format="JPEG"),
             }
         )

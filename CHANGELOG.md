@@ -2,6 +2,16 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.61] - 2026-09-23
+
+### Fixed
+- Scan Video for All Speakers split a real two-person render into 6 "people". Faces are now grouped into exactly the number of speakers (2) by average-linkage clustering instead of a fixed similarity threshold, with a tighter face crop for identity and each person's thumbnail picked from the core of their group so a stray face can't become it
+- Export did nothing in the desktop app (pywebview disables downloads); it now opens a native Save dialog, defaulting to Downloads, and confirms the saved path
+
+### Changed
+- Speaker picker buttons say "Left (Host)" / "Right (Guest)" to match the speaker cards
+- `/scan-video-speakers` takes `numPeople` (default 2) instead of `maxPeople`
+
 ## [26.09.23.60] - 2026-09-23
 
 ### Added
