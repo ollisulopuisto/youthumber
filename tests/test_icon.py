@@ -33,4 +33,6 @@ def test_svg_is_a_square_1024_canvas() -> None:
 def test_the_page_and_the_desktop_app_use_the_icon() -> None:
     assert 'href="/icon.svg"' in (ROOT / "index.html").read_text()
     assert (ROOT / "public" / "favicon.png").is_file()  # dock icon (paths.py)
-    assert "YouThumber.icns" in (ROOT / "YouThumber.spec").read_text()
+    build = (ROOT / "scripts" / "build_binaries.py").read_text()
+    assert '"--icon"' in build and "YouThumber.icns" in build  # app bundle
+    assert (ROOT / "assets" / "YouThumber.icns").is_file()

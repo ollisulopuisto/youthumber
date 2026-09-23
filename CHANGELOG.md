@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.75] - 2026-09-23
+
+### Fixed
+- The app-bundle icon was set in the generated, git-ignored `YouThumber.spec`, so it never shipped (and CI failed); the build script now passes it to PyInstaller
+
 ## [26.09.23.74] - 2026-09-23
 
 ### Added

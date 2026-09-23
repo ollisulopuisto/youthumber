@@ -16,6 +16,12 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 DIST_DIR = ROOT_DIR / "dist"
 RELEASE_DIR = ROOT_DIR / "release"
+# Drawn by scripts/make_icon.py. PyInstaller converts the PNG for Windows/Linux.
+APP_ICON = (
+    ROOT_DIR / "assets" / "YouThumber.icns"
+    if sys.platform == "darwin"
+    else ROOT_DIR / "public" / "favicon.png"
+)
 
 
 def build_frontend() -> None:
@@ -45,6 +51,8 @@ def run_pyinstaller() -> None:
         "YouThumber",
         "--noconfirm",
         "--clean",
+        "--icon",
+        str(APP_ICON),
         "--distpath",
         str(RELEASE_DIR),
         "--add-data",
