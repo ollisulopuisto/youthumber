@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>YouThumber</title>
+<defs><linearGradient id="g0" gradientUnits="userSpaceOnUse" x1="100" y1="924" x2="924" y2="100"><stop offset="0" stop-color="#DC2626"/><stop offset="1" stop-color="#F59E0B"/></linearGradient><linearGradient id="g5" gradientUnits="userSpaceOnUse" x1="232" y1="560" x2="232" y2="665"><stop offset="0" stop-color="#FBBF24"/><stop offset="1" stop-color="#F59E0B"/></linearGradient><clipPath id="c5"><rect x="220" y="368" width="584" height="297" rx="30"/></clipPath></defs>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#g0)"/>
+<rect x="184" y="352" width="656" height="369" rx="60" fill="#7F1D1D" fill-opacity="0.35"/>
+<rect x="184" y="332" width="656" height="369" rx="60" fill="#FFFFFF"/>
+<rect x="220" y="368" width="584" height="297" rx="30" fill="#111827"/>
+<ellipse cx="370" cy="482" rx="64" ry="64" fill="#FBBF24"/>
+<ellipse cx="370" cy="670" rx="138" ry="110" fill="url(#g5)" clip-path="url(#c5)"/>
+<rect x="536" y="446" width="214" height="56" rx="28" fill="#FFFFFF"/>
+<rect x="536" y="530" width="150" height="56" rx="28" fill="#FBBF24"/>
+<rect x="672" y="604" width="196" height="140" rx="40" fill="#7F1D1D" fill-opacity="0.35"/>
+<rect x="672" y="588" width="196" height="140" rx="40" fill="#DC2626"/>
+<polygon points="748,624 748,692 806,658" fill="#FFFFFF"/>
+</svg>

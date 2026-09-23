@@ -86,9 +86,7 @@ function Toolbar({
       {/* Left: Branding & Project Name */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center font-black text-sm shadow-md">
-            YT
-          </div>
+          <img src="/icon.svg" alt="" className="w-9 h-9 -m-0.5" />
           <span className="font-bold text-sm tracking-wide hidden sm:inline text-gray-200">
             YouThumber
           </span>

@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.74] - 2026-09-23
+
+### Added
+- App icon: a thumbnail card with a speaker, headline bars and a play badge on the red→amber tile. Drawn from vector shapes by `scripts/make_icon.py` into `public/icon.svg` (favicon, toolbar logo), `public/favicon.png` (dock) and `assets/YouThumber.icns` (app bundle)
+
 ## [26.09.23.73] - 2026-09-23
 
 ### Changed
