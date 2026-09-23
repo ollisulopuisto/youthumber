@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.64] - 2026-09-23
+
+### Fixed
+- Background removal cut away a microphone touching the host, leaving a hole in their shirt where the mic had been. Objects touching the person are kept again; only pieces floating free of the body are removed, and edges still fade smoothly
+
 ## [26.09.23.63] - 2026-09-23
 
 ### Fixed

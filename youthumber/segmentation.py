@@ -47,10 +47,11 @@ def image_to_data_url(image: Image.Image, format: str = "PNG") -> str:
     return f"data:{mime};base64,{b64}"
 
 
-# Regions connect only through near-opaque pixels. A mic remnant that touched the host's
-# shoulder had alpha 40-145 vs 255 for the body (2026-09-23): at 64 it stayed attached,
-# at 200 it came off with the body and hair edges intact.
-REGION_CONNECT_THRESHOLD = 200
+# Mask values above this count as part of a region. At 200 a mic touching the host's
+# shoulder (alpha 40-145) came off, but it had been covering the shirt, so it left a
+# hole in the person (2026-09-23). At 64 things touching the body stay; only pieces
+# floating free of it are dropped.
+REGION_CONNECT_THRESHOLD = 64
 REGION_EDGE_GROW = 2  # work-scale pixels of soft edge kept at full strength around the body (~8px at 1080p)
 # Further work-scale pixels over which the rest fades out instead of a hard cut. On a
 # 1080p soft-edge ramp the worst jump between neighbouring pixels was 156 with a hard

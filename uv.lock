@@ -1448,7 +1448,7 @@ wheels = [
 
 [[package]]
 name = "youthumber"
-version = "26.9.23.63"
+version = "26.9.23.64"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

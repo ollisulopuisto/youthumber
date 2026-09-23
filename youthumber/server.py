@@ -57,7 +57,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.63",
+        version="26.09.23.64",
     )
 
     app.add_middleware(

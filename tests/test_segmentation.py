@@ -32,9 +32,10 @@ def test_keep_largest_region_keeps_soft_edges_of_the_person() -> None:
     assert cleaned.getpixel((202, 200)) >= 124
 
 
-def test_keep_largest_region_drops_a_semi_opaque_blob_touching_the_body() -> None:
-    # In the real mask the mic remnant touched the shoulder at alpha 40-145 while the
-    # body was 255, so plain connectivity kept it.
+def test_keep_largest_region_keeps_a_semi_opaque_object_touching_the_body() -> None:
+    # A mic touching the host's shoulder (alpha 40-145 vs 255 for the body) was cut off
+    # in .62/.63, but it had been hiding the shirt behind it, so removing it left a hole
+    # in the person (2026-09-23). Things touching the body stay.
     mask = Image.new("L", (400, 300), 0)
     draw = ImageDraw.Draw(mask)
     draw.rectangle([50, 40, 200, 299], fill=255)
@@ -42,7 +43,7 @@ def test_keep_largest_region_drops_a_semi_opaque_blob_touching_the_body() -> Non
 
     cleaned = keep_largest_region(mask)
 
-    assert cleaned.getpixel((280, 120)) == 0
+    assert cleaned.getpixel((280, 120)) == 120
     assert cleaned.getpixel((120, 200)) == 255
 
 
