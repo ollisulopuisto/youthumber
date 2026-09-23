@@ -67,7 +67,7 @@ function MattingModelBanner() {
       <button
         onClick={download}
         className="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-sky-300 border border-gray-700 transition-colors"
-        title="BiRefNet: Pixelcut-quality edges on hands and hair, about 10 s per cutout"
+        title="BiRefNet: Pixelcut-quality edges on hands and hair. One-time download."
       >
         ✨ Get sharper cutout edges ({model.sizeMb} MB download)
       </button>

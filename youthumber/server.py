@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .matting import MATTER, MODEL, MODEL_URL
+from .matting import BACKEND, MATTER, MODEL, warm_up
 from .paths import get_dist_dir
 from .segmentation import (
     HAS_VISION,
@@ -33,8 +34,6 @@ from .videoscan import (
 )
 
 logger = logging.getLogger(__name__)
-
-MODEL_SIZE_MB = 973
 
 
 class RemovalRequest(BaseModel):
@@ -69,10 +68,19 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     if dist_dir is None:
         dist_dir = get_dist_dir()
 
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        # Load a downloaded model in the background at startup (~14 s for PyTorch), so
+        # the first cutout doesn't pay for it. Not run by plain TestClient(app).
+        if MODEL.state()["status"] == "ready":
+            warm_up(MATTER)
+        yield
+
     app = FastAPI(
+        lifespan=lifespan,
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.72",
+        version="26.09.23.73",
     )
 
     app.add_middleware(
@@ -136,7 +144,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
 
     @app.get("/matting-model")
     def matting_model() -> dict[str, Any]:
-        return {**MODEL.state(), "sizeMb": MODEL_SIZE_MB, "url": MODEL_URL}
+        return {**MODEL.state(), "sizeMb": MODEL.size_mb, "backend": BACKEND}
 
     @app.post("/matting-model/download", status_code=202)
     def download_matting_model() -> dict[str, Any]:

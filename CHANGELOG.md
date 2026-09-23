@@ -2,6 +2,13 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.73] - 2026-09-23
+
+### Changed
+- BiRefNet cutouts run on the Mac's GPU (PyTorch/Metal): ~1.5–2 s per full-HD cutout instead of 10–14 s on the CPU, with the same edge quality. The model download shrinks to 445 MB (pinned Hugging Face revision; every file, including the model's own code, checked against a pinned SHA-256)
+- The model loads in the background when the app starts, so the first cutout doesn't wait ~15 s for it
+- PyTorch and its helpers are installed on macOS only; elsewhere BiRefNet still runs through ONNX Runtime on the CPU (973 MB download)
+
 ## [26.09.23.72] - 2026-09-23
 
 ### Added

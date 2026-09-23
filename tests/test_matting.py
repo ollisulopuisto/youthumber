@@ -7,7 +7,14 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from youthumber import matting
-from youthumber.matting import ModelDownload, combine_masks, prepare_input
+from youthumber.matting import (
+    ModelDownload,
+    ModelFile,
+    choose_backend,
+    combine_masks,
+    prepare_input,
+    prepare_torch_input,
+)
 
 
 def _serve(tmp_path, payload: bytes) -> str:
@@ -16,46 +23,72 @@ def _serve(tmp_path, payload: bytes) -> str:
     return source.as_uri()
 
 
-def test_download_verifies_the_checksum_and_reports_ready(tmp_path) -> None:
-    payload = b"model-bytes" * 1000
-    target = tmp_path / "models" / "birefnet.onnx"
-    download = ModelDownload(
-        url=_serve(tmp_path, payload),
-        sha256=hashlib.sha256(payload).hexdigest(),
-        path=target,
+def _file(tmp_path, name: str, payload: bytes, sha: str | None = None) -> ModelFile:
+    source = tmp_path / f"served-{name}"
+    source.write_bytes(payload)
+    return ModelFile(
+        name=name,
+        url=source.as_uri(),
+        sha256=sha or hashlib.sha256(payload).hexdigest(),
+        size=len(payload),
     )
+
+
+def test_download_verifies_every_file_and_reports_ready(tmp_path) -> None:
+    files = [
+        _file(tmp_path, "config.json", b"{}"),
+        _file(tmp_path, "model.safetensors", b"weights" * 1000),
+    ]
+    download = ModelDownload(files, tmp_path / "model")
 
     download.run()
 
     assert download.state()["status"] == "ready"
     assert download.state()["progress"] == 1.0
-    assert target.read_bytes() == payload
+    assert (tmp_path / "model" / "model.safetensors").read_bytes() == b"weights" * 1000
+    assert download.size_mb == 0  # rounded; real models report hundreds
 
 
 def test_download_with_a_wrong_checksum_fails_closed_and_keeps_nothing(
     tmp_path,
 ) -> None:
     # A truncated or tampered model must never be loaded as if it were the real one.
-    target = tmp_path / "models" / "birefnet.onnx"
-    download = ModelDownload(
-        url=_serve(tmp_path, b"not the model"), sha256="0" * 64, path=target
-    )
+    files = [
+        _file(tmp_path, "config.json", b"{}"),
+        _file(tmp_path, "model.safetensors", b"not the model", sha="0" * 64),
+    ]
+    download = ModelDownload(files, tmp_path / "model")
 
     download.run()
 
     state = download.state()
     assert state["status"] == "error"
     assert "checksum" in state["error"]
-    assert not target.exists()
-    assert not list(target.parent.glob("*.part"))
+    assert not (tmp_path / "model" / "model.safetensors").exists()
+    assert not list((tmp_path / "model").glob("*.part"))
 
 
-def test_an_existing_model_is_checked_before_it_counts_as_ready(tmp_path) -> None:
-    target = tmp_path / "birefnet.onnx"
-    target.write_bytes(b"corrupt")
-    download = ModelDownload(url="file:///nowhere", sha256="0" * 64, path=target)
+def test_existing_files_are_checked_before_they_count_as_ready(tmp_path) -> None:
+    files = [_file(tmp_path, "model.onnx", b"real", sha="0" * 64)]
+    (tmp_path / "model").mkdir()
+    (tmp_path / "model" / "model.onnx").write_bytes(b"corrupt")
 
-    assert download.state()["status"] == "missing"
+    assert ModelDownload(files, tmp_path / "model").state()["status"] == "missing"
+
+
+def test_backend_is_pytorch_on_the_mac_gpu_when_installed_else_onnx() -> None:
+    # PyTorch on Metal ran BiRefNet in 0.9 s vs 10 s for ONNX on the CPU (2026-09-23);
+    # CoreML could not compile it at all. PyTorch is only installed on macOS.
+    assert choose_backend(has_torch=True) == "torch"
+    assert choose_backend(has_torch=False) == "onnx"
+
+
+def test_prepare_torch_input_uses_plain_0_to_1_scaling() -> None:
+    tensor = prepare_torch_input(Image.new("RGB", (640, 360), (255, 128, 0)))
+
+    assert tensor.shape == (1, 3, 1024, 1024)
+    expected = [(1.0 - 0.485) / 0.229, (128 / 255 - 0.456) / 0.224, -0.406 / 0.225]
+    assert np.allclose(tensor[0, :, 500, 500], expected, atol=1e-3)
 
 
 def test_prepare_input_matches_birefnet_normalisation() -> None:
@@ -108,7 +141,7 @@ def test_combine_never_adds_opacity_the_matte_does_not_have() -> None:
     assert person_only.getpixel((100, 300)) == 0
 
 
-def test_model_path_can_be_overridden(monkeypatch, tmp_path) -> None:
+def test_model_dir_can_be_overridden(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("YOUTHUMBER_MODEL_DIR", str(tmp_path))
 
-    assert matting.model_path().parent == tmp_path
+    assert matting.models_dir() == tmp_path

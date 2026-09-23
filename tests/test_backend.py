@@ -65,6 +65,8 @@ def _png_data_url(size=(64, 64)) -> str:
 
 
 class _FakeModel:
+    size_mb = 444
+
     def __init__(self, status: str) -> None:
         self.status, self.started = status, False
 
@@ -116,5 +118,5 @@ def test_matting_model_status_and_download(monkeypatch) -> None:
     started = client.post("/matting-model/download")
 
     assert status["status"] == "missing"
-    assert status["sizeMb"] == 973
+    assert status["sizeMb"] == 444
     assert started.status_code == 202 and model.started
