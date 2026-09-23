@@ -3,10 +3,17 @@ import {
   pickVideoFile,
   scanVideoForSpeakers,
   grabFullResolutionFrame,
+  framesSortedBy,
 } from '../../services/videoScan'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 
 const MAX_PEOPLE = 6
+
+const SORT_MODES = [
+  { id: 'quality', label: 'Best quality', hint: 'sharp, well lit, eyes open' },
+  { id: 'expression', label: 'Most expressive', hint: 'smiling, talking, eyebrows up' },
+  { id: 'gesture', label: 'Gesturing', hint: 'hands up, pointing' },
+]
 
 function formatTimestamp(seconds) {
   const h = Math.floor(seconds / 3600)
@@ -32,6 +39,7 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   const [viewing, setViewing] = useState(null) // { personIndex, frameIndex }
   const [pendingSpeakerId, setPendingSpeakerId] = useState(null)
   const [assigned, setAssigned] = useState({}) // speakerId -> timestampSeconds
+  const [sortMode, setSortMode] = useState('quality')
 
   const people = scan?.people ?? []
 
@@ -71,7 +79,8 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
     }
   }
 
-  const viewedFrames = viewing ? people[viewing.personIndex]?.frames ?? [] : []
+  const viewedPerson = viewing ? people[viewing.personIndex] : null
+  const viewedFrames = viewedPerson ? framesSortedBy(viewedPerson, sortMode) : []
   const viewedFrame = viewing ? viewedFrames[viewing.frameIndex] : null
 
   useEffect(() => {
@@ -175,8 +184,8 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
           <div className="flex flex-col items-center justify-center gap-3 py-16">
             <div className="w-8 h-8 border-2 border-gray-700 border-t-amber-500 rounded-full animate-spin" />
             <p className="text-xs text-gray-400 text-center max-w-md">
-              Scanning the video and grouping faces with Apple Vision — a long recording takes a
-              minute or two…
+              Looking at a frame every 5 seconds for faces, expressions and hands — roughly 5
+              minutes per hour of video…
             </p>
           </div>
         )}
@@ -196,19 +205,50 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
 
         {phase === 'results' && (
           <div className="flex flex-col gap-5">
-            <p className="text-[11px] text-gray-500 -mt-1">
-              {fileName(scan.path)} · {people.length} {people.length === 1 ? 'person' : 'people'},
-              most-seen first. Click a frame to see it large.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 -mt-1">
+              <p className="text-[11px] text-gray-500">
+                {fileName(scan.path)} · {people.length} {people.length === 1 ? 'person' : 'people'},
+                most-seen first. Click a frame to see it large.
+              </p>
+              <div
+                className="flex rounded border border-gray-700 overflow-hidden text-[11px]"
+                role="group"
+                aria-label="Sort frames by"
+              >
+                {SORT_MODES.map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => setSortMode(mode.id)}
+                    aria-pressed={sortMode === mode.id}
+                    title={mode.hint}
+                    className={`px-2.5 py-1 transition-colors ${
+                      sortMode === mode.id
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {error && <p className="text-xs text-red-400">{error}</p>}
             {people.map((person, personIndex) => (
               <section key={personIndex} className="flex flex-col gap-2">
                 <h3 className="text-xs font-bold text-gray-300">
                   Person {personIndex + 1}{' '}
                   <span className="font-normal text-gray-500">· seen in {person.frameCount} frames</span>
+                  {sortMode !== 'quality' &&
+                    !person.frames.some((f) => (f.scores?.[sortMode] ?? 0) > 0) && (
+                      <span className="font-normal text-amber-400/80">
+                        {' '}
+                        · no {sortMode === 'gesture' ? 'gestures' : 'expressions'} found — showing
+                        frames unranked
+                      </span>
+                    )}
                 </h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {person.frames.map((frame, frameIndex) => {
+                  {framesSortedBy(person, sortMode).map((frame, frameIndex) => {
                     const assignedTo = project.speakers.filter(
                       (s) => assigned[s.id] === frame.timestampSeconds
                     )
@@ -221,7 +261,7 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
                         }`}
                         title="Click to view large"
                       >
-                        <div className="aspect-square overflow-hidden">
+                        <div className="aspect-[4/5] overflow-hidden bg-black">
                           <img
                             src={frame.image}
                             alt={`Person ${personIndex + 1} at ${formatTimestamp(frame.timestampSeconds)}`}

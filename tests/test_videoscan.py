@@ -2,7 +2,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
 
 from youthumber.server import create_app
 from youthumber.videoscan import (
@@ -11,6 +10,7 @@ from youthumber.videoscan import (
     _frames_for_person,
     _group_faces,
     _rank_candidates,
+    _select_frames,
 )
 
 
@@ -18,7 +18,14 @@ def _candidate(quality: float, sharpness: float, t: float = 0.0) -> FaceInstance
     return _face("a", quality=quality, sharpness=sharpness, t=t)
 
 
-def _face(identity_label: str, quality: float = 0.5, sharpness: float = 100.0, t: float = 0.0) -> FaceInstance:
+def _face(
+    identity_label: str,
+    quality: float = 0.5,
+    sharpness: float = 100.0,
+    t: float = 0.0,
+    expression: float = 0.0,
+    gesture: float = 0.0,
+) -> FaceInstance:
     # feature_print is normally a VNFeaturePrintObservation; tests stand in a plain
     # label and a fake distance_fn below, so no real Vision call is needed.
     return FaceInstance(
@@ -26,8 +33,10 @@ def _face(identity_label: str, quality: float = 0.5, sharpness: float = 100.0, t
         capture_quality=quality,
         face_height_ratio=0.3,
         sharpness=sharpness,
-        crop=Image.new("RGB", (4, 4)),
+        bbox=(0.4, 0.4, 0.2, 0.3),
         feature_print=identity_label,
+        expression=expression,
+        gesture=gesture,
     )
 
 
@@ -105,7 +114,7 @@ def test_group_faces_drops_faces_without_feature_print() -> None:
             capture_quality=0.9,
             face_height_ratio=0.3,
             sharpness=100.0,
-            crop=Image.new("RGB", (4, 4)),
+            bbox=(0.4, 0.4, 0.2, 0.3),
             feature_print=None,
         )
     )
@@ -133,6 +142,39 @@ def test_frames_for_person_caps_at_max_frames() -> None:
     group = [_face(f"host#{i}", t=float(i)) for i in range(20)]
 
     assert len(_frames_for_person(group, max_frames=12, distance_fn=_noisy_distance)) == 12
+
+
+def test_group_faces_clusters_a_sample_then_assigns_everyone_when_there_are_many_faces() -> None:
+    # At one frame every 5s a 90-min video yields ~2000 faces; clustering all of them
+    # pairwise would take hours, so only a sample is clustered and the rest assigned.
+    faces = [_face(f"host#{i}", t=float(i)) for i in range(60)] + [
+        _face(f"guest#{i}", t=100.0 + i) for i in range(40)
+    ]
+
+    groups = _group_faces(faces, num_people=2, distance_fn=_noisy_distance, max_samples=20)
+
+    assert sum(len(g) for g in groups) == 100
+    people = {frozenset(f.feature_print.split("#")[0] for f in g) for g in groups}
+    assert people == {frozenset({"host"}), frozenset({"guest"})}
+
+
+def test_core_members_uses_a_sample_of_references_for_big_groups() -> None:
+    group = [_face(f"host#{i}", quality=0.5) for i in range(50)] + [_face("stranger#0", quality=0.99)]
+
+    core = _core_members(group, distance_fn=_noisy_distance, max_references=10)
+
+    assert all(f.feature_print.startswith("host") for f in core)
+
+
+def test_select_frames_covers_quality_expression_and_gesture_without_duplicates() -> None:
+    group = [_face(f"host#{i}", quality=0.9 - i * 0.01, t=float(i)) for i in range(30)]
+    group[25].expression = 0.95  # low quality, but the best smile
+    group[28].gesture = 0.9  # low quality, but pointing
+
+    frames = _select_frames(group, per_mode=5, distance_fn=_noisy_distance)
+
+    assert group[25] in frames and group[28] in frames
+    assert len(frames) == len({id(f) for f in frames}) <= 15
 
 
 def test_core_members_excludes_outlier_from_best_frame_pool() -> None:

@@ -63,6 +63,19 @@ export async function scanVideoForSpeakers(path, { numPeople, framesPerPerson } 
   return data.people
 }
 
+const FRAMES_SHOWN = 12
+
+/**
+ * A person's frames in one sort mode ('quality' | 'expression' | 'gesture'), best
+ * first, trimmed to what the picker grid shows. The scan sends the top frames of every
+ * mode, so switching modes needs no rescan.
+ */
+export function framesSortedBy(person, mode) {
+  return [...person.frames]
+    .sort((a, b) => (b.scores?.[mode] ?? 0) - (a.scores?.[mode] ?? 0))
+    .slice(0, FRAMES_SHOWN)
+}
+
 /** Grabs a single full-resolution frame from a video at the given timestamp. */
 export async function grabFullResolutionFrame(path, timestampSeconds) {
   const baseUrl = resolveBaseUrl()

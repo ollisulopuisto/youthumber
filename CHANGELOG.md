@@ -2,6 +2,18 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.65] - 2026-09-23
+
+### Added
+- Video picker sorts by **Best quality**, **Most expressive** or **Gesturing**, without rescanning. Expression is scored from Apple Vision face landmarks (smile, open mouth, raised eyebrows); gestures from hand pose (hand raised to chest height or above, most of all a pointing index finger). Hands are credited to their owner through body pose, so an arm reaching across the frame counts for the right person
+- Picker thumbnails are head-and-shoulders crops, so hands in front of the chest are visible
+- "No gestures/expressions found" note when a person has none, instead of an arbitrary order
+
+### Changed
+- The scan samples a frame every 5 seconds instead of every 30, since smiles and gestures only last a second or two. About 0.4 s per sampled frame on this Mac — roughly 5 minutes per hour of video
+- Face grouping clusters a sample of up to 300 faces and assigns the rest, so the ~10x more faces from denser sampling don't make it take hours
+- The scan request runs in a worker thread, so the app stays responsive during a scan
+
 ## [26.09.23.64] - 2026-09-23
 
 ### Fixed

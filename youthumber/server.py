@@ -57,7 +57,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.64",
+        version="26.09.23.65",
     )
 
     app.add_middleware(
@@ -112,8 +112,10 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 status_code=500, detail=f"Segmentation failed: {err}"
             ) from err
 
+    # Plain `def`: a scan takes minutes, and FastAPI runs sync handlers in a worker
+    # thread instead of blocking every other request (health checks, frame grabs).
     @app.post("/scan-video-speakers")
-    async def scan_video_speakers(req: VideoSpeakerScanRequest) -> JSONResponse:
+    def scan_video_speakers(req: VideoSpeakerScanRequest) -> JSONResponse:
         if not HAS_AVFOUNDATION:
             raise HTTPException(
                 status_code=501, detail="Video scanning requires macOS AVFoundation/Vision"
