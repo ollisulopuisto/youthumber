@@ -2,7 +2,7 @@
 
 from PIL import Image, ImageDraw
 
-from youthumber.segmentation import keep_largest_region
+from youthumber.segmentation import choke_edge, keep_largest_region
 
 
 def _mask_with_person_and_mic() -> Image.Image:
@@ -79,3 +79,41 @@ def test_keep_largest_region_leaves_an_empty_mask_alone() -> None:
     empty = Image.new("L", (100, 100), 0)
 
     assert keep_largest_region(empty).getbbox() is None
+
+
+def test_keep_largest_region_keeps_a_separate_piece_holding_a_detected_hand() -> None:
+    # A raised hand whose arm leaves the frame is not connected to the body inside the
+    # picture, and was deleted like a stray mic (2026-09-23). Vision's mask is just as
+    # sure of both (255), so the tell is Vision's hand detector: pieces holding a hand stay.
+    mask = _mask_with_person_and_mic()
+    ImageDraw.Draw(mask).rectangle([330, 20, 380, 90], fill=255)  # the raised hand
+
+    cleaned = keep_largest_region(mask, keep_points=[(355, 50)])
+
+    assert cleaned.getpixel((355, 50)) == 255
+    assert cleaned.getpixel((280, 135)) == 0  # the mic still goes
+    assert cleaned.getpixel((120, 200)) == 255
+
+
+def test_choke_edge_pulls_the_edge_in_about_3px_at_full_hd() -> None:
+    # Vision's mask runs 1-2 px past the person at full strength, so a dark studio wall
+    # showed as a rim around the fingers (2026-09-23). A 1 px choke on a 685 px preview
+    # removed it; 2 px ate the fingertips. Scaled with width, ~3 px at 1920.
+    mask = Image.new("L", (1920, 1080), 0)
+    ImageDraw.Draw(mask).rectangle([500, 300, 1400, 1079], fill=255)
+
+    out = choke_edge(mask)
+
+    assert out.size == mask.size and out.mode == "L"
+    assert out.getpixel((500, 700)) < 64  # the old outer edge pixel is now background
+    assert out.getpixel((506, 700)) == 255  # a few pixels in is untouched
+    assert out.getpixel((950, 700)) == 255
+
+
+def test_choke_edge_never_erodes_more_than_1px_on_small_images() -> None:
+    mask = Image.new("L", (685, 400), 0)
+    ImageDraw.Draw(mask).rectangle([100, 100, 400, 399], fill=255)
+
+    out = choke_edge(mask)
+
+    assert out.getpixel((103, 200)) == 255

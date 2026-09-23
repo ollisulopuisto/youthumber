@@ -2,6 +2,12 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.71] - 2026-09-23
+
+### Fixed
+- Background removal deleted a raised hand whose arm leaves the frame: it isn't joined to the body in the picture, so the stray-object cleanup treated it like a floating mic. Apple Vision's hand detector now marks hands, and pieces holding one are kept
+- A dark rim of the studio wall around fingers and edges: Vision's mask runs a pixel or two past the person, so the edge is now pulled in slightly (about 3 px at 1080p)
+
 ## [26.09.23.70] - 2026-09-23
 
 ### Fixed

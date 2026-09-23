@@ -5,7 +5,7 @@ import io
 import logging
 import sys
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,11 @@ REGION_WORK_WIDTH = (
 )
 
 
-def keep_largest_region(mask: Image.Image) -> Image.Image:
-    """Keeps only the largest connected region of a soft person mask.
+def keep_largest_region(
+    mask: Image.Image, keep_points: list[tuple[float, float]] | None = None
+) -> Image.Image:
+    """Keeps only the largest connected region of a soft person mask, plus any region
+    holding one of ``keep_points`` (pixel x, y; detected hands).
 
     Vision's person segmentation also keeps objects near the person — a microphone in
     front of the host came out as a floating grey blob (2026-09-23). Anything not
@@ -108,7 +111,13 @@ def keep_largest_region(mask: Image.Image) -> Image.Image:
         sizes.append(size)
 
     # Grow past the body so its soft (below-threshold) edge survives, plus a ring to fade in.
-    grown = labels == int(np.argmax(sizes))
+    kept = {int(np.argmax(sizes))}
+    for x, y in keep_points or []:
+        wx = min(work_w - 1, max(0, int(x * scale)))
+        wy = min(work_h - 1, max(0, int(y * scale)))
+        if labels[wy, wx]:
+            kept.add(int(labels[wy, wx]))
+    grown = np.isin(labels, list(kept))
     for _ in range(REGION_EDGE_GROW + REGION_FADE):
         step = grown.copy()
         step[1:] |= grown[:-1]
@@ -128,6 +137,42 @@ def keep_largest_region(mask: Image.Image) -> Image.Image:
     )
     faded = full.astype(np.float32) * (np.asarray(weight, dtype=np.float32) / 255.0)
     return Image.fromarray(np.round(faded).astype(np.uint8), mode="L")
+
+
+# Vision's mask runs 1-2 px past the person at full strength, leaving a rim of the
+# studio wall around fingers (2026-09-23). 1 px on a 685 px frame removed it and 2 px
+# ate fingertips, so the choke scales with width: 3 px at 1920.
+CHOKE_PX_AT_FULL_HD = 3
+
+
+def choke_edge(mask: Image.Image) -> Image.Image:
+    """Pulls a soft mask's edge in by a few pixels, scaled to the image width."""
+    radius = max(1, round(mask.width * CHOKE_PX_AT_FULL_HD / 1920))
+    return (
+        mask.convert("L")
+        .filter(ImageFilter.MinFilter(2 * radius + 1))
+        .filter(ImageFilter.GaussianBlur(0.5))
+    )
+
+
+MAX_HANDS = 8
+HAND_JOINT_MIN_CONFIDENCE = 0.3
+
+
+def _hand_points(observations, width: int, height: int) -> list[tuple[float, float]]:
+    """Pixel positions (top-left origin) of every confidently detected hand joint."""
+    import Vision
+
+    points = []
+    for observation in observations:
+        joints, _err = observation.recognizedPointsForGroupKey_error_(
+            Vision.VNHumanHandPoseObservationJointsGroupNameAll, None
+        )
+        for point in (joints or {}).values():
+            if point.confidence() >= HAND_JOINT_MIN_CONFIDENCE:
+                location = point.location()
+                points.append((location.x * width, (1 - location.y) * height))
+    return points
 
 
 def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
@@ -160,10 +205,15 @@ def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
         Vision.VNGeneratePersonSegmentationRequestQualityLevelAccurate
     )
 
+    # Hands tell a raised hand (arm out of frame, so not joined to the body) from a
+    # stray object; the region cleanup keeps pieces that hold one.
+    hands = Vision.VNDetectHumanHandPoseRequest.alloc().initWithCompletionHandler_(None)
+    hands.setMaximumHandCount_(MAX_HANDS)
+
     handler = Vision.VNImageRequestHandler.alloc().initWithCGImage_options_(
         cg_image, None
     )
-    success, err = handler.performRequests_error_([request], None)
+    success, err = handler.performRequests_error_([request, hands], None)
     if not success or not request.results():
         raise RuntimeError(f"Vision segmentation request failed: {err}")
 
@@ -180,8 +230,11 @@ def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
     Quartz.CGImageDestinationFinalize(dest)
 
     mask_pil = Image.open(io.BytesIO(bytes(data))).convert("L")
-    mask_resized = keep_largest_region(
-        mask_pil.resize((width, height), Image.Resampling.BILINEAR)
+    mask_resized = choke_edge(
+        keep_largest_region(
+            mask_pil.resize((width, height), Image.Resampling.BILINEAR),
+            keep_points=_hand_points(hands.results() or [], width, height),
+        )
     )
 
     cutout = orig.convert("RGBA")
