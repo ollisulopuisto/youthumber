@@ -175,10 +175,12 @@ def _hand_points(observations, width: int, height: int) -> list[tuple[float, flo
     return points
 
 
-def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
-    """Segments a person using macOS Vision framework (VNGeneratePersonSegmentationRequest).
+def _vision_person(
+    image_bytes: bytes,
+) -> tuple[Image.Image, Image.Image, list[tuple[float, float]]]:
+    """Runs Vision's person segmentation and hand detection.
 
-    Returns (cutout_image, mask_image).
+    Returns (image, person mask at image size, detected hand joints in pixels).
     """
     import Quartz
     import Vision
@@ -230,17 +232,39 @@ def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
     Quartz.CGImageDestinationFinalize(dest)
 
     mask_pil = Image.open(io.BytesIO(bytes(data))).convert("L")
-    mask_resized = choke_edge(
-        keep_largest_region(
-            mask_pil.resize((width, height), Image.Resampling.BILINEAR),
-            keep_points=_hand_points(hands.results() or [], width, height),
-        )
+    return (
+        orig,
+        mask_pil.resize((width, height), Image.Resampling.BILINEAR),
+        _hand_points(hands.results() or [], width, height),
     )
 
-    cutout = orig.convert("RGBA")
-    cutout.putalpha(mask_resized)
 
-    return cutout, mask_resized
+def segment_with_vision(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:
+    """Segments a person using macOS Vision framework (VNGeneratePersonSegmentationRequest).
+
+    Returns (cutout_image, mask_image).
+    """
+    orig, person, hands = _vision_person(image_bytes)
+    mask = choke_edge(keep_largest_region(person, keep_points=hands))
+    cutout = orig.convert("RGBA")
+    cutout.putalpha(mask)
+    return cutout, mask
+
+
+def segment_with_matting(
+    image_bytes: bytes, matter
+) -> tuple[Image.Image, Image.Image, Image.Image]:
+    """BiRefNet's edges, kept where Vision finds the person.
+
+    Returns (cutout, person-only mask, mask with objects such as a mic stand or chair).
+    """
+    from .matting import combine_masks
+
+    orig, person, hands = _vision_person(image_bytes)
+    person_only, with_objects = combine_masks(matter.matte(orig), person, hands)
+    cutout = orig.convert("RGBA")
+    cutout.putalpha(person_only)
+    return cutout, person_only, with_objects
 
 
 def segment_fallback(image_bytes: bytes) -> tuple[Image.Image, Image.Image]:

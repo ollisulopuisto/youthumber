@@ -282,6 +282,20 @@ function PropertiesPanel({
               </button>
             </div>
 
+            {speaker.objectsMaskUrl && (
+              <label className="flex items-center gap-2 text-[11px] text-gray-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!speaker.maskOptions?.keepObjects}
+                  onChange={(e) =>
+                    onUpdateSpeakerMaskOptions?.(selectedLayer, { keepObjects: e.target.checked })
+                  }
+                  className="accent-sky-500"
+                />
+                Keep objects (mic, stand, chair)
+              </label>
+            )}
+
             {/* Feather slider */}
             <div>
               <div className="flex justify-between text-[11px] mb-0.5">

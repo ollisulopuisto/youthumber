@@ -17,6 +17,8 @@ import {
   setBackgroundGradient,
   setBackgroundColor,
   updateBackground,
+  updateSpeakerMaskOptions,
+  activeMaskUrl,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
 } from '../modules/thumbnail/thumbnailState'
@@ -265,5 +267,41 @@ describe('Thumbnail State Management', () => {
     const backToSolid = setBackgroundColor(withGradient, '#111827')
     expect(backToSolid.background.type).toBe('solid')
     expect(backToSolid.background.color).toBe('#111827')
+  })
+})
+
+describe('keep objects', () => {
+  const withCutout = () => {
+    let project = createDefaultProject()
+    const id = project.speakers[0].id
+    project = setSpeakerSource(project, id, 'src')
+    project = setSpeakerCutout(project, id, 'cut', 'person-mask', 'coreml-local', 'objects-mask')
+    return { project, id }
+  }
+
+  it('stores the objects mask alongside the person mask', () => {
+    const { project } = withCutout()
+    expect(project.speakers[0].objectsMaskUrl).toBe('objects-mask')
+    expect(activeMaskUrl(project.speakers[0])).toBe('person-mask')
+  })
+
+  it('uses the objects mask when Keep objects is on', () => {
+    let { project, id } = withCutout()
+    project = updateSpeakerMaskOptions(project, id, { keepObjects: true })
+    expect(activeMaskUrl(project.speakers[0])).toBe('objects-mask')
+  })
+
+  it('falls back to the person mask when there is no objects mask', () => {
+    let project = createDefaultProject()
+    const id = project.speakers[0].id
+    project = setSpeakerCutout(project, id, 'cut', 'person-mask')
+    project = updateSpeakerMaskOptions(project, id, { keepObjects: true })
+    expect(activeMaskUrl(project.speakers[0])).toBe('person-mask')
+  })
+
+  it('drops the objects mask when the photo is replaced or removed', () => {
+    const { project, id } = withCutout()
+    expect(setSpeakerSource(project, id, 'new').speakers[0].objectsMaskUrl).toBeNull()
+    expect(clearSpeakerImage(project, id).speakers[0].objectsMaskUrl).toBeNull()
   })
 })

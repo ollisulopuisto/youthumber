@@ -46,7 +46,7 @@ describe('scanVideoForSpeakers', () => {
       json({ status: 'running', progress: 0.8 }),
       json({ status: 'done', progress: 1, people }),
     ]
-    const fetchMock = vi.fn(async () => replies.shift()!)
+    const fetchMock = vi.fn(async (..._args: unknown[]) => replies.shift()!)
     vi.stubGlobal('fetch', fetchMock)
     const seen: number[] = []
 

@@ -2,6 +2,16 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.23.72] - 2026-09-23
+
+### Added
+- Sharper cutouts with BiRefNet: fingers and hair now match Pixelcut. A one-time 973 MB model download (button above the speaker cards, checked against a pinned SHA-256, deleted if it doesn't match), then about 10–14 s per full-HD cutout on the CPU. Apple Vision still decides what is the person, so the mic stand and chair stay out
+- "Keep objects (mic, stand, chair)" toggle under Mask Refinement: switches to the full cutout instantly, without re-running the model
+- `/matting-model` and `/matting-model/download` engine endpoints
+
+### Fixed
+- Background removal blocked the engine while it ran; it now runs in a worker thread, so health checks keep answering
+
 ## [26.09.23.71] - 2026-09-23
 
 ### Fixed

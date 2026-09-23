@@ -99,6 +99,7 @@ export class LocalCoreMLRemover implements BackgroundRemover {
     return {
       image: data.image,
       mask: data.mask,
+      objectsMask: data.objectsMask ?? null,
       source: image,
       metadata: {
         backendId: this.id,

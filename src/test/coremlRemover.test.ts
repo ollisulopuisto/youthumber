@@ -86,5 +86,22 @@ describe('LocalCoreMLRemover Adapter', () => {
     expect(detected).toBe(true)
     expect(defaultRemoverRegistry.getActive().id).toContain('coreml-local')
   })
-})
 
+  // With the BiRefNet model the engine also sends the mask with objects (mic stand,
+  // chair), so "Keep objects" can switch without running the model again.
+  it('passes on the objects mask when the engine sends one', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        image: 'data:image/png;base64,cut',
+        mask: 'data:image/png;base64,person',
+        objectsMask: 'data:image/png;base64,objects',
+        metadata: { modelId: 'birefnet-general+apple-vision' },
+      }),
+    } as any)
+
+    const result = await new LocalCoreMLRemover('http://127.0.0.1:5055').remove('data:x')
+
+    expect(result.objectsMask).toBe('data:image/png;base64,objects')
+  })
+})

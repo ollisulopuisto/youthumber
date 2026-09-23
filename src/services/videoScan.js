@@ -25,6 +25,10 @@ export async function pickVideoFile() {
  *
  * A scan takes minutes and the desktop window drops any request after 60 s, so the
  * engine runs it as a job: this starts it, then polls, calling `onProgress(0–1)`.
+ *
+ * @param {string} path
+ * @param {{ numPeople?: number, framesPerPerson?: number,
+ *   onProgress?: (fraction: number) => void, pollMs?: number }} [options]
  */
 export async function scanVideoForSpeakers(
   path,

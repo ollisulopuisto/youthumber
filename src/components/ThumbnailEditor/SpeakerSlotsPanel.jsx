@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { isDesktopVideoScanAvailable } from '../../services/videoScan'
 import { positionLabels } from '../../modules/thumbnail/layouts'
 import VideoScanModal from './VideoScanModal'
+import MattingModelBanner from './MattingModelBanner'
 
 function readFileAsDataUrl(e, callback) {
   const file = e.target.files?.[0]
@@ -217,8 +218,9 @@ function SpeakerSlotsPanel({
 
   return (
     <div className="w-full bg-gray-950/90 border-t border-gray-800 p-3 sm:p-4 flex flex-col gap-3">
-      {videoScanAvailable && (
-        <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <MattingModelBanner />
+        {videoScanAvailable && (
           <button
             onClick={() => setVideoScanTarget(null)}
             className="text-xs px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 transition-colors"
@@ -226,8 +228,8 @@ function SpeakerSlotsPanel({
           >
             🎬 Pick speaker frames from a video
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-3 sm:gap-4 items-stretch">
         {project.speakers.map((speaker, index) => (

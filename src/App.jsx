@@ -17,6 +17,7 @@ import {
   setSpeakerSource,
   setSpeakerProcessing,
   setSpeakerCutout,
+  activeMaskUrl,
   updateSpeakerTransform,
   updateSpeakerMaskOptions,
   toggleSpeakerVisibility,
@@ -176,8 +177,18 @@ function App() {
         },
       })
 
-      const cutoutUrl = await blobToDataUrl(result.image)
+      let cutoutUrl = await blobToDataUrl(result.image)
       const maskUrl = await blobToDataUrl(result.mask)
+      const objectsMaskUrl = result.objectsMask ?? null
+      if (speaker.maskOptions?.keepObjects && objectsMaskUrl) {
+        cutoutUrl = await compositeFromDataUrls(speaker.sourceImageUrl, objectsMaskUrl, {
+          feather: 0,
+          threshold: 0,
+          opacity: 1,
+          invert: false,
+          ...speaker.maskOptions,
+        })
+      }
 
       setProject((prev) =>
         setSpeakerCutout(
@@ -185,7 +196,8 @@ function App() {
           slotId,
           cutoutUrl,
           maskUrl,
-          result.metadata?.backendId || activeRemover.id
+          result.metadata?.backendId || activeRemover.id,
+          objectsMaskUrl
         )
       )
 
@@ -244,7 +256,7 @@ function App() {
         try {
           const newCutoutUrl = await compositeFromDataUrls(
             currentSpeaker.sourceImageUrl,
-            currentSpeaker.maskUrl,
+            activeMaskUrl({ ...currentSpeaker, maskOptions: merged }),
             merged
           )
           setProject((prev) =>

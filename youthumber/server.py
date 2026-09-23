@@ -13,12 +13,14 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .matting import MATTER, MODEL, MODEL_URL
 from .paths import get_dist_dir
 from .segmentation import (
     HAS_VISION,
     decode_base64_image,
     image_to_data_url,
     segment_image,
+    segment_with_matting,
 )
 from .textures import HAS_CORE_IMAGE, TEXTURE_PRESETS, render_texture
 from .videoscan import (
@@ -31,6 +33,8 @@ from .videoscan import (
 )
 
 logger = logging.getLogger(__name__)
+
+MODEL_SIZE_MB = 973
 
 
 class RemovalRequest(BaseModel):
@@ -68,7 +72,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     app = FastAPI(
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.09.23.71",
+        version="26.09.23.72",
     )
 
     app.add_middleware(
@@ -92,24 +96,31 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             "hasVideoScan": HAS_AVFOUNDATION,
         }
 
+    # Plain `def`: BiRefNet takes ~10 s on the CPU, which would otherwise block the
+    # event loop (and the 1.5 s health checks the page uses to find the engine).
     @app.post("/remove")
-    async def remove_background(req: RemovalRequest) -> JSONResponse:
+    def remove_background(req: RemovalRequest) -> JSONResponse:
         start_time = time.time()
         if not req.image:
             raise HTTPException(status_code=400, detail="Missing 'image' in payload")
 
         try:
             image_bytes = decode_base64_image(req.image)
-            cutout, mask, model_id = segment_image(image_bytes, model=req.model)
+            objects = None
+            if HAS_VISION and MODEL.state()["status"] == "ready":
+                cutout, mask, objects = segment_with_matting(image_bytes, MATTER)
+                model_id = "birefnet-general+apple-vision"
+            else:
+                cutout, mask, model_id = segment_image(image_bytes, model=req.model)
 
-            cutout_url = image_to_data_url(cutout, format="PNG")
-            mask_url = image_to_data_url(mask, format="PNG")
             elapsed_ms = int((time.time() - start_time) * 1000)
-
             return JSONResponse(
                 {
-                    "image": cutout_url,
-                    "mask": mask_url,
+                    "image": image_to_data_url(cutout, format="PNG"),
+                    "mask": image_to_data_url(mask, format="PNG"),
+                    "objectsMask": (
+                        image_to_data_url(objects, format="PNG") if objects else None
+                    ),
                     "metadata": {
                         "backendId": "coreml-local",
                         "modelId": model_id,
@@ -122,6 +133,15 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             raise HTTPException(
                 status_code=500, detail=f"Segmentation failed: {err}"
             ) from err
+
+    @app.get("/matting-model")
+    def matting_model() -> dict[str, Any]:
+        return {**MODEL.state(), "sizeMb": MODEL_SIZE_MB, "url": MODEL_URL}
+
+    @app.post("/matting-model/download", status_code=202)
+    def download_matting_model() -> dict[str, Any]:
+        MODEL.start()
+        return MODEL.state()
 
     @app.get("/textures")
     def list_textures() -> dict[str, Any]:

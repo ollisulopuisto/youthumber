@@ -38,6 +38,7 @@ export function createDefaultSpeaker(name: string, id = newSpeakerId()): Speaker
     sourceImageUrl: null,
     sourceImageHash: undefined,
     maskUrl: null,
+    objectsMaskUrl: null,
     cutoutUrl: null,
     isProcessing: false,
     processingProgress: 0,
@@ -160,6 +161,7 @@ export function setSpeakerSource(
     sourceImageHash: hash,
     cutoutUrl: null,
     maskUrl: null,
+    objectsMaskUrl: null,
     isProcessing: false,
     processingProgress: 0,
     error: null,
@@ -193,12 +195,15 @@ export function setSpeakerCutout(
   speakerId: string,
   cutoutUrl: string,
   maskUrl: string,
-  removerId?: string
+  removerId?: string,
+  objectsMaskUrl?: string | null
 ): ThumbnailProject {
   return updateSpeaker(project, speakerId, (s) => ({
     ...s,
     cutoutUrl,
     maskUrl,
+    // Kept when only the cutout is recomposited (mask sliders), replaced on a new removal.
+    objectsMaskUrl: objectsMaskUrl === undefined ? (s.objectsMaskUrl ?? null) : objectsMaskUrl,
     removerId,
     isProcessing: false,
     processingProgress: 100,
@@ -250,6 +255,7 @@ export function clearSpeakerImage(project: ThumbnailProject, speakerId: string):
     sourceImageUrl: null,
     sourceImageHash: undefined,
     maskUrl: null,
+    objectsMaskUrl: null,
     cutoutUrl: null,
     isProcessing: false,
     processingProgress: 0,
@@ -400,4 +406,10 @@ export function updateTextLayer(
 
 export function reorderLayers(project: ThumbnailProject, newOrder: LayerId[]): ThumbnailProject {
   return { ...project, updatedAt: new Date().toISOString(), layerOrder: [...newOrder] }
+}
+
+/** The mask a speaker's cutout is made from: with objects when "Keep objects" is on and the engine made one. */
+export function activeMaskUrl(speaker: SpeakerState): string | null {
+  if (speaker.maskOptions?.keepObjects && speaker.objectsMaskUrl) return speaker.objectsMaskUrl
+  return speaker.maskUrl
 }

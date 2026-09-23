@@ -12,6 +12,8 @@ export interface MaskRefinementOptions {
   threshold: number // 0 to 255 (0 = off)
   opacity: number // 0 to 1
   invert?: boolean
+  /** Use the mask that also keeps objects (mic stand, chair), when the engine made one. */
+  keepObjects?: boolean
 }
 
 export interface SpeakerState {
@@ -22,6 +24,8 @@ export interface SpeakerState {
   sourceImageUrl: string | null
   sourceImageHash?: string
   maskUrl: string | null
+  /** BiRefNet mask including objects around the person; null without the matting model. */
+  objectsMaskUrl?: string | null
   cutoutUrl: string | null
   isProcessing: boolean
   processingProgress: number

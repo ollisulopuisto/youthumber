@@ -29,6 +29,8 @@ export interface RemovalMetadata {
 export interface RemovalResult {
   image: string | Blob | HTMLCanvasElement | ImageBitmap
   mask: string | Blob | HTMLCanvasElement | ImageBitmap
+  /** Mask that also keeps objects near the person (mic stand, chair), if the engine made one. */
+  objectsMask?: string | null
   source?: ImageSource
   width?: number
   height?: number
