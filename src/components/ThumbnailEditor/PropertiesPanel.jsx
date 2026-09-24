@@ -3,6 +3,13 @@ import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { cssGradient } from '../../modules/thumbnail/backgroundRender'
 import FontPicker from './FontPicker'
 import TexturePicker from './TexturePicker'
+import { TEXT_LOOKS } from '../../data/textLooks'
+import {
+  ACCENT_LINE_MODES,
+  LOUD_COLORS,
+  SPLASH_STYLES,
+  newSplashSeed,
+} from '../../modules/thumbnail/textEffects'
 
 // "Blurred speaker photo" background: enough blur to read as a soft studio backdrop,
 // darkened so the cutouts and headline stand out. Starting points; both are sliders.
@@ -11,6 +18,85 @@ const STUDIO_DARKEN = 0.35
 // Textures need a dark base and a bright accent: light-based ones (halo, bokeh,
 // sunbeams) were invisible when they inherited two dark gradient colours.
 const DEFAULT_TEXTURE_COLORS = ['#0F172A', '#F59E0B']
+
+function LoudSwatches({ onPick, label }) {
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5" role="group" aria-label={label}>
+      {LOUD_COLORS.map((hex) => (
+        <button
+          key={hex}
+          onClick={() => onPick(hex)}
+          style={{ backgroundColor: hex }}
+          className="w-4 h-4 rounded-sm border border-gray-700 hover:scale-110 transition-transform"
+          title={hex}
+          aria-label={`${label}: ${hex}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function ColorInput({ value, onChange, label }) {
+  return (
+    <input
+      type="color"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={label}
+      className="w-7 h-7 rounded border border-gray-700 cursor-pointer bg-transparent shrink-0"
+    />
+  )
+}
+
+function Slider({ label, value, min, max, step = 1, unit = '', onChange }) {
+  return (
+    <label className="flex items-center gap-2 text-[10px] text-gray-400">
+      <span className="w-12 shrink-0">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 accent-amber-500"
+      />
+      <span className="font-mono w-10 text-right text-gray-300">
+        {value}
+        {unit}
+      </span>
+    </label>
+  )
+}
+
+function SegmentedButtons({ options, value, onChange, label }) {
+  return (
+    <div className="grid grid-cols-4 gap-1" role="group" aria-label={label}>
+      {options.map((option) => (
+        <button
+          key={option.id}
+          onClick={() => onChange(option.id)}
+          aria-pressed={value === option.id}
+          className={`py-1 rounded text-center text-[10px] font-medium transition-colors ${
+            value === option.id
+              ? 'bg-amber-500 text-gray-950 font-bold'
+              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function SectionTitle({ children }) {
+  return (
+    <h4 className="border-t border-gray-800 pt-2.5 font-bold text-amber-400 text-[10px] uppercase tracking-wider">
+      {children}
+    </h4>
+  )
+}
 
 function PropertiesPanel({
   selectedLayer,
@@ -103,19 +189,55 @@ function PropertiesPanel({
           </div>
         </div>
 
+        {/* Look presets */}
+        <div>
+          <label className="block text-[10px] font-medium text-gray-400 mb-1">Look</label>
+          <div className="grid grid-cols-3 gap-1">
+            {TEXT_LOOKS.map((look) => (
+              <button
+                key={look.id}
+                onClick={() => onUpdateText({ ...look.style, splashSeed: newSplashSeed() })}
+                className="py-1 rounded bg-gray-800 text-gray-200 hover:bg-gray-700 text-[10px] font-medium"
+              >
+                {look.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Fill Color & Stroke */}
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="block text-[10px] font-medium text-gray-400 mb-1">Fill Color</label>
             <div className="flex items-center gap-1.5">
-              <input
-                type="color"
+              <ColorInput
                 value={textState.fillColor}
-                onChange={(e) => onUpdateText({ fillColor: e.target.value })}
-                className="w-7 h-7 rounded border border-gray-700 cursor-pointer bg-transparent"
+                onChange={(fillColor) => onUpdateText({ fillColor })}
+                label="Fill colour"
               />
-              <span className="font-mono text-[11px] text-gray-300">{textState.fillColor}</span>
+              {textState.fillGradient && (
+                <ColorInput
+                  value={textState.fillColor2 || '#FF9F00'}
+                  onChange={(fillColor2) => onUpdateText({ fillColor2 })}
+                  label="Gradient bottom colour"
+                />
+              )}
+              <label className="flex items-center gap-1 text-[10px] text-gray-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!textState.fillGradient}
+                  onChange={(e) =>
+                    onUpdateText({
+                      fillGradient: e.target.checked,
+                      fillColor2: textState.fillColor2 || '#FF9F00',
+                    })
+                  }
+                  className="accent-amber-500"
+                />
+                Fade
+              </label>
             </div>
+            <LoudSwatches label="Fill colour" onPick={(fillColor) => onUpdateText({ fillColor })} />
           </div>
 
           <div>
@@ -123,11 +245,10 @@ function PropertiesPanel({
               Outline ({textState.strokeWidth || 0}px)
             </label>
             <div className="flex items-center gap-1.5">
-              <input
-                type="color"
+              <ColorInput
                 value={textState.strokeColor || '#000000'}
-                onChange={(e) => onUpdateText({ strokeColor: e.target.value })}
-                className="w-7 h-7 rounded border border-gray-700 cursor-pointer bg-transparent"
+                onChange={(strokeColor) => onUpdateText({ strokeColor })}
+                label="Outline colour"
               />
               <input
                 type="range"
@@ -141,20 +262,124 @@ function PropertiesPanel({
           </div>
         </div>
 
-        {/* Shadow */}
+        {/* Accent lines */}
         <div>
-          <label className="block text-[10px] font-medium text-gray-400 mb-1">
-            Shadow Blur ({textState.shadowBlur || 0}px)
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={30}
-            value={textState.shadowBlur || 0}
-            onChange={(e) => onUpdateText({ shadowBlur: Number(e.target.value) })}
-            className="w-full accent-amber-500"
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-[10px] font-medium text-gray-400">Accent lines</label>
+            <ColorInput
+              value={textState.accentColor || '#FFE600'}
+              onChange={(accentColor) => onUpdateText({ accentColor })}
+              label="Accent colour"
+            />
+          </div>
+          <SegmentedButtons
+            label="Accent lines"
+            options={ACCENT_LINE_MODES}
+            value={textState.accentLines || 'none'}
+            onChange={(accentLines) =>
+              onUpdateText({ accentLines, accentColor: textState.accentColor || '#FFE600' })
+            }
           />
+          <LoudSwatches label="Accent colour" onPick={(accentColor) => onUpdateText({ accentColor })} />
         </div>
+
+        {/* Shadow */}
+        <Slider
+          label="Shadow"
+          value={textState.shadowBlur || 0}
+          min={0}
+          max={30}
+          unit="px"
+          onChange={(shadowBlur) => onUpdateText({ shadowBlur })}
+        />
+
+        {/* Slant & tilt */}
+        <SectionTitle>Slant & tilt</SectionTitle>
+        <Slider
+          label="Slant"
+          value={textState.slant || 0}
+          min={-30}
+          max={30}
+          unit="°"
+          onChange={(slant) => onUpdateText({ slant })}
+        />
+        <Slider
+          label="Tilt"
+          value={textState.transform.rotation || 0}
+          min={-20}
+          max={20}
+          unit="°"
+          onChange={(rotation) => onUpdateText({ transform: { rotation } })}
+        />
+
+        {/* 3D */}
+        <SectionTitle>3D depth</SectionTitle>
+        <div className="flex items-center gap-2">
+          <ColorInput
+            value={textState.extrudeColor || '#000000'}
+            onChange={(extrudeColor) => onUpdateText({ extrudeColor })}
+            label="3D side colour"
+          />
+          <div className="flex-1 flex flex-col gap-1">
+            <Slider
+              label="Depth"
+              value={textState.extrudeDepth || 0}
+              min={0}
+              max={30}
+              unit="px"
+              onChange={(extrudeDepth) => onUpdateText({ extrudeDepth })}
+            />
+            <Slider
+              label="Direction"
+              value={textState.extrudeAngle ?? 45}
+              min={0}
+              max={359}
+              unit="°"
+              onChange={(extrudeAngle) => onUpdateText({ extrudeAngle })}
+            />
+          </div>
+        </div>
+
+        {/* Splash */}
+        <SectionTitle>Splash</SectionTitle>
+        <SegmentedButtons
+          label="Splash shape"
+          options={SPLASH_STYLES}
+          value={textState.splashStyle || 'none'}
+          onChange={(splashStyle) =>
+            onUpdateText({ splashStyle, splashSeed: textState.splashSeed || newSplashSeed() })
+          }
+        />
+        {textState.splashStyle && textState.splashStyle !== 'none' && (
+          <>
+            <div className="flex items-center gap-2">
+              <ColorInput
+                value={textState.splashColor || '#FF1F6B'}
+                onChange={(splashColor) => onUpdateText({ splashColor })}
+                label="Splash colour"
+              />
+              <div className="flex-1">
+                <Slider
+                  label="Size"
+                  value={textState.splashSize ?? 1.15}
+                  min={0.6}
+                  max={2}
+                  step={0.05}
+                  unit="×"
+                  onChange={(splashSize) => onUpdateText({ splashSize })}
+                />
+              </div>
+              <button
+                onClick={() => onUpdateText({ splashSeed: newSplashSeed() })}
+                className="text-[10px] px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700"
+                title="Draw the splash with a new random shape"
+              >
+                Shuffle
+              </button>
+            </div>
+            <LoudSwatches label="Splash colour" onPick={(splashColor) => onUpdateText({ splashColor })} />
+          </>
+        )}
       </div>
     )
   }

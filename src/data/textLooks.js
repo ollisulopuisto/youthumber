@@ -1,0 +1,108 @@
+/**
+ * One-click headline looks. Each sets the effects (and font) but leaves the text, size
+ * and position alone. `splashSeed` is filled in when applied so each click gets a new splat.
+ */
+
+const PLAIN = {
+  slant: 0,
+  fillGradient: false,
+  accentLines: 'none',
+  extrudeDepth: 0,
+  splashStyle: 'none',
+}
+
+export const TEXT_LOOKS = [
+  {
+    id: 'plain',
+    name: 'Plain',
+    style: {
+      ...PLAIN,
+      fillColor: '#FFFFFF',
+      strokeColor: '#000000',
+      strokeWidth: 4,
+      transform: { rotation: 0 },
+    },
+  },
+  {
+    id: 'hype',
+    name: 'Hype',
+    style: {
+      ...PLAIN,
+      fontFamily: 'Anton',
+      fontWeight: '400',
+      slant: 8,
+      fillColor: '#FFFFFF',
+      accentLines: 'first',
+      accentColor: '#FFE600',
+      strokeColor: '#000000',
+      strokeWidth: 4,
+      extrudeDepth: 10,
+      extrudeAngle: 60,
+      extrudeColor: '#000000',
+      transform: { rotation: -4 },
+    },
+  },
+  {
+    id: 'comic',
+    name: 'Comic',
+    style: {
+      ...PLAIN,
+      fontFamily: 'Bangers',
+      fontWeight: '400',
+      slant: 4,
+      fillColor: '#FFE600',
+      fillColor2: '#FF9F00',
+      fillGradient: true,
+      strokeColor: '#000000',
+      strokeWidth: 6,
+      extrudeDepth: 8,
+      extrudeAngle: 45,
+      extrudeColor: '#B00020',
+      splashStyle: 'burst',
+      splashColor: '#FF1F6B',
+      splashSize: 1.2,
+      transform: { rotation: -3 },
+    },
+  },
+  {
+    id: 'neon-pop',
+    name: 'Neon Pop',
+    style: {
+      ...PLAIN,
+      fontFamily: 'Luckiest Guy',
+      fontWeight: '400',
+      fillColor: '#00E5FF',
+      fillColor2: '#FF2EE6',
+      fillGradient: true,
+      strokeColor: '#1A0033',
+      strokeWidth: 5,
+      extrudeDepth: 7,
+      extrudeAngle: 90,
+      extrudeColor: '#2A0845',
+      splashStyle: 'splat',
+      splashColor: '#FFE600',
+      splashSize: 1.15,
+      transform: { rotation: 0 },
+    },
+  },
+  {
+    id: 'brush',
+    name: 'Brush',
+    style: {
+      ...PLAIN,
+      fontFamily: 'Anton',
+      fontWeight: '400',
+      slant: 6,
+      fillColor: '#FFFFFF',
+      strokeColor: '#000000',
+      strokeWidth: 3,
+      extrudeDepth: 4,
+      extrudeAngle: 45,
+      extrudeColor: '#000000',
+      splashStyle: 'brush',
+      splashColor: '#FF3D00',
+      splashSize: 1.1,
+      transform: { rotation: -2 },
+    },
+  },
+]

@@ -20,4 +20,11 @@ export const backgroundGradientPresets = [
   { id: 'ocean', name: 'Ocean', colors: ['#0EA5E9', '#1E3A8A'], angle: 60 },
   { id: 'crimson', name: 'Crimson', colors: ['#BE123C', '#1C0510'], angle: 45 },
   { id: 'violet-haze', name: 'Violet Haze', colors: ['#7C3AED', '#DB2777', '#F59E0B'], angle: 30 },
+  // Loud: garish on their own, made to fight for attention in a feed
+  { id: 'hazard', name: 'Hazard', colors: ['#FFE600', '#FF3D00'], angle: 110 },
+  { id: 'acid', name: 'Acid', colors: ['#76FF03', '#00B8D4', '#6200EA'], angle: 135 },
+  { id: 'hot-magenta', name: 'Hot Magenta', colors: ['#FF2EE6', '#FF1F6B', '#FF9F00'], angle: 45 },
+  { id: 'electric', name: 'Electric', colors: ['#00E5FF', '#2979FF', '#0B0033'], angle: 0, type: 'radial' },
+  { id: 'nuclear', name: 'Nuclear', colors: ['#EEFF41', '#1B5E20'], angle: 0, type: 'radial' },
+  { id: 'lava', name: 'Lava', colors: ['#FF9F00', '#D50000', '#1A0000'], angle: 0, type: 'radial' },
 ]
