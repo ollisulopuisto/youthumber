@@ -2,6 +2,19 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.24.80] - 2026-09-24
+
+### Added
+- Loud headline effects, drawn with the text so they move, slant and export with it:
+  - **Slant** (skew, leaning forward or back) and a **Tilt** slider for rotation
+  - **3D depth**: a solid extruded side with its own colour, depth and direction
+  - **Fade**: a top-to-bottom two-colour gradient fill
+  - **Accent lines**: paint the first, last or every other line in a second colour ("NEW STRATEGY" in yellow over "MAKE IT VIRAL" in white)
+  - **Splash** behind the text: comic burst, paint splat or brush stroke, with colour, size and a Shuffle button for a new random shape
+- One-click headline looks: Plain, Hype, Comic, Neon Pop and Brush
+- A row of loud colour swatches for fill, accent and splash colours
+- Six garish background gradients: Hazard, Acid, Hot Magenta, Electric, Nuclear and Lava
+
 ## [26.09.23.79] - 2026-09-23
 
 ### Added

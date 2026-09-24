@@ -11,6 +11,8 @@ import {
   photoFilterValues,
   vignetteColorStops,
 } from '../../modules/thumbnail/backgroundRender'
+import { EffectText, applyTextColorEffects, effectsFromState } from '../../modules/thumbnail/effectText'
+import { skewXToSlant } from '../../modules/thumbnail/textEffects'
 
 const MAX_BACKGROUND_SIDE = 4096
 // Fabric builds its WebGL filter backend at load time with a 2048px texture limit, so
@@ -118,6 +120,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
             scaleY: Number((obj.scaleY || 1).toFixed(3)),
             rotation: Math.round(obj.angle || 0),
           },
+          slant: skewXToSlant(obj.skewX),
         })
       }
     })
@@ -399,10 +402,10 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         fontWeight: textState.fontWeight || 'bold',
         fontStyle: textState.fontStyle || 'normal',
         textAlign: textState.textAlign || 'center',
-        fill: textState.fillColor || '#FFFFFF',
         stroke: textState.strokeColor || '#000000',
         strokeWidth: textState.strokeWidth || 0,
         shadow: shadow,
+        effects: effectsFromState(textState),
         left: textState.transform.x,
         top: textState.transform.y,
         scaleX: textState.transform.scaleX,
@@ -411,9 +414,10 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         originX: 'center',
         originY: 'center',
       })
+      applyTextColorEffects(existing, textState)
       existing.setCoords()
     } else {
-      const textObj = new fabric.IText(textState.text || 'EPISODE TITLE', {
+      const textObj = new EffectText(textState.text || 'EPISODE TITLE', {
         data: { layerId: 'text' },
         left: textState.transform.x,
         top: textState.transform.y,
@@ -422,10 +426,13 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         fontWeight: textState.fontWeight || 'bold',
         fontStyle: textState.fontStyle || 'normal',
         textAlign: textState.textAlign || 'center',
-        fill: textState.fillColor || '#FFFFFF',
         stroke: textState.strokeColor || '#000000',
         strokeWidth: textState.strokeWidth || 0,
         shadow: shadow,
+        effects: effectsFromState(textState),
+        scaleX: textState.transform.scaleX,
+        scaleY: textState.transform.scaleY,
+        angle: textState.transform.rotation,
         originX: 'center',
         originY: 'center',
         cornerColor: '#F59E0B',
@@ -433,6 +440,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         transparentCorners: false,
         borderColor: '#D97706',
       })
+      applyTextColorEffects(textObj, textState)
 
       // Update text in project state on inline edit
       textObj.on('changed', () => {
@@ -453,6 +461,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         if (!textObj || textObj.fontFamily !== family) return
         fabric.util.clearFabricFontCache(family)
         textObj.initDimensions()
+        applyTextColorEffects(textObj, textState)
         textObj.setCoords()
         textObj.dirty = true
         fabricCanvasRef.current.requestRenderAll()

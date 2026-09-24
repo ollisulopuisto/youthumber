@@ -77,6 +77,23 @@ export interface TextLayerState {
   shadowBlur?: number
   shadowOffsetX?: number
   shadowOffsetY?: number
+  /** Forward lean in degrees (drawn as a skew); negative leans back. */
+  slant?: number
+  /** Second fill colour: with `fillGradient`, the text fades top to bottom from fillColor. */
+  fillColor2?: string
+  fillGradient?: boolean
+  /** Lines painted in `accentColor` instead of the fill. */
+  accentLines?: 'none' | 'first' | 'last' | 'alternate'
+  accentColor?: string
+  /** 3D side: depth in px (0 = flat), direction in degrees (0 = right, 90 = down), colour. */
+  extrudeDepth?: number
+  extrudeAngle?: number
+  extrudeColor?: string
+  /** Shape drawn behind the text; the seed keeps a splat's shape between redraws. */
+  splashStyle?: 'none' | 'burst' | 'splat' | 'brush'
+  splashColor?: string
+  splashSize?: number
+  splashSeed?: number
   transform: TransformState
   visible: boolean
 }
