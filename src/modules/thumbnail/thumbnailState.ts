@@ -1,4 +1,6 @@
 import type {
+  DecorElementState,
+  DecorState,
   ThumbnailProject,
   SpeakerState,
   LayerId,
@@ -14,7 +16,7 @@ export { CANVAS_WIDTH, CANVAS_HEIGHT }
 
 export const PROJECT_VERSION = 2
 
-const NON_SPEAKER_LAYERS = new Set(['background', 'text'])
+const NON_SPEAKER_LAYERS = new Set(['background', 'decor', 'text'])
 
 export function isSpeakerLayer(layerId: LayerId): boolean {
   return !NON_SPEAKER_LAYERS.has(layerId)
@@ -104,7 +106,8 @@ export function createDefaultProject(name = 'Untitled Thumbnail', speakerCount =
       transform: { x: 640, y: 110, scaleX: 1, scaleY: 1, rotation: 0 },
       visible: true,
     },
-    layerOrder: ['background', ...speakers.map((s) => s.id), 'text'],
+    decor: { visible: true, seed: 1, elements: {} },
+    layerOrder: ['background', 'decor', ...speakers.map((s) => s.id), 'text'],
   }
 }
 
@@ -401,6 +404,26 @@ export function updateTextLayer(
       ...updates,
       transform: { ...project.text.transform, ...(updates.transform || {}) },
     },
+  }
+}
+
+/** Merges Graphics layer settings; `elements` merges per element. */
+export function updateDecor(
+  project: ThumbnailProject,
+  updates: Partial<Omit<DecorState, 'elements'>> & {
+    elements?: { [K in keyof DecorState['elements']]?: Partial<DecorElementState> }
+  }
+): ThumbnailProject {
+  const current: DecorState = project.decor ?? { visible: true, seed: 1, elements: {} }
+  const elements = { ...current.elements }
+  for (const [id, element] of Object.entries(updates.elements ?? {})) {
+    const key = id as keyof DecorState['elements']
+    elements[key] = { ...(current.elements[key] ?? { on: false }), ...element }
+  }
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    decor: { ...current, ...updates, elements },
   }
 }
 

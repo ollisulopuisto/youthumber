@@ -85,12 +85,15 @@ export interface TextLayerState {
   /** Lines painted in `accentColor` instead of the fill. */
   accentLines?: 'none' | 'first' | 'last' | 'alternate'
   accentColor?: string
+  /** 'color' paints the accent lines; 'box' puts them on a bar of accentColor in accentTextColor. */
+  accentStyle?: 'color' | 'box'
+  accentTextColor?: string
   /** 3D side: depth in px (0 = flat), direction in degrees (0 = right, 90 = down), colour. */
   extrudeDepth?: number
   extrudeAngle?: number
   extrudeColor?: string
   /** Shape drawn behind the text; the seed keeps a splat's shape between redraws. */
-  splashStyle?: 'none' | 'burst' | 'splat' | 'brush'
+  splashStyle?: 'none' | 'burst' | 'splat' | 'brush' | 'rays'
   splashColor?: string
   splashSize?: number
   splashSeed?: number
@@ -98,7 +101,23 @@ export interface TextLayerState {
   visible: boolean
 }
 
-/** 'background', 'text', or a speaker's id. */
+export interface DecorElementState {
+  on: boolean
+  color?: string
+  /** 0–1 */
+  opacity?: number
+  position?: 'left' | 'center' | 'right'
+}
+
+/** The Graphics layer: loud decorations (rays, chart, arrow…); see modules/thumbnail/decor.js. */
+export interface DecorState {
+  visible: boolean
+  /** Keeps random shapes the same between redraws; Shuffle picks a new one. */
+  seed: number
+  elements: Partial<Record<'rays' | 'speedLines' | 'chart' | 'arrow' | 'halftone' | 'slashes' | 'sparkles', DecorElementState>>
+}
+
+/** 'background', 'decor', 'text', or a speaker's id. */
 export type LayerId = string
 
 export interface CanvasDimensions {
@@ -118,6 +137,8 @@ export interface ThumbnailProject {
   speakers: SpeakerState[]
   layoutId: string
   text: TextLayerState
+  /** Missing on projects saved before the Graphics layer existed. */
+  decor?: DecorState
   layerOrder: LayerId[]
 }
 

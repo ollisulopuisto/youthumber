@@ -29,6 +29,7 @@ import {
   setBackgroundImage,
   updateBackground,
   updateTextLayer,
+  updateDecor,
   reorderLayers,
 } from './modules/thumbnail/thumbnailState'
 
@@ -304,6 +305,10 @@ function App() {
     setProject((prev) => updateTextLayer(prev, updates))
   }, [])
 
+  const handleUpdateDecor = useCallback((updates) => {
+    setProject((prev) => updateDecor(prev, updates))
+  }, [])
+
   // Layer Actions
   const handleReorderLayers = (newOrder) => {
     setProject((prev) => reorderLayers(prev, newOrder))
@@ -314,6 +319,8 @@ function App() {
       setProject((prev) => toggleSpeakerVisibility(prev, layerId))
     } else if (layerId === 'text') {
       setProject((prev) => updateTextLayer(prev, { visible: !prev.text.visible }))
+    } else if (layerId === 'decor') {
+      setProject((prev) => updateDecor(prev, { visible: !(prev.decor?.visible ?? true) }))
     }
   }
 
@@ -366,6 +373,7 @@ function App() {
             selectedLayer={selectedLayer}
             project={project}
             onUpdateText={handleUpdateText}
+            onUpdateDecor={handleUpdateDecor}
             onUpdateSpeakerTransform={handleUpdateSpeakerTransform}
             onUpdateBackground={handleUpdateBackground}
             onResetSpeakerTransform={handleResetSpeakerTransform}

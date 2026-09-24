@@ -9,6 +9,12 @@ export const SPLASH_STYLES = [
   { id: 'burst', label: 'Burst' },
   { id: 'splat', label: 'Splat' },
   { id: 'brush', label: 'Brush' },
+  { id: 'rays', label: 'Rays' },
+]
+
+export const ACCENT_STYLES = [
+  { id: 'color', label: 'Colour' },
+  { id: 'box', label: 'Bar' },
 ]
 
 export const ACCENT_LINE_MODES = [
@@ -125,6 +131,7 @@ export function splashShapes(style, w, h, seed = 1, size = 1) {
   if (style === 'burst') return [burstShape(rand, width, height)]
   if (style === 'splat') return splatShapes(rand, width, height)
   if (style === 'brush') return brushShapes(rand, width, height)
+  if (style === 'rays') return rayShapes(rand, width, height)
   return []
 }
 
@@ -211,4 +218,48 @@ function brushShapes(rand, width, height) {
     { type: 'polygon', points: streak(-halfH * 1.18, halfH * 0.05, 0.9, 0.5 + rand() * 0.4) },
     { type: 'polygon', points: streak(halfH * 1.2, halfH * 0.04, 0.4 + rand() * 0.4, 1.05) },
   ]
+}
+
+// Sunburst: wedges fanning out from behind the text to an oval well past it.
+function rayShapes(rand, width, height) {
+  const count = 16
+  const rx = width * 0.85
+  const ry = height * 1.6
+  const turn = rand() * Math.PI
+  return Array.from({ length: count }, (_, i) => {
+    const a0 = turn + (i / count) * Math.PI * 2
+    const a1 = a0 + (Math.PI / count) * (0.8 + rand() * 0.4)
+    return {
+      type: 'polygon',
+      points: [
+        { x: 0, y: 0 },
+        { x: Math.cos(a0) * rx, y: Math.sin(a0) * ry },
+        { x: Math.cos(a1) * rx, y: Math.sin(a1) * ry },
+      ],
+    }
+  })
+}
+
+/**
+ * Bars behind the accent lines, in the text's own coordinates: one slanted box per line.
+ * `metrics` gives, per line, { left, top, width, height } of the line box.
+ * @returns {{ x: number, y: number }[][]}
+ */
+export function accentBoxes(metrics, lineIndices, padding) {
+  return lineIndices
+    .map((i) => metrics[i])
+    .filter((m) => m && m.width > 0)
+    .map((m) => {
+      const lean = m.height * 0.12
+      const x0 = m.left - padding
+      const x1 = m.left + m.width + padding
+      const y0 = m.top + m.height * 0.06
+      const y1 = m.top + m.height * 0.98
+      return [
+        { x: x0 + lean, y: y0 },
+        { x: x1 + lean, y: y0 },
+        { x: x1 - lean, y: y1 },
+        { x: x0 - lean, y: y1 },
+      ]
+    })
 }

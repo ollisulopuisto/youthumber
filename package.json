@@ -1,7 +1,7 @@
 {
   "name": "youthumber",
   "private": true,
-  "version": "26.09.24.80",
+  "version": "26.09.24.81",
   "type": "module",
   "scripts": {
     "dev": "vite",

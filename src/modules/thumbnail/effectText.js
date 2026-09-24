@@ -1,5 +1,7 @@
 import { fabric } from 'fabric'
 import {
+  accentBoxes,
+  accentLineIndices,
   accentLineStyles,
   extrusionOffsets,
   slantToSkewX,
@@ -25,6 +27,7 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
     if (effects.splashStyle && effects.splashStyle !== 'none') {
       this._renderSplash(ctx, effects)
     }
+    if (effects.accentStyle === 'box') this._renderAccentBoxes(ctx, effects)
 
     const offsets = extrusionOffsets(effects.extrudeDepth, effects.extrudeAngle)
     if (!offsets.length) {
@@ -56,6 +59,33 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
     ctx.restore()
   },
 
+  _renderAccentBoxes(ctx, effects) {
+    const metrics = []
+    let top = -this.height / 2
+    for (let i = 0; i < this._textLines.length; i++) {
+      const height = this.getHeightOfLine(i)
+      metrics.push({
+        left: this._getLeftOffset() + this._getLineLeftOffset(i),
+        top,
+        width: this.getLineWidth(i),
+        height: height / this.lineHeight,
+      })
+      top += height
+    }
+    const lines = accentLineIndices(this._textLines.length, effects.accentLines)
+    const boxes = accentBoxes(metrics, lines, this.fontSize * 0.25)
+    if (!boxes.length) return
+    ctx.save()
+    ctx.fillStyle = effects.accentColor || '#FFE600'
+    for (const box of boxes) {
+      ctx.beginPath()
+      box.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
+      ctx.closePath()
+      ctx.fill()
+    }
+    ctx.restore()
+  },
+
   _renderSplash(ctx, effects) {
     const shapes = splashShapes(
       effects.splashStyle,
@@ -78,8 +108,9 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
       }
     }
     ctx.fill()
-    // Outline the splash in the text's outline colour, comic style.
-    if (this.stroke && this.strokeWidth) {
+    // Outline the splash in the text's outline colour, comic style. Rays stay unoutlined:
+    // outlining every wedge turned them into a heavy black wheel.
+    if (this.stroke && this.strokeWidth && effects.splashStyle !== 'rays') {
       this._removeShadow(ctx)
       ctx.lineJoin = 'round'
       ctx.lineWidth = this.strokeWidth
@@ -100,6 +131,9 @@ export function effectsFromState(textState) {
     splashColor: textState.splashColor || '#FF1F6B',
     splashSize: textState.splashSize ?? 1.15,
     splashSeed: textState.splashSeed || 1,
+    accentStyle: textState.accentStyle || 'color',
+    accentLines: textState.accentLines || 'none',
+    accentColor: textState.accentColor || '#FFE600',
   }
 }
 
@@ -108,8 +142,11 @@ export function applyTextColorEffects(textObj, textState) {
   textObj.set({ skewX: slantToSkewX(textState.slant) })
 
   const lines = (textObj.text || '').split('\n').map((line) => fabric.util.string.graphemeSplit(line))
+  // On a bar, the accent line's text takes the bar's contrast colour instead.
+  const accentFill =
+    textState.accentStyle === 'box' ? textState.accentTextColor || '#000000' : textState.accentColor
   textObj.set({
-    styles: accentLineStyles(lines, textState.accentLines, textState.accentColor),
+    styles: accentLineStyles(lines, textState.accentLines, accentFill),
   })
 
   const base = textState.fillColor || '#FFFFFF'

@@ -3,9 +3,11 @@ import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { cssGradient } from '../../modules/thumbnail/backgroundRender'
 import FontPicker from './FontPicker'
 import TexturePicker from './TexturePicker'
+import DecorPanel from './DecorPanel'
 import { TEXT_LOOKS } from '../../data/textLooks'
 import {
   ACCENT_LINE_MODES,
+  ACCENT_STYLES,
   LOUD_COLORS,
   SPLASH_STYLES,
   newSplashSeed,
@@ -106,6 +108,7 @@ function PropertiesPanel({
   onUpdateBackground,
   onResetSpeakerTransform,
   onUpdateSpeakerMaskOptions,
+  onUpdateDecor,
 }) {
   if (!selectedLayer) {
     return (
@@ -117,6 +120,10 @@ function PropertiesPanel({
         </p>
       </div>
     )
+  }
+
+  if (selectedLayer === 'decor') {
+    return <DecorPanel decor={project.decor} onUpdateDecor={onUpdateDecor} />
   }
 
   // 1. Text Properties
@@ -281,6 +288,36 @@ function PropertiesPanel({
             }
           />
           <LoudSwatches label="Accent colour" onPick={(accentColor) => onUpdateText({ accentColor })} />
+          {textState.accentLines && textState.accentLines !== 'none' && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex rounded border border-gray-700 overflow-hidden text-[10px]" role="group" aria-label="Accent style">
+                {ACCENT_STYLES.map((style) => (
+                  <button
+                    key={style.id}
+                    onClick={() => onUpdateText({ accentStyle: style.id })}
+                    aria-pressed={(textState.accentStyle || 'color') === style.id}
+                    className={`px-2 py-0.5 ${
+                      (textState.accentStyle || 'color') === style.id
+                        ? 'bg-amber-500 text-gray-950 font-bold'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    {style.label}
+                  </button>
+                ))}
+              </div>
+              {textState.accentStyle === 'box' && (
+                <label className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                  Text on bar
+                  <ColorInput
+                    value={textState.accentTextColor || '#000000'}
+                    onChange={(accentTextColor) => onUpdateText({ accentTextColor })}
+                    label="Text colour on the accent bar"
+                  />
+                </label>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Shadow */}

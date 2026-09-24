@@ -13,6 +13,8 @@ import {
 } from '../../modules/thumbnail/backgroundRender'
 import { EffectText, applyTextColorEffects, effectsFromState } from '../../modules/thumbnail/effectText'
 import { skewXToSlant } from '../../modules/thumbnail/textEffects'
+import { DECOR_LAYER_ID, withDecorLayer } from '../../modules/thumbnail/decor'
+import { DecorLayer } from '../../modules/thumbnail/decorObject'
 
 const MAX_BACKGROUND_SIDE = 4096
 // Fabric builds its WebGL filter backend at load time with a 2048px texture limit, so
@@ -209,6 +211,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
     // Sync Text layer
     syncTextObject(canvas, project.text)
+    syncDecorObject(canvas, project.decor)
 
     // Reorder layers according to project.layerOrder
     reorderCanvasObjects(canvas, project.layerOrder)
@@ -218,7 +221,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     // Handle active selection sync
     if (selectedLayer) {
       const targetObj = findObj(selectedLayer)
-      if (targetObj && canvas.getActiveObject() !== targetObj) {
+      if (targetObj?.selectable && canvas.getActiveObject() !== targetObj) {
         canvas.setActiveObject(targetObj)
       }
     }
@@ -469,10 +472,24 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     }
   }
 
+  // Graphics layer: one click-through object, redrawn from the project's decor settings.
+  const syncDecorObject = (canvas, decor) => {
+    let existing = canvas.getObjects().find((o) => o.data?.layerId === DECOR_LAYER_ID)
+    if (!decor?.visible) {
+      if (existing) canvas.remove(existing)
+      return
+    }
+    if (!existing) {
+      existing = new DecorLayer({ data: { layerId: DECOR_LAYER_ID } })
+      canvas.add(existing)
+    }
+    existing.set({ decor })
+  }
+
   // Reorder Fabric canvas objects based on layerOrder array
   const reorderCanvasObjects = (canvas, layerOrder) => {
     const objects = canvas.getObjects()
-    layerOrder.forEach((layerId, targetIndex) => {
+    withDecorLayer(layerOrder).forEach((layerId, targetIndex) => {
       const obj = objects.find((o) => o.data?.layerId === layerId)
       if (obj) {
         canvas.moveTo(obj, targetIndex)

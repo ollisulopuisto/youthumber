@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.24.81] - 2026-09-24
+
+### Added
+- **Graphics layer**: loud decorations drawn above the background, in their own layer that can be moved in front of the speakers. Light rays, manga speed lines, a rising chart (grid, bars and a glowing line with an arrowhead), a big zigzag arrow, halftone dots, "///" slashes and sparkles. Each has its own colour, opacity and left / centre / right placement. **Shuffle** redraws the random shapes; **Surprise me** picks a random loud combination
+- Accent lines can sit on a slanted **bar** (the yellow "NEW STRATEGY" strip) with their own text colour
+- **Rays** splash: a sunburst behind the headline
+- Two more looks: Banner and Sunburst
+
 ## [26.09.24.80] - 2026-09-24
 
 ### Added
