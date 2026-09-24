@@ -2,6 +2,18 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.24.82] - 2026-09-24
+
+### Changed
+- The Graphics layer looks much less rough. Flat, single-colour shapes are replaced with light, glow and depth:
+  - Light rays fade out from a glowing centre (white by default)
+  - Speed lines fade in from the frame's edge
+  - The rising chart is a neon line with a hot core, fading bars and area, and a glowing arrowhead
+  - The big arrow is 3D: a lit gradient face over a shaded side, with a highlight, the shaft running into the head
+  - Slashes glow, halftone dots fade with distance, sparkles are soft lens flares
+  - Glow is scaled with the canvas zoom, so the preview matches the export
+- The headline's rays splash fades out in its own colour instead of ending in flat wedges
+
 ## [26.09.24.81] - 2026-09-24
 
 ### Added

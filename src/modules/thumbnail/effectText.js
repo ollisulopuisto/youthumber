@@ -96,7 +96,20 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
     )
     if (!shapes.length) return
     ctx.save()
-    ctx.fillStyle = effects.splashColor || '#FF1F6B'
+    const color = effects.splashColor || '#FF1F6B'
+    if (effects.splashStyle === 'rays') {
+      // Beams fade out towards their ends, so they read as light rather than a wheel.
+      const reach = Math.max(this.width, this.height) * (effects.splashSize ?? 1) * 0.9
+      const fade = ctx.createRadialGradient(0, 0, 0, 0, 0, reach)
+      fade.addColorStop(0, color)
+      fade.addColorStop(0.45, color)
+      fade.addColorStop(1, transparent(color))
+      ctx.fillStyle = fade
+      // The headline's shadow under each beam muddied the fade.
+      this._removeShadow(ctx)
+    } else {
+      ctx.fillStyle = color
+    }
     ctx.beginPath()
     for (const shape of shapes) {
       if (shape.type === 'circle') {
@@ -120,6 +133,15 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
     ctx.restore()
   },
 })
+
+/** `hex` at zero opacity, so a gradient fades out in its own colour instead of through black. */
+function transparent(hex) {
+  const value = String(hex).replace('#', '')
+  const full = value.length === 3 ? value.split('').map((c) => c + c).join('') : value
+  const n = parseInt(full.slice(0, 6), 16)
+  if (Number.isNaN(n)) return 'rgba(0, 0, 0, 0)'
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, 0)`
+}
 
 /** The effect settings EffectText reads, from the headline's state. */
 export function effectsFromState(textState) {
