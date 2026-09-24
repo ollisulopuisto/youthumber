@@ -4,7 +4,9 @@ import {
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   isSpeakerLayer,
+  isStickerLayer,
 } from '../../modules/thumbnail/thumbnailState'
+import { ElementObject, elementObjectProps } from '../../modules/thumbnail/elementObject'
 import { saveExportedImage } from '../../services/exportImage'
 import {
   gradientSpec,
@@ -31,6 +33,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     onSelectLayer,
     onUpdateSpeakerTransform,
     onUpdateTextLayer,
+    onUpdateSticker,
     onCanvasReady,
   },
   ref
@@ -110,6 +113,16 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
           y: Math.round(obj.top || 0),
           scaleX: Number((obj.scaleX || 1).toFixed(3)),
           scaleY: Number((obj.scaleY || 1).toFixed(3)),
+          rotation: Math.round(obj.angle || 0),
+          flipX: !!obj.flipX,
+        })
+      } else if (isStickerLayer(layerId)) {
+        // Resizing changes the element's size, not its scale, so its lines stay even.
+        onUpdateSticker?.(layerId, {
+          x: Math.round(obj.left || 0),
+          y: Math.round(obj.top || 0),
+          width: Math.round((obj.width || 1) * (obj.scaleX || 1)),
+          height: Math.round((obj.height || 1) * (obj.scaleY || 1)),
           rotation: Math.round(obj.angle || 0),
           flipX: !!obj.flipX,
         })
@@ -212,6 +225,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     // Sync Text layer
     syncTextObject(canvas, project.text)
     syncDecorObject(canvas, project.decor)
+    syncStickerObjects(canvas, project.stickers ?? [])
 
     // Reorder layers according to project.layerOrder
     reorderCanvasObjects(canvas, project.layerOrder)
@@ -472,6 +486,37 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     }
   }
 
+  // Elements (stickers): one object each, rebuilt from state on every sync.
+  const syncStickerObjects = (canvas, stickers) => {
+    const ids = new Set(stickers.map((s) => s.id))
+    canvas
+      .getObjects()
+      .filter((o) => o.data?.layerId && isStickerLayer(o.data.layerId) && !ids.has(o.data.layerId))
+      .forEach((o) => canvas.remove(o))
+    for (const sticker of stickers) {
+      let obj = canvas.getObjects().find((o) => o.data?.layerId === sticker.id)
+      if (!sticker.visible) {
+        if (obj) canvas.remove(obj)
+        continue
+      }
+      if (!obj) {
+        obj = new ElementObject({ data: { layerId: sticker.id } })
+        canvas.add(obj)
+      }
+      obj.set(elementObjectProps(sticker))
+      obj.setCoords()
+    }
+    // Labels use a web font; redraw once it has loaded.
+    if (stickers.length && document.fonts && !document.fonts.check('40px Anton')) {
+      document.fonts.load('40px Anton').then(() => {
+        fabricCanvasRef.current?.getObjects().forEach((o) => {
+          if (isStickerLayer(o.data?.layerId || '')) o.dirty = true
+        })
+        fabricCanvasRef.current?.requestRenderAll()
+      })
+    }
+  }
+
   // Graphics layer: one click-through object, redrawn from the project's decor settings.
   const syncDecorObject = (canvas, decor) => {
     let existing = canvas.getObjects().find((o) => o.data?.layerId === DECOR_LAYER_ID)
@@ -500,6 +545,18 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   // Expose imperative API for exact 1280x720 export
   useImperativeHandle(ref, () => ({
     getCanvas: () => fabricCanvasRef.current,
+    /** The headline's box in canvas px (centre, size, rotation), or null when it's hidden. */
+    getHeadlineBox: () => {
+      const text = fabricCanvasRef.current?.getObjects().find((o) => o.data?.layerId === 'text')
+      if (!text || !text.visible) return null
+      return {
+        x: text.left,
+        y: text.top,
+        width: text.getScaledWidth(),
+        height: text.getScaledHeight(),
+        rotation: text.angle || 0,
+      }
+    },
     exportThumbnail: ({ format = 'jpeg', quality = 0.92, filename, scale = 1 }) => {
       const canvas = fabricCanvasRef.current
       if (!canvas) return null

@@ -117,7 +117,32 @@ export interface DecorState {
   elements: Partial<Record<'rays' | 'speedLines' | 'chart' | 'arrow' | 'halftone' | 'slashes' | 'sparkles', DecorElementState>>
 }
 
-/** 'background', 'decor', 'text', or a speaker's id. */
+/** A vector element placed on the thumbnail (src/data/elements.js). Id and layer id: `stk_…`. */
+export interface StickerState {
+  id: string
+  /** Which element from the library. */
+  elementId: string
+  colors: { primary: string; accent: string }
+  /** Replaces the element's own text, for elements that have a label. */
+  text?: string
+  /** Multiplies the element's stroke widths. */
+  lineWeight: number
+  /** Die-cut sticker border width in canvas px (0 = none) and its colour. */
+  outline: number
+  outlineColor: string
+  shadow: boolean
+  opacity: number
+  visible: boolean
+  /** Centre, size in canvas px (stretching keeps line widths even), rotation in degrees. */
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  flipX?: boolean
+}
+
+/** 'background', 'decor', 'text', a speaker's id (`spk_…`) or an element's id (`stk_…`). */
 export type LayerId = string
 
 export interface CanvasDimensions {
@@ -139,6 +164,8 @@ export interface ThumbnailProject {
   text: TextLayerState
   /** Missing on projects saved before the Graphics layer existed. */
   decor?: DecorState
+  /** Missing on projects saved before elements existed. */
+  stickers?: StickerState[]
   layerOrder: LayerId[]
 }
 

@@ -4,6 +4,7 @@ import { cssGradient } from '../../modules/thumbnail/backgroundRender'
 import FontPicker from './FontPicker'
 import TexturePicker from './TexturePicker'
 import DecorPanel from './DecorPanel'
+import StickerPanel from './StickerPanel'
 import { TEXT_LOOKS } from '../../data/textLooks'
 import {
   ACCENT_LINE_MODES,
@@ -109,6 +110,11 @@ function PropertiesPanel({
   onResetSpeakerTransform,
   onUpdateSpeakerMaskOptions,
   onUpdateDecor,
+  onUpdateSticker,
+  onRemoveSticker,
+  onDuplicateSticker,
+  onFitSticker,
+  onStickerBehindText,
 }) {
   if (!selectedLayer) {
     return (
@@ -119,6 +125,21 @@ function PropertiesPanel({
           Click an element on the canvas or in the Layers list to adjust its properties.
         </p>
       </div>
+    )
+  }
+
+  const sticker = project.stickers?.find((s) => s.id === selectedLayer)
+  if (sticker) {
+    return (
+      <StickerPanel
+        project={project}
+        sticker={sticker}
+        onUpdate={onUpdateSticker}
+        onRemove={onRemoveSticker}
+        onDuplicate={onDuplicateSticker}
+        onFit={onFitSticker}
+        onBehindText={onStickerBehindText}
+      />
     )
   }
 

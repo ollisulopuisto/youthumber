@@ -2,6 +2,18 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.24.83] - 2026-09-24
+
+### Added
+- **Elements**: a library of 38 vector elements, added with **+ Element** in Layers. Each is its own layer: move, resize, rotate and flip it on the canvas
+  - **With the headline**: brush stroke, torn paper, pill, slanted box, burst, hand-drawn box, corner brackets, scribble circle, underline swoosh, zigzag underline, highlighter, tape
+  - **Reactions**: exclamation, question mark, ?!, shock lines, sweat drop, anger mark, pointing and loop arrows, sparkle, heart
+  - **Debate**: VS badge, lightning divider, speech and thought bubbles, quote marks, check, cross, scales
+  - **Podcast**: microphone, headphones, waveform, equaliser, ON AIR, LIVE, NEW sticker, episode badge
+- Elements fit the headline: backgrounds are stretched behind it, frames go around it, underlines under it, sparkles and tape at its corner, an exclamation at its end, an arrow pointing at it. **Fit to headline** re-fits one after the text changes; **Behind text / In front** moves it
+- Every element recolours (two colours with loud swatches), and has line weight, opacity, a die-cut sticker border with its own colour, and a drop shadow. Badges and bubbles have editable text that squeezes to fit
+- Stretching an element keeps its lines even: resizing changes its size, not its scale
+
 ## [26.09.24.82] - 2026-09-24
 
 ### Changed

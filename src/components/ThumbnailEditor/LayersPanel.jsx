@@ -1,12 +1,20 @@
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { withDecorLayer } from '../../modules/thumbnail/decor'
+import { findElement } from '../../data/elements'
 
-function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility }) {
+function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility, onAddElement }) {
   const layerLabels = {
     text: { name: 'Headline Text', icon: 'T', color: 'text-amber-400' },
     decor: { name: 'Graphics', icon: 'G', color: 'text-pink-400' },
     background: { name: 'Background', icon: 'B', color: 'text-emerald-400' },
   }
+  ;(project.stickers ?? []).forEach((sticker) => {
+    layerLabels[sticker.id] = {
+      name: findElement(sticker.elementId)?.name ?? 'Element',
+      icon: '★',
+      color: 'text-pink-400',
+    }
+  })
   project.speakers.forEach((speaker, i) => {
     layerLabels[speaker.id] = {
       name: speakerLabel(project, speaker.id),
@@ -38,6 +46,8 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
   const isVisible = (layerId) => {
     if (layerId === 'text') return project.text.visible
     if (layerId === 'decor') return project.decor?.visible ?? true
+    const sticker = project.stickers?.find((s) => s.id === layerId)
+    if (sticker) return sticker.visible
     const speaker = project.speakers.find((s) => s.id === layerId)
     return speaker ? speaker.visible : true
   }
@@ -49,7 +59,15 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
           <span>Layers</span>
           <span className="text-[10px] lowercase text-gray-500 font-normal">(top to bottom)</span>
         </h3>
-        <span className="text-[10px] text-gray-500 font-mono">{layerOrder.length} items</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-500 font-mono">{layerOrder.length} items</span>
+          <button
+            onClick={onAddElement}
+            className="text-[10px] px-2 py-1 rounded bg-pink-600 hover:bg-pink-500 text-white font-bold"
+          >
+            + Element
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5 overflow-y-auto">
