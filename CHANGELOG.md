@@ -2,6 +2,38 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.09.24.83] - 2026-09-24
+
+### Added
+- **Elements**: a library of 38 vector elements, added with **+ Element** in Layers. Each is its own layer: move, resize, rotate and flip it on the canvas
+  - **With the headline**: brush stroke, torn paper, pill, slanted box, burst, hand-drawn box, corner brackets, scribble circle, underline swoosh, zigzag underline, highlighter, tape
+  - **Reactions**: exclamation, question mark, ?!, shock lines, sweat drop, anger mark, pointing and loop arrows, sparkle, heart
+  - **Debate**: VS badge, lightning divider, speech and thought bubbles, quote marks, check, cross, scales
+  - **Podcast**: microphone, headphones, waveform, equaliser, ON AIR, LIVE, NEW sticker, episode badge
+- Elements fit the headline: backgrounds are stretched behind it, frames go around it, underlines under it, sparkles and tape at its corner, an exclamation at its end, an arrow pointing at it. **Fit to headline** re-fits one after the text changes; **Behind text / In front** moves it
+- Every element recolours (two colours with loud swatches), and has line weight, opacity, a die-cut sticker border with its own colour, and a drop shadow. Badges and bubbles have editable text that squeezes to fit
+- Stretching an element keeps its lines even: resizing changes its size, not its scale
+
+## [26.09.24.82] - 2026-09-24
+
+### Changed
+- The Graphics layer looks much less rough. Flat, single-colour shapes are replaced with light, glow and depth:
+  - Light rays fade out from a glowing centre (white by default)
+  - Speed lines fade in from the frame's edge
+  - The rising chart is a neon line with a hot core, fading bars and area, and a glowing arrowhead
+  - The big arrow is 3D: a lit gradient face over a shaded side, with a highlight, the shaft running into the head
+  - Slashes glow, halftone dots fade with distance, sparkles are soft lens flares
+  - Glow is scaled with the canvas zoom, so the preview matches the export
+- The headline's rays splash fades out in its own colour instead of ending in flat wedges
+
+## [26.09.24.81] - 2026-09-24
+
+### Added
+- **Graphics layer**: loud decorations drawn above the background, in their own layer that can be moved in front of the speakers. Light rays, manga speed lines, a rising chart (grid, bars and a glowing line with an arrowhead), a big zigzag arrow, halftone dots, "///" slashes and sparkles. Each has its own colour, opacity and left / centre / right placement. **Shuffle** redraws the random shapes; **Surprise me** picks a random loud combination
+- Accent lines can sit on a slanted **bar** (the yellow "NEW STRATEGY" strip) with their own text colour
+- **Rays** splash: a sunburst behind the headline
+- Two more looks: Banner and Sunburst
+
 ## [26.09.24.80] - 2026-09-24
 
 ### Added

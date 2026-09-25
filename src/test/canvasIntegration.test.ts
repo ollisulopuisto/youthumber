@@ -11,7 +11,7 @@ describe('Canvas 1280x720 & Layer Model Integration', () => {
 
   it('maintains Text above speakers and speakers above background by default', () => {
     const project = createDefaultProject('P', 4)
-    expect(project.layerOrder).toEqual(['background', ...project.speakers.map((s) => s.id), 'text'])
+    expect(project.layerOrder).toEqual(['background', 'decor', ...project.speakers.map((s) => s.id), 'text'])
   })
 
   it('allows user to customize layer stack while keeping state deterministic', () => {

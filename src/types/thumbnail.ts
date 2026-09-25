@@ -85,12 +85,15 @@ export interface TextLayerState {
   /** Lines painted in `accentColor` instead of the fill. */
   accentLines?: 'none' | 'first' | 'last' | 'alternate'
   accentColor?: string
+  /** 'color' paints the accent lines; 'box' puts them on a bar of accentColor in accentTextColor. */
+  accentStyle?: 'color' | 'box'
+  accentTextColor?: string
   /** 3D side: depth in px (0 = flat), direction in degrees (0 = right, 90 = down), colour. */
   extrudeDepth?: number
   extrudeAngle?: number
   extrudeColor?: string
   /** Shape drawn behind the text; the seed keeps a splat's shape between redraws. */
-  splashStyle?: 'none' | 'burst' | 'splat' | 'brush'
+  splashStyle?: 'none' | 'burst' | 'splat' | 'brush' | 'rays'
   splashColor?: string
   splashSize?: number
   splashSeed?: number
@@ -98,7 +101,48 @@ export interface TextLayerState {
   visible: boolean
 }
 
-/** 'background', 'text', or a speaker's id. */
+export interface DecorElementState {
+  on: boolean
+  color?: string
+  /** 0–1 */
+  opacity?: number
+  position?: 'left' | 'center' | 'right'
+}
+
+/** The Graphics layer: loud decorations (rays, chart, arrow…); see modules/thumbnail/decor.js. */
+export interface DecorState {
+  visible: boolean
+  /** Keeps random shapes the same between redraws; Shuffle picks a new one. */
+  seed: number
+  elements: Partial<Record<'rays' | 'speedLines' | 'chart' | 'arrow' | 'halftone' | 'slashes' | 'sparkles', DecorElementState>>
+}
+
+/** A vector element placed on the thumbnail (src/data/elements.js). Id and layer id: `stk_…`. */
+export interface StickerState {
+  id: string
+  /** Which element from the library. */
+  elementId: string
+  colors: { primary: string; accent: string }
+  /** Replaces the element's own text, for elements that have a label. */
+  text?: string
+  /** Multiplies the element's stroke widths. */
+  lineWeight: number
+  /** Die-cut sticker border width in canvas px (0 = none) and its colour. */
+  outline: number
+  outlineColor: string
+  shadow: boolean
+  opacity: number
+  visible: boolean
+  /** Centre, size in canvas px (stretching keeps line widths even), rotation in degrees. */
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  flipX?: boolean
+}
+
+/** 'background', 'decor', 'text', a speaker's id (`spk_…`) or an element's id (`stk_…`). */
 export type LayerId = string
 
 export interface CanvasDimensions {
@@ -118,6 +162,10 @@ export interface ThumbnailProject {
   speakers: SpeakerState[]
   layoutId: string
   text: TextLayerState
+  /** Missing on projects saved before the Graphics layer existed. */
+  decor?: DecorState
+  /** Missing on projects saved before elements existed. */
+  stickers?: StickerState[]
   layerOrder: LayerId[]
 }
 

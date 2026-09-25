@@ -1,10 +1,20 @@
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
+import { withDecorLayer } from '../../modules/thumbnail/decor'
+import { findElement } from '../../data/elements'
 
-function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility }) {
+function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility, onAddElement }) {
   const layerLabels = {
     text: { name: 'Headline Text', icon: 'T', color: 'text-amber-400' },
+    decor: { name: 'Graphics', icon: 'G', color: 'text-pink-400' },
     background: { name: 'Background', icon: 'B', color: 'text-emerald-400' },
   }
+  ;(project.stickers ?? []).forEach((sticker) => {
+    layerLabels[sticker.id] = {
+      name: findElement(sticker.elementId)?.name ?? 'Element',
+      icon: '★',
+      color: 'text-pink-400',
+    }
+  })
   project.speakers.forEach((speaker, i) => {
     layerLabels[speaker.id] = {
       name: speakerLabel(project, speaker.id),
@@ -13,17 +23,19 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
     }
   })
 
+  // Older projects don't list the Graphics layer; show it where the canvas draws it.
+  const layerOrder = withDecorLayer(project.layerOrder)
   // Visual order: top of stack first
-  const displayOrder = [...project.layerOrder].reverse()
+  const displayOrder = [...layerOrder].reverse()
 
   const moveLayer = (layerId, direction) => {
-    const currentIndex = project.layerOrder.indexOf(layerId)
+    const currentIndex = layerOrder.indexOf(layerId)
     if (currentIndex === -1) return
 
     const targetIndex = direction === 'up' ? currentIndex + 1 : currentIndex - 1
-    if (targetIndex < 0 || targetIndex >= project.layerOrder.length) return
+    if (targetIndex < 0 || targetIndex >= layerOrder.length) return
 
-    const newOrder = [...project.layerOrder]
+    const newOrder = [...layerOrder]
     const temp = newOrder[currentIndex]
     newOrder[currentIndex] = newOrder[targetIndex]
     newOrder[targetIndex] = temp
@@ -33,6 +45,9 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
 
   const isVisible = (layerId) => {
     if (layerId === 'text') return project.text.visible
+    if (layerId === 'decor') return project.decor?.visible ?? true
+    const sticker = project.stickers?.find((s) => s.id === layerId)
+    if (sticker) return sticker.visible
     const speaker = project.speakers.find((s) => s.id === layerId)
     return speaker ? speaker.visible : true
   }
@@ -44,7 +59,15 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
           <span>Layers</span>
           <span className="text-[10px] lowercase text-gray-500 font-normal">(top to bottom)</span>
         </h3>
-        <span className="text-[10px] text-gray-500 font-mono">{project.layerOrder.length} items</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-500 font-mono">{layerOrder.length} items</span>
+          <button
+            onClick={onAddElement}
+            className="text-[10px] px-2 py-1 rounded bg-pink-600 hover:bg-pink-500 text-white font-bold"
+          >
+            + Element
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5 overflow-y-auto">
@@ -52,8 +75,8 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
           const info = layerLabels[layerId] || { name: layerId, icon: '•', color: 'text-gray-300' }
           const isSelected = selectedLayer === layerId
           const visible = isVisible(layerId)
-          const actualIndex = project.layerOrder.indexOf(layerId)
-          const canMoveUp = actualIndex < project.layerOrder.length - 1
+          const actualIndex = layerOrder.indexOf(layerId)
+          const canMoveUp = actualIndex < layerOrder.length - 1
           const canMoveDown = actualIndex > 0
 
           return (

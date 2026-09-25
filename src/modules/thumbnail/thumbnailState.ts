@@ -1,4 +1,7 @@
 import type {
+  StickerState,
+  DecorElementState,
+  DecorState,
   ThumbnailProject,
   SpeakerState,
   LayerId,
@@ -14,10 +17,18 @@ export { CANVAS_WIDTH, CANVAS_HEIGHT }
 
 export const PROJECT_VERSION = 2
 
-const NON_SPEAKER_LAYERS = new Set(['background', 'text'])
+const NON_SPEAKER_LAYERS = new Set(['background', 'decor', 'text'])
+
+export function isStickerLayer(layerId: LayerId): boolean {
+  return layerId.startsWith('stk_')
+}
 
 export function isSpeakerLayer(layerId: LayerId): boolean {
-  return !NON_SPEAKER_LAYERS.has(layerId)
+  return !NON_SPEAKER_LAYERS.has(layerId) && !isStickerLayer(layerId)
+}
+
+export function newStickerId(): string {
+  return `stk_${Math.random().toString(36).slice(2, 9)}`
 }
 
 export function newSpeakerId(): string {
@@ -104,7 +115,8 @@ export function createDefaultProject(name = 'Untitled Thumbnail', speakerCount =
       transform: { x: 640, y: 110, scaleX: 1, scaleY: 1, rotation: 0 },
       visible: true,
     },
-    layerOrder: ['background', ...speakers.map((s) => s.id), 'text'],
+    decor: { visible: true, seed: 1, elements: {} },
+    layerOrder: ['background', 'decor', ...speakers.map((s) => s.id), 'text'],
   }
 }
 
@@ -402,6 +414,89 @@ export function updateTextLayer(
       transform: { ...project.text.transform, ...(updates.transform || {}) },
     },
   }
+}
+
+/** Merges Graphics layer settings; `elements` merges per element. */
+export function updateDecor(
+  project: ThumbnailProject,
+  updates: Partial<Omit<DecorState, 'elements'>> & {
+    elements?: { [K in keyof DecorState['elements']]?: Partial<DecorElementState> }
+  }
+): ThumbnailProject {
+  const current: DecorState = project.decor ?? { visible: true, seed: 1, elements: {} }
+  const elements = { ...current.elements }
+  for (const [id, element] of Object.entries(updates.elements ?? {})) {
+    const key = id as keyof DecorState['elements']
+    elements[key] = { ...(current.elements[key] ?? { on: false }), ...element }
+  }
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    decor: { ...current, ...updates, elements },
+  }
+}
+
+/**
+ * Adds an element. `behindText` puts it just under the headline (a banner or bubble the
+ * text sits on); otherwise it goes on top of everything.
+ */
+export function addSticker(
+  project: ThumbnailProject,
+  sticker: StickerState,
+  behindText = false
+): ThumbnailProject {
+  const order = project.layerOrder
+  const textIndex = order.indexOf('text')
+  const layerOrder =
+    behindText && textIndex >= 0
+      ? [...order.slice(0, textIndex), sticker.id, ...order.slice(textIndex)]
+      : [...order, sticker.id]
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    stickers: [...(project.stickers ?? []), sticker],
+    layerOrder,
+  }
+}
+
+export function updateSticker(
+  project: ThumbnailProject,
+  stickerId: string,
+  updates: Partial<Omit<StickerState, 'id' | 'colors'>> & { colors?: Partial<StickerState['colors']> }
+): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    stickers: (project.stickers ?? []).map((s) =>
+      s.id === stickerId
+        ? { ...s, ...updates, colors: { ...s.colors, ...(updates.colors ?? {}) } }
+        : s
+    ),
+  }
+}
+
+export function removeSticker(project: ThumbnailProject, stickerId: string): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    stickers: (project.stickers ?? []).filter((s) => s.id !== stickerId),
+    layerOrder: project.layerOrder.filter((id) => id !== stickerId),
+  }
+}
+
+/** Moves an element to just under the headline (true) or to the top of the stack (false). */
+export function setStickerBehindText(
+  project: ThumbnailProject,
+  stickerId: string,
+  behindText: boolean
+): ThumbnailProject {
+  const rest = project.layerOrder.filter((id) => id !== stickerId)
+  const textIndex = rest.indexOf('text')
+  const layerOrder =
+    behindText && textIndex >= 0
+      ? [...rest.slice(0, textIndex), stickerId, ...rest.slice(textIndex)]
+      : [...rest, stickerId]
+  return { ...project, updatedAt: new Date().toISOString(), layerOrder }
 }
 
 export function reorderLayers(project: ThumbnailProject, newOrder: LayerId[]): ThumbnailProject {

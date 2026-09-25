@@ -6,6 +6,9 @@ import PropertiesPanel from './components/ThumbnailEditor/PropertiesPanel'
 import SpeakerSlotsPanel from './components/ThumbnailEditor/SpeakerSlotsPanel'
 import ProjectGalleryModal from './components/ThumbnailEditor/ProjectGalleryModal'
 import ShowPresetModal from './components/ThumbnailEditor/ShowPresetModal'
+import ElementPickerModal from './components/ThumbnailEditor/ElementPickerModal'
+import { findElement } from './data/elements'
+import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail/elementFit'
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
 
 import {
@@ -29,7 +32,14 @@ import {
   setBackgroundImage,
   updateBackground,
   updateTextLayer,
+  updateDecor,
   reorderLayers,
+  isStickerLayer,
+  newStickerId,
+  addSticker,
+  updateSticker,
+  removeSticker,
+  setStickerBehindText,
 } from './modules/thumbnail/thumbnailState'
 
 import {
@@ -69,6 +79,7 @@ function App() {
   const [selectedLayer, setSelectedLayer] = useState('text')
   const [showProjectsModal, setShowProjectsModal] = useState(false)
   const [showShowsModal, setShowShowsModal] = useState(false)
+  const [showElementPicker, setShowElementPicker] = useState(false)
   const canvasRef = useRef(null)
 
   // Auto-save project changes to local storage
@@ -304,6 +315,56 @@ function App() {
     setProject((prev) => updateTextLayer(prev, updates))
   }, [])
 
+  const handleUpdateDecor = useCallback((updates) => {
+    setProject((prev) => updateDecor(prev, updates))
+  }, [])
+
+  // Elements (stickers)
+  const headlineBox = () => (project.text.visible ? canvasRef.current?.getHeadlineBox?.() : null)
+
+  const handleAddElement = (elementId) => {
+    const spec = findElement(elementId)
+    if (!spec) return
+    const sticker = newSticker(spec, newStickerId(), spec.fit ? headlineBox() : null)
+    setProject((prev) => addSticker(prev, sticker, goesBehindText(spec)))
+    setSelectedLayer(sticker.id)
+    setShowElementPicker(false)
+  }
+
+  const handleUpdateSticker = useCallback((stickerId, updates) => {
+    setProject((prev) => updateSticker(prev, stickerId, updates))
+  }, [])
+
+  const handleRemoveSticker = (stickerId) => {
+    setProject((prev) => removeSticker(prev, stickerId))
+    setSelectedLayer(null)
+  }
+
+  const handleDuplicateSticker = (stickerId) => {
+    const original = project.stickers?.find((s) => s.id === stickerId)
+    if (!original) return
+    const copy = { ...original, id: newStickerId(), x: original.x + 30, y: original.y + 30 }
+    setProject((prev) => {
+      const next = addSticker(prev, copy)
+      // Right above the original, not on top of everything.
+      const order = next.layerOrder.filter((id) => id !== copy.id)
+      order.splice(order.indexOf(stickerId) + 1, 0, copy.id)
+      return reorderLayers(next, order)
+    })
+    setSelectedLayer(copy.id)
+  }
+
+  const handleFitSticker = (stickerId) => {
+    const sticker = project.stickers?.find((s) => s.id === stickerId)
+    const spec = sticker && findElement(sticker.elementId)
+    const placement = spec && fitElementToBox(spec, headlineBox())
+    if (placement) handleUpdateSticker(stickerId, placement)
+  }
+
+  const handleStickerBehindText = (stickerId, behind) => {
+    setProject((prev) => setStickerBehindText(prev, stickerId, behind))
+  }
+
   // Layer Actions
   const handleReorderLayers = (newOrder) => {
     setProject((prev) => reorderLayers(prev, newOrder))
@@ -314,6 +375,13 @@ function App() {
       setProject((prev) => toggleSpeakerVisibility(prev, layerId))
     } else if (layerId === 'text') {
       setProject((prev) => updateTextLayer(prev, { visible: !prev.text.visible }))
+    } else if (isStickerLayer(layerId)) {
+      setProject((prev) => {
+        const sticker = prev.stickers?.find((s) => s.id === layerId)
+        return sticker ? updateSticker(prev, layerId, { visible: !sticker.visible }) : prev
+      })
+    } else if (layerId === 'decor') {
+      setProject((prev) => updateDecor(prev, { visible: !(prev.decor?.visible ?? true) }))
     }
   }
 
@@ -346,6 +414,7 @@ function App() {
               onSelectLayer={setSelectedLayer}
               onUpdateSpeakerTransform={handleUpdateSpeakerTransform}
               onUpdateTextLayer={handleUpdateText}
+              onUpdateSticker={handleUpdateSticker}
             />
           </div>
         </div>
@@ -359,6 +428,7 @@ function App() {
             onSelectLayer={setSelectedLayer}
             onReorderLayers={handleReorderLayers}
             onToggleVisibility={handleToggleVisibility}
+            onAddElement={() => setShowElementPicker(true)}
           />
 
           {/* Properties Panel */}
@@ -366,6 +436,12 @@ function App() {
             selectedLayer={selectedLayer}
             project={project}
             onUpdateText={handleUpdateText}
+            onUpdateDecor={handleUpdateDecor}
+            onUpdateSticker={handleUpdateSticker}
+            onRemoveSticker={handleRemoveSticker}
+            onDuplicateSticker={handleDuplicateSticker}
+            onFitSticker={handleFitSticker}
+            onStickerBehindText={handleStickerBehindText}
             onUpdateSpeakerTransform={handleUpdateSpeakerTransform}
             onUpdateBackground={handleUpdateBackground}
             onResetSpeakerTransform={handleResetSpeakerTransform}
@@ -396,6 +472,10 @@ function App() {
           onLoadProject={(loaded) => setProject(loaded)}
           onClose={() => setShowProjectsModal(false)}
         />
+      )}
+
+      {showElementPicker && (
+        <ElementPickerModal onPick={handleAddElement} onClose={() => setShowElementPicker(false)} />
       )}
 
       {/* Show Preset Preferences Modal */}

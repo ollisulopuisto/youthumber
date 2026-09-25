@@ -32,7 +32,7 @@ describe('Thumbnail State Management', () => {
     expect(project.canvas).toEqual({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT })
     expect(project.speakers).toHaveLength(2)
     expect(project.layoutId).toBe(getDefaultLayout(2).id)
-    expect(project.layerOrder).toEqual(['background', host.id, guest.id, 'text'])
+    expect(project.layerOrder).toEqual(['background', 'decor', host.id, guest.id, 'text'])
     expect(host.name).toBe('Host')
     expect(guest.name).toBe('Guest')
     expect(host.id).not.toBe(guest.id)
@@ -157,7 +157,7 @@ describe('Thumbnail State Management', () => {
       expect(three.speakers.map((s) => s.transform.x)).toEqual(
         getDefaultLayout(3).slots.map((slot) => slot.transform.x)
       )
-      expect(three.layerOrder).toEqual(['background', ...three.speakers.map((s) => s.id), 'text'])
+      expect(three.layerOrder).toEqual(['background', 'decor', ...three.speakers.map((s) => s.id), 'text'])
     })
 
     it('drops speakers from the right and removes them from the layer order', () => {
@@ -165,7 +165,7 @@ describe('Thumbnail State Management', () => {
       const one = setSpeakerCount(project, 1)
 
       expect(one.speakers.map((s) => s.id)).toEqual([project.speakers[0].id])
-      expect(one.layerOrder).toEqual(['background', project.speakers[0].id, 'text'])
+      expect(one.layerOrder).toEqual(['background', 'decor', project.speakers[0].id, 'text'])
       expect(one.layoutId).toBe(getDefaultLayout(1).id)
     })
 

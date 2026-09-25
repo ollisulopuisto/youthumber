@@ -36,6 +36,8 @@ Compose stunning 1280×720 thumbnails from dual speaker photos (1920×1080) with
 - **Crop Tool**: Interactive image cropping with real-time preview
 - **Grid & Guides**: Toggle grid overlay (20px), snap-to-grid, and center alignment guides
 - **Custom Templates**: Save your current layout as a reusable template
+- **Elements**: 38 recolourable vector elements (banners, frames, underlines, reactions, debate and podcast badges) that fit themselves to the headline
+- **Headline effects & Graphics layer**: slant, 3D depth, fades, accent bars, splashes; glowing rays, charts, arrows, halftone and sparkles
 - **Pix3lTools Branding**: Header link to the Pix3lTools website
 
 ## Tech Stack
