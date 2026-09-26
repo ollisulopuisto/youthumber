@@ -1,8 +1,6 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { fabric } from 'fabric'
 import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
   isSpeakerLayer,
   isStickerLayer,
 } from '../../modules/thumbnail/thumbnailState'
@@ -45,8 +43,11 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   const canvasElRef = useRef(null)
   const fabricCanvasRef = useRef(null)
   const isUpdatingFromStateRef = useRef(false)
+  const canvasWidth = project.canvas?.width || 1280
+  const canvasHeight = project.canvas?.height || 720
+  const aspectRatio = canvasWidth / canvasHeight
 
-  // 1. Initialize Fabric.js Canvas fixed at 1280 x 720
+  // 1. Initialize Fabric.js Canvas in the project's selected aspect ratio.
   useEffect(() => {
     if (!canvasElRef.current) return
 
@@ -56,8 +57,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     }
 
     const canvas = new fabric.Canvas(canvasElRef.current, {
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
+      width: canvasWidth,
+      height: canvasHeight,
       backgroundColor: project.background.color || '#111827',
       selection: true,
       preserveObjectStacking: true,
@@ -146,16 +147,16 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       if (!fitRef.current || !containerRef.current || !fabricCanvasRef.current) return
       const box = fitRef.current
       const fitWidth = Math.min(
-        CANVAS_WIDTH,
+        canvasWidth,
         box.clientWidth,
-        (box.clientHeight || Infinity) * (CANVAS_WIDTH / CANVAS_HEIGHT)
+        (box.clientHeight || Infinity) * aspectRatio
       )
       containerRef.current.style.width = `${fitWidth}px`
-      const scale = fitWidth / CANVAS_WIDTH
+      const scale = fitWidth / canvasWidth
       const canvas = fabricCanvasRef.current
       canvas.setDimensions({
-        width: CANVAS_WIDTH * scale,
-        height: CANVAS_HEIGHT * scale,
+        width: canvasWidth * scale,
+        height: canvasHeight * scale,
       })
       canvas.setZoom(scale)
       canvas.renderAll()
@@ -182,7 +183,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         fabricCanvasRef.current = null
       }
     }
-  }, [])
+  }, [canvasWidth, canvasHeight])
 
   // 2. Sync Fabric objects with project state
   useEffect(() => {
@@ -196,7 +197,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     latestBackgroundRef.current = bg
     if (bg.type === 'gradient' && bg.gradient) {
       canvas.setBackgroundColor(
-        new fabric.Gradient(gradientSpec(bg.gradient, CANVAS_WIDTH, CANVAS_HEIGHT)),
+        new fabric.Gradient(gradientSpec(bg.gradient, canvasWidth, canvasHeight)),
         () => canvas.renderAll()
       )
       canvas.setBackgroundImage(null, () => canvas.renderAll())
@@ -287,12 +288,12 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
           el.getContext('2d').drawImage(loaded.getElement(), 0, 0, el.width, el.height)
           img = new fabric.Image(el)
         }
-        const scale = Math.max(CANVAS_WIDTH / (img.width || 1), CANVAS_HEIGHT / (img.height || 1))
+        const scale = Math.max(canvasWidth / (img.width || 1), canvasHeight / (img.height || 1))
         img.set({
           originX: 'center',
           originY: 'center',
-          left: CANVAS_WIDTH / 2,
-          top: CANVAS_HEIGHT / 2,
+          left: canvasWidth / 2,
+          top: canvasHeight / 2,
           scaleX: scale,
           scaleY: scale,
           selectable: false,
@@ -316,8 +317,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       vignette = new fabric.Rect({
         left: 0,
         top: 0,
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
+        width: canvasWidth,
+        height: canvasHeight,
         selectable: false,
         evented: false,
         data: { role: 'vignette' },
@@ -326,7 +327,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     }
     vignette.set({
       fill: new fabric.Gradient({
-        ...gradientSpec({ colors: ['#000', '#000'], type: 'radial' }, CANVAS_WIDTH, CANVAS_HEIGHT),
+        ...gradientSpec({ colors: ['#000', '#000'], type: 'radial' }, canvasWidth, canvasHeight),
         colorStops: vignetteColorStops(strength),
       }),
     })
@@ -542,7 +543,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     })
   }
 
-  // Expose imperative API for exact 1280x720 export
+  // Expose imperative API for exact project-sized export.
   useImperativeHandle(ref, () => ({
     getCanvas: () => fabricCanvasRef.current,
     /** The headline's box in canvas px (centre, size, rotation), or null when it's hidden. */
@@ -565,7 +566,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       canvas.discardActiveObject()
       canvas.renderAll()
 
-      // Calculate multiplier so the export is exactly 1280x720 * scale
+      // Compensate for the editor zoom, then apply the requested output scale.
       const currentZoom = canvas.getZoom()
       const multiplier = (1 / currentZoom) * scale
 
@@ -577,7 +578,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
       const name =
         filename ||
-        `youtube-thumbnail-1280x720-${new Date().toISOString().slice(0, 10)}.${
+        `youtube-thumbnail-${Math.round(canvasWidth * scale)}x${Math.round(canvasHeight * scale)}-${new Date().toISOString().slice(0, 10)}.${
           format === 'png' ? 'png' : 'jpg'
         }`
       return saveExportedImage(dataUrl, name)
@@ -589,7 +590,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       <div ref={fitRef} className="w-full h-full min-h-0 flex items-center justify-center">
         <div
           ref={containerRef}
-          className="aspect-[16/9] relative overflow-hidden rounded-lg shadow-inner bg-black flex items-center justify-center"
+          className="relative overflow-hidden rounded-lg shadow-inner bg-black flex items-center justify-center"
+          style={{ aspectRatio, maxHeight: '100%', maxWidth: '100%' }}
         >
           <canvas ref={canvasElRef} />
         </div>

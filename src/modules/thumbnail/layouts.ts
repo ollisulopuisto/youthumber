@@ -3,6 +3,27 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from './canvasSize'
 
 export const MAX_SPEAKERS = 4
 
+const PORTRAIT_WIDTH = 720
+const PORTRAIT_HEIGHT = 1280
+
+const portraitTextStyle: LayoutPreset['textStyleAndPosition'] = {
+  fontFamily: 'Montserrat', fontSize: 62, fontWeight: '900', textAlign: 'center',
+  fillColor: '#FFFFFF', strokeColor: '#000000', strokeWidth: 6,
+  shadowColor: 'rgba(0, 0, 0, 0.9)', shadowBlur: 16, shadowOffsetX: 3, shadowOffsetY: 5,
+  transform: { x: PORTRAIT_WIDTH / 2, y: 90, scaleX: 1, scaleY: 1, rotation: 0 }, visible: true,
+}
+
+const PORTRAIT_LAYOUTS: LayoutPreset[] = [
+  { id: 'portrait-solo-spotlight', name: 'Solo Spotlight', description: 'One large speaker beneath a bold title', speakerCount: 1,
+    slots: [{ transform: { x: 360, y: 850, scaleX: 1.15, scaleY: 1.15, rotation: 0 }, frame: { centerX: 360, centerY: 800, personHeight: 1000 } }], textStyleAndPosition: portraitTextStyle },
+  { id: 'portrait-stacked-duo', name: 'Stacked Duo', description: 'Two speakers arranged top and bottom for portrait video', speakerCount: 2,
+    slots: [320, 930].map((y) => ({ transform: { x: 360, y, scaleX: 0.76, scaleY: 0.76, rotation: 0 }, frame: { centerX: 360, centerY: y, personHeight: 570 } })), textStyleAndPosition: portraitTextStyle },
+  { id: 'portrait-three-up', name: 'Three-Up Panel', description: 'Three speakers in a vertical stack', speakerCount: 3,
+    slots: [280, 650, 1020].map((y) => ({ transform: { x: 360, y, scaleX: 0.58, scaleY: 0.58, rotation: 0 }, frame: { centerX: 360, centerY: y, personHeight: 390 } })), textStyleAndPosition: portraitTextStyle },
+  { id: 'portrait-four-grid', name: 'Four-Corner Grid', description: 'Four speakers in a compact two-by-two grid', speakerCount: 4,
+    slots: [{ x: 205, y: 440 }, { x: 515, y: 440 }, { x: 205, y: 900 }, { x: 515, y: 900 }].map(({ x, y }) => ({ transform: { x, y, scaleX: 0.48, scaleY: 0.48, rotation: 0 }, frame: { centerX: x, centerY: y, personHeight: 340 } })), textStyleAndPosition: portraitTextStyle },
+]
+
 // Auto-frame targets before layouts existed: 27% / 73% of width, 60% down, person
 // filling 1.05x canvas height. The three original two-speaker layouts keep them.
 const FRAME_CENTER_Y = CANVAS_HEIGHT * 0.6
@@ -134,18 +155,18 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
   },
 ]
 
-export function getLayoutsForCount(count: number): LayoutPreset[] {
-  return LAYOUT_PRESETS.filter((l) => l.speakerCount === count)
+export function getLayoutsForCount(count: number, portrait = false): LayoutPreset[] {
+  return (portrait ? PORTRAIT_LAYOUTS : LAYOUT_PRESETS).filter((l) => l.speakerCount === count)
 }
 
-export function getDefaultLayout(count: number): LayoutPreset {
-  const layout = getLayoutsForCount(count)[0]
+export function getDefaultLayout(count: number, portrait = false): LayoutPreset {
+  const layout = getLayoutsForCount(count, portrait)[0]
   if (!layout) throw new Error(`No layout for ${count} speakers`)
   return layout
 }
 
 export function getLayout(id: string): LayoutPreset | undefined {
-  return LAYOUT_PRESETS.find((l) => l.id === id)
+  return [...LAYOUT_PRESETS, ...PORTRAIT_LAYOUTS].find((l) => l.id === id)
 }
 
 const POSITION_LABELS: Record<number, string[]> = {

@@ -146,8 +146,8 @@ export interface StickerState {
 export type LayerId = string
 
 export interface CanvasDimensions {
-  width: 1280
-  height: 720
+  width: number
+  height: number
 }
 
 export interface ThumbnailProject {

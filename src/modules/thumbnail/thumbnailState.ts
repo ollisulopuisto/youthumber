@@ -129,7 +129,19 @@ export function currentLayout(project: ThumbnailProject): LayoutPreset {
   const layout = getLayout(project.layoutId)
   return layout && layout.speakerCount === project.speakers.length
     ? layout
-    : getDefaultLayout(project.speakers.length)
+    : getDefaultLayout(project.speakers.length, project.canvas.height > project.canvas.width)
+}
+
+export function switchProjectToPortrait(project: ThumbnailProject): ThumbnailProject {
+  if (project.canvas.height > project.canvas.width) return project
+  const next = { ...project, canvas: { width: 720, height: 1280 } }
+  return applyLayout(next, getDefaultLayout(next.speakers.length, true))
+}
+
+export function switchProjectToLandscape(project: ThumbnailProject): ThumbnailProject {
+  if (project.canvas.width > project.canvas.height) return project
+  const next = { ...project, canvas: { width: CANVAS_WIDTH, height: CANVAS_HEIGHT } }
+  return applyLayout(next, getDefaultLayout(next.speakers.length))
 }
 
 /** "Left · Olli": the speaker's position on the thumbnail plus their name. */
@@ -290,7 +302,7 @@ export function setSpeakerCount(project: ThumbnailProject, count: number): Thumb
   const added = Array.from({ length: target - kept.length }, (_, i) =>
     createDefaultSpeaker(defaultSpeakerName(kept.length + i))
   )
-  const layout = getDefaultLayout(target)
+  const layout = getDefaultLayout(target, project.canvas.height > project.canvas.width)
   const speakers = placeInSlots([...kept, ...added], layout)
 
   const removedIds = new Set(current.slice(target).map((s) => s.id))

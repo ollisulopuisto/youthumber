@@ -72,7 +72,13 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
     setPendingSpeakerId(speakerId)
     try {
       const fullResUrl = await grabFullResolutionFrame(scan.path, frame.timestampSeconds)
-      onAssign(speakerId, fullResUrl)
+      const image = new Image()
+      image.src = fullResUrl
+      await new Promise((resolve, reject) => {
+        image.onload = resolve
+        image.onerror = reject
+      })
+      onAssign(speakerId, fullResUrl, { fromVideo: true, width: image.naturalWidth, height: image.naturalHeight })
       setAssigned((prev) => ({ ...prev, [speakerId]: frame.timestampSeconds }))
     } catch (err) {
       setError(err.message)

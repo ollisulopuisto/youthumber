@@ -40,6 +40,8 @@ import {
   updateSticker,
   removeSticker,
   setStickerBehindText,
+  switchProjectToPortrait,
+  switchProjectToLandscape,
 } from './modules/thumbnail/thumbnailState'
 
 import {
@@ -152,7 +154,9 @@ function App() {
     if (!canvasRef.current) return
     const safeName = project.name.trim().replace(/\s+/g, '-').toLowerCase()
     const scale = resolution === 'fullhd' ? 1.5 : 1
-    const dims = resolution === 'fullhd' ? '1920x1080' : '1280x720'
+    const exportWidth = Math.round(project.canvas.width * scale)
+    const exportHeight = Math.round(project.canvas.height * scale)
+    const dims = `${exportWidth}x${exportHeight}`
     try {
       const result = await canvasRef.current.exportThumbnail({
         format,
@@ -167,8 +171,14 @@ function App() {
   }
 
   // Speaker Actions
-  const handleUploadSpeakerSource = (slotId, sourceUrl) => {
-    setProject((prev) => setSpeakerSource(prev, slotId, sourceUrl))
+  const handleUploadSpeakerSource = (slotId, sourceUrl, metadata) => {
+    applyAndReframe((prev) => {
+      const withSource = setSpeakerSource(prev, slotId, sourceUrl)
+      if (!metadata?.fromVideo) return withSource
+      return metadata.height > metadata.width
+        ? switchProjectToPortrait(withSource)
+        : switchProjectToLandscape(withSource)
+    })
     setSelectedLayer(slotId)
   }
 

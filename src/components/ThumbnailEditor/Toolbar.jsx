@@ -79,7 +79,10 @@ function Toolbar({
   }
 
   const speakerCount = project.speakers.length
-  const layouts = getLayoutsForCount(speakerCount)
+  const layouts = getLayoutsForCount(speakerCount, project.canvas.height > project.canvas.width)
+  const isPortrait = project.canvas.height > project.canvas.width
+  const hdDimensions = isPortrait ? '720×1280' : '1280×720'
+  const fullHdDimensions = isPortrait ? '1080×1920' : '1920×1080'
 
   return (
     <header className="w-full bg-gray-900 border-b border-gray-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-white">
@@ -272,8 +275,8 @@ function Toolbar({
           className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
           title="Export resolution"
         >
-          <option value="hd">1280×720</option>
-          <option value="fullhd">1920×1080</option>
+          <option value="hd">{hdDimensions}</option>
+          <option value="fullhd">{fullHdDimensions}</option>
         </select>
 
         {/* Export Button */}
@@ -281,7 +284,7 @@ function Toolbar({
           onClick={() => onExport({ format: exportFormat, quality: 0.95, resolution: exportResolution })}
           className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5"
         >
-          <span>Export {exportResolution === 'fullhd' ? '1920×1080' : '1280×720'}</span>
+          <span>Export {exportResolution === 'fullhd' ? fullHdDimensions : hdDimensions}</span>
         </button>
       </div>
     </header>
