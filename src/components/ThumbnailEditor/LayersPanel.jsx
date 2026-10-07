@@ -1,8 +1,10 @@
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { withDecorLayer } from '../../modules/thumbnail/decor'
+import { useRef } from 'react'
 import { findElement } from '../../data/elements'
 
-function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility, onAddElement }) {
+function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility, onAddElement, onAddText, onAddBug }) {
+  const bugInput = useRef(null)
   const layerLabels = {
     text: { name: 'Headline Text', icon: 'T', color: 'text-amber-400' },
     decor: { name: 'Graphics', icon: 'G', color: 'text-pink-400' },
@@ -14,6 +16,16 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
       icon: '★',
       color: 'text-pink-400',
     }
+  })
+  ;(project.textLayers ?? []).forEach((layer) => {
+    layerLabels[layer.id] = {
+      name: layer.text.split('\n')[0].trim() || 'Text',
+      icon: 'T',
+      color: 'text-amber-300',
+    }
+  })
+  ;(project.bugs ?? []).forEach((bug) => {
+    layerLabels[bug.id] = { name: bug.name || 'Logo', icon: '◆', color: 'text-violet-400' }
   })
   project.speakers.forEach((speaker, i) => {
     layerLabels[speaker.id] = {
@@ -46,6 +58,10 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
   const isVisible = (layerId) => {
     if (layerId === 'text') return project.text.visible
     if (layerId === 'decor') return project.decor?.visible ?? true
+    const extraText = project.textLayers?.find((t) => t.id === layerId)
+    if (extraText) return extraText.visible
+    const bug = project.bugs?.find((b) => b.id === layerId)
+    if (bug) return bug.visible
     const sticker = project.stickers?.find((s) => s.id === layerId)
     if (sticker) return sticker.visible
     const speaker = project.speakers.find((s) => s.id === layerId)
@@ -61,6 +77,30 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
         </h3>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-gray-500 font-mono">{layerOrder.length} items</span>
+          <button
+            onClick={onAddText}
+            className="text-[10px] px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white font-bold"
+          >
+            + Text
+          </button>
+          <button
+            onClick={() => bugInput.current?.click()}
+            className="text-[10px] px-2 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white font-bold"
+            title="Add a logo or bug image"
+          >
+            + Bug
+          </button>
+          <input
+            ref={bugInput}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) onAddBug(file)
+            }}
+          />
           <button
             onClick={onAddElement}
             className="text-[10px] px-2 py-1 rounded bg-pink-600 hover:bg-pink-500 text-white font-bold"

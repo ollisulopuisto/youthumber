@@ -142,7 +142,29 @@ export interface StickerState {
   flipX?: boolean
 }
 
-/** 'background', 'decor', 'text', a speaker's id (`spk_…`) or an element's id (`stk_…`). */
+/** An extra text block besides the headline. Layer id: `txt_…`. */
+export interface ExtraTextState extends TextLayerState {
+  id: string
+}
+
+/** A logo or "bug": an uploaded image pinned to the thumbnail. Layer id: `bug_…`. */
+export interface BugState {
+  id: string
+  name: string
+  imageUrl: string
+  /** Centre, size in canvas px, rotation in degrees. */
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  opacity: number
+  shadow: boolean
+  visible: boolean
+  flipX?: boolean
+}
+
+/** 'background', 'decor', 'text', a speaker's id (`spk_…`), an element's id (`stk_…`), an extra text's id (`txt_…`) or a bug's id (`bug_…`). */
 export type LayerId = string
 
 export interface CanvasDimensions {
@@ -166,6 +188,10 @@ export interface ThumbnailProject {
   decor?: DecorState
   /** Missing on projects saved before elements existed. */
   stickers?: StickerState[]
+  /** Extra text blocks besides the headline; missing on older projects. */
+  textLayers?: ExtraTextState[]
+  /** Logos / bugs; missing on older projects. */
+  bugs?: BugState[]
   layerOrder: LayerId[]
 }
 

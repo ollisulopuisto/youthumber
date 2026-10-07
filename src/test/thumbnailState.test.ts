@@ -14,6 +14,14 @@ import {
   slotFrameFor,
   speakerLabel,
   isSpeakerLayer,
+  createTextLayer,
+  addTextLayer,
+  removeTextLayer,
+  updateTextLayer,
+  createBug,
+  addBug,
+  updateBug,
+  removeBug,
   setBackgroundGradient,
   setBackgroundColor,
   updateBackground,
@@ -303,5 +311,43 @@ describe('keep objects', () => {
     const { project, id } = withCutout()
     expect(setSpeakerSource(project, id, 'new').speakers[0].objectsMaskUrl).toBeNull()
     expect(clearSpeakerImage(project, id).speakers[0].objectsMaskUrl).toBeNull()
+  })
+})
+
+describe('Extra text layers and bugs', () => {
+  it('adds, edits and removes an extra text layer without touching the headline', () => {
+    let project = createDefaultProject()
+    const headline = project.text.text
+    const layer = createTextLayer(project)
+    project = addTextLayer(project, layer)
+    expect(project.layerOrder.at(-1)).toBe(layer.id)
+    expect(isSpeakerLayer(layer.id)).toBe(false)
+
+    project = updateTextLayer(project, { text: 'SUBTITLE', transform: { x: 10 } }, layer.id)
+    expect(project.textLayers?.[0].text).toBe('SUBTITLE')
+    expect(project.textLayers?.[0].transform.x).toBe(10)
+    expect(project.textLayers?.[0].transform.y).toBe(layer.transform.y)
+    expect(project.text.text).toBe(headline)
+
+    project = removeTextLayer(project, layer.id)
+    expect(project.textLayers).toEqual([])
+    expect(project.layerOrder).not.toContain(layer.id)
+  })
+
+  it('places a bug in the bottom-right corner, keeping its aspect ratio', () => {
+    let project = createDefaultProject()
+    const bug = createBug(project, 'data:image/png;base64,x', 'Logo', 400, 200)
+    expect(bug.width).toBe(160)
+    expect(bug.height).toBe(80)
+    expect(bug.x + bug.width / 2).toBeLessThan(project.canvas.width)
+    expect(bug.y + bug.height / 2).toBeLessThan(project.canvas.height)
+
+    project = addBug(project, bug)
+    expect(isSpeakerLayer(bug.id)).toBe(false)
+    project = updateBug(project, bug.id, { opacity: 0.5 })
+    expect(project.bugs?.[0].opacity).toBe(0.5)
+    project = removeBug(project, bug.id)
+    expect(project.bugs).toEqual([])
+    expect(project.layerOrder).not.toContain(bug.id)
   })
 })

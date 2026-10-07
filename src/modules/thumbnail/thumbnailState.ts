@@ -1,4 +1,6 @@
 import type {
+  BugState,
+  ExtraTextState,
   StickerState,
   DecorElementState,
   DecorState,
@@ -23,8 +25,33 @@ export function isStickerLayer(layerId: LayerId): boolean {
   return layerId.startsWith('stk_')
 }
 
+export function isTextLayer(layerId: LayerId): boolean {
+  return layerId === 'text' || layerId.startsWith('txt_')
+}
+
+export function isExtraTextLayer(layerId: LayerId): boolean {
+  return layerId.startsWith('txt_')
+}
+
+export function isBugLayer(layerId: LayerId): boolean {
+  return layerId.startsWith('bug_')
+}
+
 export function isSpeakerLayer(layerId: LayerId): boolean {
-  return !NON_SPEAKER_LAYERS.has(layerId) && !isStickerLayer(layerId)
+  return (
+    !NON_SPEAKER_LAYERS.has(layerId) &&
+    !isStickerLayer(layerId) &&
+    !isExtraTextLayer(layerId) &&
+    !isBugLayer(layerId)
+  )
+}
+
+export function newTextLayerId(): string {
+  return `txt_${Math.random().toString(36).slice(2, 9)}`
+}
+
+export function newBugId(): string {
+  return `bug_${Math.random().toString(36).slice(2, 9)}`
 }
 
 export function newStickerId(): string {
@@ -413,18 +440,125 @@ export function setBackgroundGradient(
   }
 }
 
+/** Updates the headline, or the extra text block `layerId` (`txt_…`). */
 export function updateTextLayer(
   project: ThumbnailProject,
-  updates: Partial<ThumbnailProject['text']>
+  updates: Partial<ThumbnailProject['text']>,
+  layerId: LayerId = 'text'
+): ThumbnailProject {
+  const merge = <T extends ThumbnailProject['text']>(text: T): T => ({
+    ...text,
+    ...updates,
+    transform: { ...text.transform, ...(updates.transform || {}) },
+  })
+  if (layerId === 'text') {
+    return { ...project, updatedAt: new Date().toISOString(), text: merge(project.text) }
+  }
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    textLayers: (project.textLayers ?? []).map((t) => (t.id === layerId ? merge(t) : t)),
+  }
+}
+
+/** A new extra text block: smaller than the headline, centred, on top of everything. */
+export function createTextLayer(project: ThumbnailProject, id = newTextLayerId()): ExtraTextState {
+  return {
+    ...project.text,
+    id,
+    text: 'NEW TEXT',
+    fontSize: 48,
+    splashStyle: 'none',
+    accentLines: 'none',
+    transform: {
+      x: project.canvas.width / 2,
+      y: project.canvas.height * 0.82,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    },
+    visible: true,
+  }
+}
+
+export function addTextLayer(project: ThumbnailProject, layer: ExtraTextState): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    textLayers: [...(project.textLayers ?? []), layer],
+    layerOrder: [...project.layerOrder, layer.id],
+  }
+}
+
+export function removeTextLayer(project: ThumbnailProject, layerId: LayerId): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    textLayers: (project.textLayers ?? []).filter((t) => t.id !== layerId),
+    layerOrder: project.layerOrder.filter((id) => id !== layerId),
+  }
+}
+
+/** Adds a bug on top of everything. */
+export function addBug(project: ThumbnailProject, bug: BugState): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    bugs: [...(project.bugs ?? []), bug],
+    layerOrder: [...project.layerOrder, bug.id],
+  }
+}
+
+export function updateBug(
+  project: ThumbnailProject,
+  bugId: string,
+  updates: Partial<Omit<BugState, 'id'>>
 ): ThumbnailProject {
   return {
     ...project,
     updatedAt: new Date().toISOString(),
-    text: {
-      ...project.text,
-      ...updates,
-      transform: { ...project.text.transform, ...(updates.transform || {}) },
-    },
+    bugs: (project.bugs ?? []).map((b) => (b.id === bugId ? { ...b, ...updates } : b)),
+  }
+}
+
+export function removeBug(project: ThumbnailProject, bugId: string): ThumbnailProject {
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    bugs: (project.bugs ?? []).filter((b) => b.id !== bugId),
+    layerOrder: project.layerOrder.filter((id) => id !== bugId),
+  }
+}
+
+/**
+ * A new bug sized to `naturalWidth`×`naturalHeight`: 160px wide (or tall, if portrait-shaped
+ * and tall), tucked into the bottom-right corner.
+ */
+export function createBug(
+  project: ThumbnailProject,
+  imageUrl: string,
+  name: string,
+  naturalWidth: number,
+  naturalHeight: number,
+  id = newBugId()
+): BugState {
+  const aspect = naturalWidth > 0 && naturalHeight > 0 ? naturalWidth / naturalHeight : 1
+  const longest = 160
+  const width = aspect >= 1 ? longest : Math.round(longest * aspect)
+  const height = aspect >= 1 ? Math.round(longest / aspect) : longest
+  const margin = 24
+  return {
+    id,
+    name,
+    imageUrl,
+    x: project.canvas.width - margin - width / 2,
+    y: project.canvas.height - margin - height / 2,
+    width,
+    height,
+    rotation: 0,
+    opacity: 1,
+    shadow: false,
+    visible: true,
   }
 }
 

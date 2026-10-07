@@ -4,6 +4,7 @@ import { cssGradient } from '../../modules/thumbnail/backgroundRender'
 import FontPicker from './FontPicker'
 import TexturePicker from './TexturePicker'
 import DecorPanel from './DecorPanel'
+import BugPanel from './BugPanel'
 import StickerPanel from './StickerPanel'
 import { TEXT_LOOKS } from '../../data/textLooks'
 import {
@@ -104,7 +105,12 @@ function SectionTitle({ children }) {
 function PropertiesPanel({
   selectedLayer,
   project,
-  onUpdateText,
+  onUpdateText: updateAnyText,
+  onUpdateBug,
+  onRemoveBug,
+  onDuplicateBug,
+  onDuplicateText,
+  onRemoveText,
   onUpdateSpeakerTransform,
   onUpdateBackground,
   onResetSpeakerTransform,
@@ -147,21 +153,52 @@ function PropertiesPanel({
     return <DecorPanel decor={project.decor} onUpdateDecor={onUpdateDecor} />
   }
 
-  // 1. Text Properties
-  if (selectedLayer === 'text') {
-    const textState = project.text
+  const bug = project.bugs?.find((b) => b.id === selectedLayer)
+  if (bug) {
+    return (
+      <BugPanel
+        bug={bug}
+        onUpdate={onUpdateBug}
+        onRemove={onRemoveBug}
+        onDuplicate={onDuplicateBug}
+      />
+    )
+  }
+
+  // 1. Text Properties (the headline, or an extra text block)
+  const extraText = project.textLayers?.find((t) => t.id === selectedLayer)
+  if (selectedLayer === 'text' || extraText) {
+    const textState = extraText ?? project.text
+    const onUpdateText = extraText ? (updates) => updateAnyText(updates, extraText.id) : updateAnyText
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
         <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <h3 className="font-bold uppercase tracking-wider text-amber-400 text-[11px]">
             Text Properties
           </h3>
-          <span className="text-[10px] text-gray-500 font-mono">Headline</span>
+          {extraText ? (
+            <div className="flex gap-1">
+              <button
+                onClick={() => onDuplicateText(extraText.id)}
+                className="text-[10px] px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700"
+              >
+                Duplicate
+              </button>
+              <button
+                onClick={() => onRemoveText(extraText.id)}
+                className="text-[10px] px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-100 border border-red-800"
+              >
+                Delete
+              </button>
+            </div>
+          ) : (
+            <span className="text-[10px] text-gray-500 font-mono">Headline</span>
+          )}
         </div>
 
         {/* Text Input */}
         <div>
-          <label className="block text-[11px] font-medium text-gray-400 mb-1">Headline Content</label>
+          <label className="block text-[11px] font-medium text-gray-400 mb-1">{extraText ? 'Text' : 'Headline'} Content</label>
           <textarea
             rows={2}
             value={textState.text}

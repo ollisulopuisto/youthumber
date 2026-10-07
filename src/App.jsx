@@ -32,6 +32,16 @@ import {
   setBackgroundImage,
   updateBackground,
   updateTextLayer,
+  createTextLayer,
+  addTextLayer,
+  removeTextLayer,
+  newTextLayerId,
+  isTextLayer,
+  isBugLayer,
+  createBug,
+  addBug,
+  updateBug,
+  removeBug,
   updateDecor,
   reorderLayers,
   isStickerLayer,
@@ -66,6 +76,29 @@ const blobToDataUrl = async (source) => {
   }
   return source
 }
+
+const MAX_BUG_SIDE = 600
+
+/** Reads a logo file into a PNG data URL no larger than MAX_BUG_SIDE, so projects stay small. */
+const loadBugImage = (file) =>
+  new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const shrink = Math.min(1, MAX_BUG_SIDE / Math.max(img.naturalWidth, img.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * shrink))
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * shrink))
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(objectUrl)
+      resolve({ url: canvas.toDataURL('image/png'), width: img.naturalWidth, height: img.naturalHeight })
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Could not read that image'))
+    }
+    img.src = objectUrl
+  })
 
 function App() {
   const [project, setProject] = useState(() => {
@@ -321,9 +354,71 @@ function App() {
   }
 
   // Text Actions
-  const handleUpdateText = useCallback((updates) => {
-    setProject((prev) => updateTextLayer(prev, updates))
+  const handleUpdateText = useCallback((updates, layerId = 'text') => {
+    setProject((prev) => updateTextLayer(prev, updates, layerId))
   }, [])
+
+  const handleAddText = () => {
+    const layer = createTextLayer(project)
+    setProject((prev) => addTextLayer(prev, layer))
+    setSelectedLayer(layer.id)
+  }
+
+  const handleDuplicateText = (layerId) => {
+    const original = project.textLayers?.find((t) => t.id === layerId)
+    if (!original) return
+    const copy = {
+      ...original,
+      id: newTextLayerId(),
+      transform: { ...original.transform, x: original.transform.x + 30, y: original.transform.y + 30 },
+    }
+    setProject((prev) => {
+      const next = addTextLayer(prev, copy)
+      const order = next.layerOrder.filter((id) => id !== copy.id)
+      order.splice(order.indexOf(layerId) + 1, 0, copy.id)
+      return reorderLayers(next, order)
+    })
+    setSelectedLayer(copy.id)
+  }
+
+  const handleRemoveText = (layerId) => {
+    setProject((prev) => removeTextLayer(prev, layerId))
+    setSelectedLayer(null)
+  }
+
+  // Bugs (logos)
+  const handleAddBug = async (file) => {
+    try {
+      const { url, width, height } = await loadBugImage(file)
+      const bug = createBug(project, url, file.name.replace(/\.[^.]+$/, '') || 'Logo', width, height)
+      setProject((prev) => addBug(prev, bug))
+      setSelectedLayer(bug.id)
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  const handleUpdateBug = useCallback((bugId, updates) => {
+    setProject((prev) => updateBug(prev, bugId, updates))
+  }, [])
+
+  const handleRemoveBug = (bugId) => {
+    setProject((prev) => removeBug(prev, bugId))
+    setSelectedLayer(null)
+  }
+
+  const handleDuplicateBug = (bugId) => {
+    const original = project.bugs?.find((b) => b.id === bugId)
+    if (!original) return
+    const copy = { ...original, id: `bug_${Math.random().toString(36).slice(2, 9)}`, x: original.x - 30, y: original.y - 30 }
+    setProject((prev) => {
+      const next = addBug(prev, copy)
+      const order = next.layerOrder.filter((id) => id !== copy.id)
+      order.splice(order.indexOf(bugId) + 1, 0, copy.id)
+      return reorderLayers(next, order)
+    })
+    setSelectedLayer(copy.id)
+  }
 
   const handleUpdateDecor = useCallback((updates) => {
     setProject((prev) => updateDecor(prev, updates))
@@ -385,6 +480,16 @@ function App() {
       setProject((prev) => toggleSpeakerVisibility(prev, layerId))
     } else if (layerId === 'text') {
       setProject((prev) => updateTextLayer(prev, { visible: !prev.text.visible }))
+    } else if (isTextLayer(layerId)) {
+      setProject((prev) => {
+        const layer = prev.textLayers?.find((t) => t.id === layerId)
+        return layer ? updateTextLayer(prev, { visible: !layer.visible }, layerId) : prev
+      })
+    } else if (isBugLayer(layerId)) {
+      setProject((prev) => {
+        const bug = prev.bugs?.find((b) => b.id === layerId)
+        return bug ? updateBug(prev, layerId, { visible: !bug.visible }) : prev
+      })
     } else if (isStickerLayer(layerId)) {
       setProject((prev) => {
         const sticker = prev.stickers?.find((s) => s.id === layerId)
@@ -425,6 +530,7 @@ function App() {
               onUpdateSpeakerTransform={handleUpdateSpeakerTransform}
               onUpdateTextLayer={handleUpdateText}
               onUpdateSticker={handleUpdateSticker}
+              onUpdateBug={handleUpdateBug}
             />
           </div>
         </div>
@@ -439,6 +545,8 @@ function App() {
             onReorderLayers={handleReorderLayers}
             onToggleVisibility={handleToggleVisibility}
             onAddElement={() => setShowElementPicker(true)}
+            onAddText={handleAddText}
+            onAddBug={handleAddBug}
           />
 
           {/* Properties Panel */}
@@ -447,6 +555,11 @@ function App() {
             project={project}
             onUpdateText={handleUpdateText}
             onUpdateDecor={handleUpdateDecor}
+            onUpdateBug={handleUpdateBug}
+            onRemoveBug={handleRemoveBug}
+            onDuplicateBug={handleDuplicateBug}
+            onDuplicateText={handleDuplicateText}
+            onRemoveText={handleRemoveText}
             onUpdateSticker={handleUpdateSticker}
             onRemoveSticker={handleRemoveSticker}
             onDuplicateSticker={handleDuplicateSticker}

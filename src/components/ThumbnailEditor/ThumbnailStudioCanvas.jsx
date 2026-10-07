@@ -3,6 +3,9 @@ import { fabric } from 'fabric'
 import {
   isSpeakerLayer,
   isStickerLayer,
+  isTextLayer,
+  isExtraTextLayer,
+  isBugLayer,
 } from '../../modules/thumbnail/thumbnailState'
 import { ElementObject, elementObjectProps } from '../../modules/thumbnail/elementObject'
 import { saveExportedImage } from '../../services/exportImage'
@@ -32,6 +35,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     onUpdateSpeakerTransform,
     onUpdateTextLayer,
     onUpdateSticker,
+    onUpdateBug,
     onCanvasReady,
   },
   ref
@@ -43,6 +47,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   const canvasElRef = useRef(null)
   const fabricCanvasRef = useRef(null)
   const isUpdatingFromStateRef = useRef(false)
+  const latestProjectRef = useRef(project)
+  latestProjectRef.current = project
   const canvasWidth = project.canvas?.width || 1280
   const canvasHeight = project.canvas?.height || 720
   const aspectRatio = canvasWidth / canvasHeight
@@ -127,17 +133,30 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
           rotation: Math.round(obj.angle || 0),
           flipX: !!obj.flipX,
         })
-      } else if (layerId === 'text') {
-        onUpdateTextLayer?.({
-          transform: {
-            x: Math.round(obj.left || 0),
-            y: Math.round(obj.top || 0),
-            scaleX: Number((obj.scaleX || 1).toFixed(3)),
-            scaleY: Number((obj.scaleY || 1).toFixed(3)),
-            rotation: Math.round(obj.angle || 0),
-          },
-          slant: skewXToSlant(obj.skewX),
+      } else if (isBugLayer(layerId)) {
+        // Like elements: resizing changes the size, and the image is re-scaled from it.
+        onUpdateBug?.(layerId, {
+          x: Math.round(obj.left || 0),
+          y: Math.round(obj.top || 0),
+          width: Math.round(obj.getScaledWidth()),
+          height: Math.round(obj.getScaledHeight()),
+          rotation: Math.round(obj.angle || 0),
+          flipX: !!obj.flipX,
         })
+      } else if (isTextLayer(layerId)) {
+        onUpdateTextLayer?.(
+          {
+            transform: {
+              x: Math.round(obj.left || 0),
+              y: Math.round(obj.top || 0),
+              scaleX: Number((obj.scaleX || 1).toFixed(3)),
+              scaleY: Number((obj.scaleY || 1).toFixed(3)),
+              rotation: Math.round(obj.angle || 0),
+            },
+            slant: skewXToSlant(obj.skewX),
+          },
+          layerId
+        )
       }
     })
 
@@ -224,7 +243,15 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     }
 
     // Sync Text layer
-    syncTextObject(canvas, project.text)
+    syncTextObject(canvas, project.text, 'text')
+    const extraTexts = project.textLayers ?? []
+    const extraTextIds = new Set(extraTexts.map((t) => t.id))
+    canvas
+      .getObjects()
+      .filter((o) => o.data?.layerId && isExtraTextLayer(o.data.layerId) && !extraTextIds.has(o.data.layerId))
+      .forEach((o) => canvas.remove(o))
+    for (const extra of extraTexts) syncTextObject(canvas, extra, extra.id)
+    syncBugObjects(canvas, project.bugs ?? [])
     syncDecorObject(canvas, project.decor)
     syncStickerObjects(canvas, project.stickers ?? [])
 
@@ -395,8 +422,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   }
 
   // Helper function to sync text object
-  const syncTextObject = (canvas, textState) => {
-    let existing = canvas.getObjects().find((o) => o.data?.layerId === 'text')
+  const syncTextObject = (canvas, textState, layerId) => {
+    let existing = canvas.getObjects().find((o) => o.data?.layerId === layerId)
 
     if (!textState.visible) {
       if (existing) canvas.remove(existing)
@@ -436,7 +463,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       existing.setCoords()
     } else {
       const textObj = new EffectText(textState.text || 'EPISODE TITLE', {
-        data: { layerId: 'text' },
+        data: { layerId },
         left: textState.transform.x,
         top: textState.transform.y,
         fontFamily: textState.fontFamily || 'Montserrat',
@@ -462,7 +489,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
       // Update text in project state on inline edit
       textObj.on('changed', () => {
-        onUpdateTextLayer?.({ text: textObj.text })
+        onUpdateTextLayer?.({ text: textObj.text }, layerId)
       })
 
       canvas.add(textObj)
@@ -475,7 +502,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     const fontSpec = `${textState.fontWeight || 'bold'} 64px "${family}"`
     if (document.fonts && !document.fonts.check(fontSpec)) {
       document.fonts.load(fontSpec).then(() => {
-        const textObj = fabricCanvasRef.current?.getObjects().find((o) => o.data?.layerId === 'text')
+        const textObj = fabricCanvasRef.current?.getObjects().find((o) => o.data?.layerId === layerId)
         if (!textObj || textObj.fontFamily !== family) return
         fabric.util.clearFabricFontCache(family)
         textObj.initDimensions()
@@ -515,6 +542,68 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         })
         fabricCanvasRef.current?.requestRenderAll()
       })
+    }
+  }
+
+  // Bugs (logos): one image each. The image is reloaded only when its source changes;
+  // the stored width/height become the object's scale.
+  const syncBugObjects = (canvas, bugs) => {
+    const ids = new Set(bugs.map((b) => b.id))
+    canvas
+      .getObjects()
+      .filter((o) => o.data?.layerId && isBugLayer(o.data.layerId) && !ids.has(o.data.layerId))
+      .forEach((o) => canvas.remove(o))
+    for (const bug of bugs) {
+      const existing = canvas.getObjects().find((o) => o.data?.layerId === bug.id)
+      if (!bug.visible) {
+        if (existing) canvas.remove(existing)
+        continue
+      }
+      const placement = (img) => ({
+        left: bug.x,
+        top: bug.y,
+        scaleX: bug.width / (img.width || 1),
+        scaleY: bug.height / (img.height || 1),
+        angle: bug.rotation,
+        flipX: !!bug.flipX,
+        opacity: bug.opacity,
+        shadow: bug.shadow
+          ? new fabric.Shadow({ color: 'rgba(0,0,0,0.6)', blur: 12, offsetX: 3, offsetY: 5 })
+          : null,
+      })
+      if (existing && existing.data?.currentSrc === bug.imageUrl) {
+        existing.set(placement(existing))
+        existing.setCoords()
+        continue
+      }
+      if (existing) canvas.remove(existing)
+      fabric.Image.fromURL(
+        bug.imageUrl,
+        (img) => {
+          const live = fabricCanvasRef.current
+          if (!live || live !== canvas) return
+          // A sync that ran while this image loaded may already have added it.
+          if (live.getObjects().some((o) => o.data?.layerId === bug.id)) return
+          img.set({
+            data: { layerId: bug.id, currentSrc: bug.imageUrl },
+            originX: 'center',
+            originY: 'center',
+            perPixelTargetFind: true,
+            targetFindTolerance: 6,
+            cornerColor: '#38BDF8',
+            cornerSize: 12,
+            transparentCorners: false,
+            borderColor: '#0284C7',
+            lockUniScaling: false,
+          })
+          img.set(placement(img))
+          img.setCoords()
+          live.add(img)
+          reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
+          live.renderAll()
+        },
+        { crossOrigin: 'anonymous' }
+      )
     }
   }
 
