@@ -2,6 +2,12 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.08.84] - 2026-10-08
+
+### Added
+- **Extra text layers**: **+ Text** in Layers adds another text block besides the headline, with the same font, colour, look, stroke, shadow, 3D and splash controls. Move, resize and rotate it on the canvas; duplicate or delete it in its properties
+- **Bugs**: **+ Bug** adds a logo or other image (resized to at most 600px). Move, resize, rotate and flip it on the canvas; set size, opacity and a drop shadow in its properties
+
 ## [26.09.24.83] - 2026-09-24
 
 ### Added
