@@ -4,7 +4,6 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT } from './canvasSize'
 export const MAX_SPEAKERS = 4
 
 const PORTRAIT_WIDTH = 720
-const PORTRAIT_HEIGHT = 1280
 
 const portraitTextStyle: LayoutPreset['textStyleAndPosition'] = {
   fontFamily: 'Montserrat', fontSize: 62, fontWeight: '900', textAlign: 'center',

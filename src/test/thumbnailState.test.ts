@@ -323,7 +323,7 @@ describe('Extra text layers and bugs', () => {
     expect(project.layerOrder.at(-1)).toBe(layer.id)
     expect(isSpeakerLayer(layer.id)).toBe(false)
 
-    project = updateTextLayer(project, { text: 'SUBTITLE', transform: { x: 10 } }, layer.id)
+    project = updateTextLayer(project, { text: 'SUBTITLE', transform: { ...layer.transform, x: 10 } }, layer.id)
     expect(project.textLayers?.[0].text).toBe('SUBTITLE')
     expect(project.textLayers?.[0].transform.x).toBe(10)
     expect(project.textLayers?.[0].transform.y).toBe(layer.transform.y)
