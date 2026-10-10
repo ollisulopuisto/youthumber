@@ -2,6 +2,15 @@
 
 Planned work, not yet scheduled to a specific day unless noted.
 
+## Backgrounds and default styles
+
+- Done (v26.10.10.85): 8 seeded procedural backgrounds (`src/modules/thumbnail/procgen.js`), in the Texture picker. Checked visually in headless Chrome with two palettes; not yet tried inside the editor UI or exported from it.
+- Next: whole-look presets that bundle background + headline look + graphics + elements + palette (Breaking News, True Crime, Tech Review, Cozy Podcast, Debate, Retro VHS, Comic, Finance).
+- Next: layered backgrounds (base gradient + pattern + grain/vignette stacked).
+- Next: more headline looks (outline stack, 3D extrude, glitch, retro sign, newspaper); portrait layout presets.
+- Ideas: per-style element packs; A/B variants (6 looks of one thumbnail).
+- Open: Mesh glow is dim with a 2-colour palette; tune after trying it on real thumbnails. A third colour is used by some styles but the picker only offers two.
+
 ## Extract shared desktop-shell code into a standalone package
 
 `youthumber/gui.py` and autoraffkat's `src/autoraffkat/gui.py` are near

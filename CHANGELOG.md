@@ -2,6 +2,12 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.10.85] - 2026-10-10
+
+### Added
+- **Procedural backgrounds**: 8 generated backgrounds in the Texture picker (Background panel), available everywhere, not only in the desktop app: Mesh glow, Low-poly, Contours, Flow lines, Rings, Truchet, Waves and Facets. They use the two picker colours (dark base, bright accent) and **Shuffle** gives a new variation of each. Picking one sets it as the background photo, so blur, darken and vignette work on it
+- The texture picker no longer disappears when the desktop engine isn't reachable; the engine's textures are simply added to the list when it is
+
 ## [26.10.08.84] - 2026-10-08
 
 ### Added

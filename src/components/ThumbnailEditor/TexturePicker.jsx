@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listTextures, renderTexture } from '../../services/textures'
+import { PROCGEN_STYLES, renderProcgen } from '../../modules/thumbnail/procgen'
 
 const PREVIEW = { width: 320, height: 180 }
 const FULL = { width: 1920, height: 1080 }
@@ -7,13 +8,15 @@ const FULL = { width: 1920, height: 1080 }
 const randomSeed = () => Math.floor(Math.random() * 1_000_000)
 
 /**
- * GPU textures from the local engine (Core Image). Previews re-render when the colours
+ * Procedural backgrounds (always available, drawn in the browser) plus GPU textures from
+ * the local engine (Core Image) when it is reachable. Previews re-render when the colours
  * or seed change; clicking one renders it at full size and sets it as the background
  * photo, so blur, darken and vignette work on it too.
  */
 function TexturePicker({ initialColors, onPick }) {
   const [available, setAvailable] = useState(null) // null = checking
   const [presets, setPresets] = useState([])
+  const styles = PROCGEN_STYLES
   const [colors, setColors] = useState(initialColors)
   const [seed, setSeed] = useState(randomSeed)
   const [previews, setPreviews] = useState({})
@@ -29,6 +32,18 @@ function TexturePicker({ initialColors, onPick }) {
   }
 
   useEffect(checkEngine, [])
+
+  // Procedural previews are cheap and synchronous, so they follow the colours live.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = {}
+      styles.forEach((style) => {
+        next[style.id] = renderProcgen(style.id, { colors, seed, width: 320, height: 180 })
+      })
+      setPreviews((prev) => ({ ...prev, ...next }))
+    }, 120)
+    return () => clearTimeout(timer)
+  }, [styles, colors, seed])
 
   useEffect(() => {
     if (!available) return
@@ -51,25 +66,17 @@ function TexturePicker({ initialColors, onPick }) {
     setPicking(presetId)
     setError(null)
     try {
-      onPick(await renderTexture({ preset: presetId, colors, seed, ...FULL }))
+      const procedural = styles.some((style) => style.id === presetId)
+      onPick(
+        procedural
+          ? renderProcgen(presetId, { colors, seed, ...FULL })
+          : await renderTexture({ preset: presetId, colors, seed, ...FULL }),
+      )
     } catch (err) {
       setError(err.message)
     } finally {
       setPicking(null)
     }
-  }
-
-  if (available === null) return <p className="text-[10px] text-gray-500">Checking texture engine…</p>
-  if (!available) {
-    return (
-      <p className="text-[10px] text-gray-500">
-        Textures are made by the YouThumber app&apos;s local engine, which isn&apos;t reachable
-        here.{' '}
-        <button onClick={checkEngine} className="underline text-gray-300 hover:text-white">
-          Try again
-        </button>
-      </p>
-    )
   }
 
   return (
@@ -94,7 +101,7 @@ function TexturePicker({ initialColors, onPick }) {
         </button>
       </div>
       <div className="grid grid-cols-4 gap-1.5">
-        {presets.map((preset) => (
+        {[...styles, ...(available ? presets : [])].map((preset) => (
           <button
             key={preset.id}
             onClick={() => pick(preset.id)}
@@ -112,6 +119,14 @@ function TexturePicker({ initialColors, onPick }) {
           </button>
         ))}
       </div>
+      {available === false && (
+        <p className="text-[10px] text-gray-500">
+          More textures come from the YouThumber app&apos;s local engine, which isn&apos;t reachable here.{' '}
+          <button onClick={checkEngine} className="underline text-gray-300 hover:text-white">
+            Try again
+          </button>
+        </p>
+      )}
       {error && <p className="text-[10px] text-red-400">{error}</p>}
     </div>
   )
