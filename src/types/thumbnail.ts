@@ -178,6 +178,8 @@ export interface ThumbnailProject {
   createdAt: string
   updatedAt: string
   version: number
+  /** Show preset used for this project, for export naming. */
+  showPresetName?: string
   canvas: CanvasDimensions
   background: BackgroundState
   /** 1–4 speakers, ordered left to right on the thumbnail. */

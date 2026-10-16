@@ -1,6 +1,7 @@
 import type { ShowPreferences, ShowSpeakerTransform } from '../../types/showPreset'
 import type { ThumbnailProject } from '../../types/thumbnail'
 import { setSpeakerCount } from '../thumbnail/thumbnailState'
+import { resolveBaseUrl, parseErrorResponse } from '../../services/backend'
 
 const SHOW_PRESETS_STORAGE_KEY = 'yt_thumb_show_presets'
 
@@ -118,6 +119,46 @@ export function deleteShowPreset(id: string): void {
   }
 }
 
+async function requestPresetApi(path = '', init?: RequestInit): Promise<ShowPreferences[]> {
+  const response = await fetch(`${resolveBaseUrl()}/show-presets${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+  })
+  if (!response.ok) throw new Error(await parseErrorResponse(response))
+  const data = await response.json()
+  return Array.isArray(data.presets) ? data.presets.map(migrateShowPreset) : []
+}
+
+/** Load from the app's persistent backend store, migrating legacy browser presets once. */
+export async function loadShowPresetsPersistent(): Promise<ShowPreferences[]> {
+  let presets = await requestPresetApi()
+  if (presets.length === 0) {
+    try {
+      const legacy = readCustomPresets()
+      for (const preset of [...legacy].reverse()) {
+        presets = await requestPresetApi('', {
+          method: 'POST',
+          body: JSON.stringify({ preset }),
+        })
+      }
+    } catch {
+      // Browser storage is optional; the backend store remains authoritative.
+    }
+  }
+  return [...presets, ...DEFAULT_SHOW_PRESETS]
+}
+
+export async function saveShowPresetPersistent(preset: ShowPreferences): Promise<void> {
+  await requestPresetApi('', { method: 'POST', body: JSON.stringify({ preset }) })
+  // Keep browser storage in sync where available, without making it a requirement.
+  try { saveShowPreset(preset) } catch { /* optional browser cache */ }
+}
+
+export async function deleteShowPresetPersistent(id: string): Promise<void> {
+  await requestPresetApi(`/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  try { deleteShowPreset(id) } catch { /* optional browser cache */ }
+}
+
 export function applyShowPresetToProject(
   project: ThumbnailProject,
   preset: ShowPreferences
@@ -126,6 +167,7 @@ export function applyShowPresetToProject(
 
   return {
     ...resized,
+    showPresetName: preset.name,
     updatedAt: new Date().toISOString(),
     background: {
       ...resized.background,

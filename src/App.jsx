@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useUndoableState } from './hooks/useUndoableState'
 import Toolbar from './components/ThumbnailEditor/Toolbar'
 import ThumbnailStudioCanvas from './components/ThumbnailEditor/ThumbnailStudioCanvas'
 import LayersPanel from './components/ThumbnailEditor/LayersPanel'
@@ -10,6 +11,7 @@ import ElementPickerModal from './components/ThumbnailEditor/ElementPickerModal'
 import { findElement } from './data/elements'
 import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail/elementFit'
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
+import { createExportFilename } from './modules/thumbnail/exportFilename'
 
 import {
   createDefaultProject,
@@ -101,7 +103,7 @@ const loadBugImage = (file) =>
   })
 
 function App() {
-  const [project, setProject] = useState(() => {
+  const { value: project, setValue: setProject, undo, redo, canUndo, canRedo } = useUndoableState(() => {
     // Try restoring last modified project or create default
     const existing = listStoredProjects()
     if (existing.length > 0) {
@@ -116,6 +118,27 @@ function App() {
   const [showShowsModal, setShowShowsModal] = useState(false)
   const [showElementPicker, setShowElementPicker] = useState(false)
   const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const handleUndoShortcut = (event) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+      const target = event.target
+      if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName)) return
+      const key = event.key.toLowerCase()
+      if (key === 'z' && event.shiftKey) {
+        event.preventDefault()
+        redo()
+      } else if (key === 'z') {
+        event.preventDefault()
+        undo()
+      } else if (key === 'y') {
+        event.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener('keydown', handleUndoShortcut)
+    return () => window.removeEventListener('keydown', handleUndoShortcut)
+  }, [undo, redo])
 
   // Auto-save project changes to local storage
   useEffect(() => {
@@ -185,17 +208,15 @@ function App() {
 
   const handleExport = async ({ format = 'jpeg', quality = 0.95, resolution = 'hd' }) => {
     if (!canvasRef.current) return
-    const safeName = project.name.trim().replace(/\s+/g, '-').toLowerCase()
     const scale = resolution === 'fullhd' ? 1.5 : 1
     const exportWidth = Math.round(project.canvas.width * scale)
     const exportHeight = Math.round(project.canvas.height * scale)
-    const dims = `${exportWidth}x${exportHeight}`
     try {
       const result = await canvasRef.current.exportThumbnail({
         format,
         quality,
         scale,
-        filename: `${safeName}-${dims}.${format === 'png' ? 'png' : 'jpg'}`,
+        filename: createExportFilename(project, exportWidth, exportHeight, format),
       })
       if (result?.savedPath) alert(`Exported to ${result.savedPath}`)
     } catch (err) {
@@ -510,6 +531,10 @@ function App() {
         onApplyShowPreset={handleApplyShowPreset}
         onOpenShows={() => setShowShowsModal(true)}
         onSaveProject={handleSaveProject}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
         onOpenProjects={() => setShowProjectsModal(true)}
         onExport={handleExport}
         onSetSpeakerCount={handleSetSpeakerCount}

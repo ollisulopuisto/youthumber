@@ -1,6 +1,9 @@
 """FastAPI application serving YouThumber web UI and Core ML segmentation APIs."""
 
 import logging
+import json
+import os
+import sys
 import threading
 import time
 import uuid
@@ -63,6 +66,39 @@ class VideoSpeakerScanRequest(BaseModel):
     framesPerPerson: int = Field(DEFAULT_FRAMES_PER_PERSON, gt=0, le=30)
 
 
+class ShowPresetRequest(BaseModel):
+    preset: dict[str, Any]
+
+
+def show_presets_path() -> Path:
+    """Return a writable, per-user location for presets in the CLI/desktop app."""
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+        return base / "YouThumber" / "show-presets.json"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "YouThumber" / "show-presets.json"
+    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    return base / "youthumber" / "show-presets.json"
+
+
+def read_show_presets(path: Path) -> list[dict[str, Any]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except FileNotFoundError:
+        return []
+    except (OSError, json.JSONDecodeError):
+        logger.exception("Could not read saved show presets from %s", path)
+        return []
+
+
+def write_show_presets(path: Path, presets: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(presets, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(path)
+
+
 def create_app(dist_dir: Path | None = None) -> FastAPI:
     """Creates and configures the FastAPI application."""
     if dist_dir is None:
@@ -90,6 +126,36 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.get("/show-presets")
+    def get_show_presets() -> dict[str, Any]:
+        return {"presets": read_show_presets(show_presets_path())}
+
+    @app.post("/show-presets")
+    def put_show_preset(req: ShowPresetRequest) -> dict[str, Any]:
+        preset = req.preset
+        if not preset.get("id") or not preset.get("name"):
+            raise HTTPException(status_code=400, detail="Preset id and name are required")
+        path = show_presets_path()
+        presets = [p for p in read_show_presets(path) if p.get("id") != preset["id"]]
+        presets.insert(0, preset)
+        try:
+            write_show_presets(path, presets)
+        except OSError as err:
+            logger.exception("Could not save show preset")
+            raise HTTPException(status_code=500, detail="Could not save show preset") from err
+        return {"presets": presets}
+
+    @app.delete("/show-presets/{preset_id}")
+    def remove_show_preset(preset_id: str) -> dict[str, Any]:
+        path = show_presets_path()
+        presets = [p for p in read_show_presets(path) if p.get("id") != preset_id]
+        try:
+            write_show_presets(path, presets)
+        except OSError as err:
+            logger.exception("Could not delete show preset")
+            raise HTTPException(status_code=500, detail="Could not delete show preset") from err
+        return {"presets": presets}
 
     @app.get("/health")
     async def health() -> dict[str, Any]:

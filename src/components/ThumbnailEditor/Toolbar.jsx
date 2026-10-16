@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { MAX_SPEAKERS, getLayoutsForCount } from '../../modules/thumbnail/layouts'
 import { defaultRemoverRegistry } from '../../services/background-removal'
-import { loadShowPresets } from '../../modules/shows/showPreferences'
+import { loadShowPresetsPersistent } from '../../modules/shows/showPreferences'
 
 const SPEAKER_COUNTS = Array.from({ length: MAX_SPEAKERS }, (_, i) => i + 1)
 
@@ -12,6 +12,10 @@ function Toolbar({
   onApplyShowPreset,
   onOpenShows,
   onSaveProject,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   onOpenProjects,
   onExport,
   onSetSpeakerCount,
@@ -32,9 +36,10 @@ function Toolbar({
   useEffect(() => {
     const list = defaultRemoverRegistry.list()
     setAvailableRemovers(list)
-    setShowPresets(loadShowPresets())
-
     let isMounted = true
+    loadShowPresetsPersistent().then((presets) => {
+      if (isMounted) setShowPresets(presets)
+    }).catch((err) => console.error('Failed to load show presets', err))
     const checkCoreML = async () => {
       try {
         const coreML =
@@ -240,6 +245,25 @@ function Toolbar({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Undo (⌘Z / Ctrl+Z)"
+          aria-label="Undo"
+        >
+          ↶
+        </button>
+        <button
+          onClick={onRedo}
+          disabled={!canRedo}
+          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Redo (⌘⇧Z / Ctrl+Y)"
+          aria-label="Redo"
+        >
+          ↷
+        </button>
+
         <button
           onClick={onOpenProjects}
           className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"

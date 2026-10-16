@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
-  loadShowPresets,
-  saveShowPreset,
-  deleteShowPreset,
+  loadShowPresetsPersistent,
+  saveShowPresetPersistent,
+  deleteShowPresetPersistent,
   createShowPresetFromProject,
 } from '../../modules/shows/showPreferences'
 
@@ -10,9 +10,15 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
   const [presets, setPresets] = useState([])
   const [newShowName, setNewShowName] = useState('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [saveMessage, setSaveMessage] = useState('')
 
-  const refreshList = () => {
-    setPresets(loadShowPresets())
+  const refreshList = async () => {
+    try {
+      setPresets(await loadShowPresetsPersistent())
+    } catch (err) {
+      setSaveError(`Could not load show presets: ${err.message}`)
+    }
   }
 
   useEffect(() => {
@@ -27,20 +33,47 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
   const handleDelete = (e, id) => {
     e.stopPropagation()
     if (confirm('Delete this show preset?')) {
-      deleteShowPreset(id)
-      refreshList()
+      deleteShowPresetPersistent(id)
+        .then(refreshList)
+        .catch((err) => setSaveError(`Could not delete show preset: ${err.message}`))
     }
   }
 
-  const handleSaveCurrentAsShow = (e) => {
+  const handleSaveCurrentAsShow = async (e) => {
     e.preventDefault()
     if (!newShowName.trim()) return
 
     const newPreset = createShowPresetFromProject(newShowName.trim(), currentProject)
-    saveShowPreset(newPreset)
-    setNewShowName('')
-    setShowSaveDialog(false)
-    refreshList()
+    setSaveError('')
+    setSaveMessage('')
+    try {
+      await saveShowPresetPersistent(newPreset)
+      setNewShowName('')
+      setShowSaveDialog(false)
+      await refreshList()
+    } catch (err) {
+      setSaveError(`Could not save show preset: ${err.message}`)
+    }
+  }
+
+  const handleUpdateShow = async (e, item) => {
+    e.stopPropagation()
+    if (!confirm(`Replace the saved style for “${item.name}” with the current style?`)) return
+
+    const updatedPreset = {
+      ...createShowPresetFromProject(item.name, currentProject),
+      id: item.id,
+      createdAt: item.createdAt,
+    }
+    setSaveError('')
+    setSaveMessage('')
+    try {
+      await saveShowPresetPersistent(updatedPreset)
+      await refreshList()
+      setSaveMessage(`“${item.name}” updated from the current style.`)
+    } catch (err) {
+      setSaveError(`Could not update show preset: ${err.message}`)
+    }
   }
 
   return (
@@ -63,6 +96,9 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
             ✕
           </button>
         </div>
+
+        {saveError && <p role="alert" className="text-xs text-red-300">{saveError}</p>}
+        {saveMessage && <p role="status" className="text-xs text-emerald-300">{saveMessage}</p>}
 
         {/* Save Current Configuration Button */}
         {!showSaveDialog ? (
@@ -118,7 +154,7 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
                     {item.name}
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 font-mono border border-gray-700">
-                    {item.speakerCount === 1 ? '1 Speaker' : '2 Speakers'}
+                    {item.speakerCount} {item.speakerCount === 1 ? 'Speaker' : 'Speakers'}
                   </span>
                 </div>
 
@@ -147,6 +183,16 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
                 >
                   Apply
                 </button>
+
+                {!item.id.startsWith('preset_') && (
+                  <button
+                    onClick={(e) => handleUpdateShow(e, item)}
+                    className="px-2.5 py-1 text-xs font-semibold bg-amber-700/60 hover:bg-amber-600 rounded text-amber-100 transition-colors"
+                    title="Replace this preset with the current style"
+                  >
+                    Update
+                  </button>
+                )}
 
                 {!item.id.startsWith('preset_') && (
                   <button
