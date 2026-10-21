@@ -10,7 +10,7 @@ in it, groups the faces into people, and scores each face three ways for the pic
 - gesture: a raised hand, most of all a pointing one, from hand pose — linked to the
   right person through body pose, since an arm can reach across the frame.
 
-The pure scoring rules live in ``framescoring``.
+The pure scoring rules live in the ``framescore`` package, shared with pycapslap.
 """
 
 from __future__ import annotations
@@ -20,23 +20,23 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from PIL import Image, ImageFilter
-
-from .cgimage import cgimage_to_pil as _cgimage_to_pil
-from .framescoring import (
+from framescore import (
+    FrameCandidate,
     assign_hands_to_faces,
     expression_score,
     gesture_score,
     head_shoulders_box,
+    rank_candidates,
 )
+from PIL import Image, ImageFilter
+
+from .cgimage import cgimage_to_pil as _cgimage_to_pil
 from .segmentation import image_to_data_url
 
 logger = logging.getLogger(__name__)
 
 # Tunable defaults. Adjust these to change how frames are sampled and ranked.
 MIN_FACE_HEIGHT_RATIO = 0.08  # ignore faces smaller than this share of the frame height
-CAPTURE_QUALITY_WEIGHT = 0.7  # Vision's own face capture-quality score
-SHARPNESS_WEIGHT = 0.3  # blur/sharpness proxy, normalized across the candidate set
 THUMBNAIL_MAX_SIDE = 640
 
 # Multi-speaker grouping. VNGenerateImageFeaturePrintRequest is a generic image-similarity
@@ -449,22 +449,28 @@ def _sharpness_score(pil_image: Image.Image) -> float:
 
 
 def _rank_candidates(candidates: list[FaceInstance]) -> list[FaceInstance]:
-    """Combines capture quality and normalized sharpness into a single score, sorted best-first."""
-    if not candidates:
-        return []
+    """Combines capture quality and normalized sharpness into a single score, sorted best-first.
 
-    sharpness_values = [c.sharpness for c in candidates]
-    lo, hi = min(sharpness_values), max(sharpness_values)
-    spread = (hi - lo) or 1.0
-
-    for c in candidates:
-        normalized_sharpness = (c.sharpness - lo) / spread
-        c.score = (
-            CAPTURE_QUALITY_WEIGHT * c.capture_quality
-            + SHARPNESS_WEIGHT * normalized_sharpness
+    The weighting lives in framescore; the faces are wrapped for it and their scores
+    copied back.
+    """
+    judged = [
+        FrameCandidate(
+            time_seconds=c.timestamp_seconds,
+            quality=c.capture_quality,
+            expression=c.expression,
+            gesture=c.gesture,
+            sharpness=c.sharpness,
         )
-
-    return sorted(candidates, key=lambda c: c.score, reverse=True)
+        for c in candidates
+    ]
+    face_of = {id(j): c for j, c in zip(judged, candidates, strict=True)}
+    ranked = []
+    for judgement in rank_candidates(judged):
+        face = face_of[id(judgement)]
+        face.score = judgement.score
+        ranked.append(face)
+    return ranked
 
 
 def grab_frame_at_time(video_path: str, timestamp_seconds: float) -> str:
