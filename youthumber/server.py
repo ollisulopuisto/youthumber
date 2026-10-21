@@ -1,7 +1,7 @@
 """FastAPI application serving YouThumber web UI and Core ML segmentation APIs."""
 
-import logging
 import json
+import logging
 import os
 import sys
 import threading
