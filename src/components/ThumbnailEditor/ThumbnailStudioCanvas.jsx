@@ -18,6 +18,7 @@ import { EffectText, applyTextColorEffects, effectsFromState } from '../../modul
 import { skewXToSlant } from '../../modules/thumbnail/textEffects'
 import { DECOR_LAYER_ID, withDecorLayer } from '../../modules/thumbnail/decor'
 import { DecorLayer } from '../../modules/thumbnail/decorObject'
+import { installAlphaHitTest } from '../../modules/thumbnail/alphaHitTest'
 
 const MAX_BACKGROUND_SIDE = 4096
 // Fabric builds its WebGL filter backend at load time with a 2048px texture limit, so
@@ -72,6 +73,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     })
 
     fabricCanvasRef.current = canvas
+    installAlphaHitTest(canvas)
 
     // With preserveObjectStacking, Fabric gives every click to the topmost object under
     // the pointer, so a selected speaker partly covered by another couldn't be dragged.
@@ -547,6 +549,9 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       if (!obj) {
         obj = new ElementObject({ data: { layerId: sticker.id } })
         canvas.add(obj)
+      } else if (obj.sticker === sticker) {
+        // Unchanged: re-setting would mark it dirty and redraw its cache on every edit.
+        continue
       }
       obj.set(elementObjectProps(sticker))
       obj.setCoords()
@@ -589,6 +594,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
           : null,
       })
       if (existing && existing.data?.currentSrc === bug.imageUrl) {
+        if (existing.data.lastState === bug) continue
+        existing.data.lastState = bug
         existing.set(placement(existing))
         existing.setCoords()
         continue
@@ -602,7 +609,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
           // A sync that ran while this image loaded may already have added it.
           if (live.getObjects().some((o) => o.data?.layerId === bug.id)) return
           img.set({
-            data: { layerId: bug.id, currentSrc: bug.imageUrl },
+            data: { layerId: bug.id, currentSrc: bug.imageUrl, lastState: bug },
             originX: 'center',
             originY: 'center',
             perPixelTargetFind: true,
