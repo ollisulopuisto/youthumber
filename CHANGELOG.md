@@ -2,6 +2,15 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.21.86] - 2026-10-21
+
+### Changed
+- Frame scoring and the ranking weights come from the shared `framescore` package, also used by pycapslap. The local copy and its tests are gone; the sharpness measure stays here, so the ranking is unchanged
+- Python 3.13 is the minimum, because `framescore` requires it. CI and the binary build use 3.13
+
+### Fixed
+- Lint and format checks that were already red on master: import order and formatting in `server.py`, and a documented ESLint exception for the control-character range in the export file-name cleaner
+
 ## [26.10.10.85] - 2026-10-10
 
 ### Added
