@@ -87,13 +87,18 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
   },
 
   _renderSplash(ctx, effects) {
-    const shapes = splashShapes(
-      effects.splashStyle,
-      this.width,
-      this.height,
-      effects.splashSeed,
-      effects.splashSize ?? 1
-    )
+    const key = [effects.splashStyle, this.width, this.height, effects.splashSeed, effects.splashSize ?? 1].join('|')
+    if (this._splashKey !== key) {
+      this._splashKey = key
+      this._splashShapes = splashShapes(
+        effects.splashStyle,
+        this.width,
+        this.height,
+        effects.splashSeed,
+        effects.splashSize ?? 1
+      )
+    }
+    const shapes = this._splashShapes
     if (!shapes.length) return
     ctx.save()
     const color = effects.splashColor || '#FF1F6B'

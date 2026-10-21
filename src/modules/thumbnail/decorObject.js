@@ -50,7 +50,17 @@ export const DecorLayer = fabric.util.createClass(fabric.Object, {
     ctx.translate(-this.width / 2, -this.height / 2)
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-    for (const shape of decorShapes(this.decor, this.width, this.height)) {
+    // Shapes only change with the decor settings, not with every repaint (e.g. a drag).
+    const cache = this._shapeCache
+    if (!cache || cache.decor !== this.decor || cache.width !== this.width || cache.height !== this.height) {
+      this._shapeCache = {
+        decor: this.decor,
+        width: this.width,
+        height: this.height,
+        shapes: decorShapes(this.decor, this.width, this.height),
+      }
+    }
+    for (const shape of this._shapeCache.shapes) {
       ctx.save()
       ctx.globalAlpha = shape.alpha ?? 1
       if (shape.blend) ctx.globalCompositeOperation = shape.blend

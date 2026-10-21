@@ -452,7 +452,11 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         })
       : null
 
+    // State is immutable, so the same object means nothing about this headline changed.
+    if (existing && existing.data.lastState === textState) return
+
     if (existing) {
+      existing.data.lastState = textState
       existing.set({
         text: textState.text || ' ',
         fontFamily: textState.fontFamily || 'Montserrat',
@@ -476,7 +480,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       existing.setCoords()
     } else {
       const textObj = new EffectText(textState.text || 'EPISODE TITLE', {
-        data: { layerId },
+        data: { layerId, lastState: textState },
         left: textState.transform.x,
         top: textState.transform.y,
         fontFamily: textState.fontFamily || 'Montserrat',
