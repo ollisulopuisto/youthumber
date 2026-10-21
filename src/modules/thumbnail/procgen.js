@@ -49,7 +49,11 @@ export function hexToRgb(hex) {
 
 /** Colour at t (0..1) along the palette, as [r, g, b]. */
 export function paletteAt(colors, t) {
-  const rgb = colors.map(hexToRgb)
+  return rgbPaletteAt(colors.map(hexToRgb), t)
+}
+
+/** paletteAt for an already-parsed palette, for per-pixel loops. */
+function rgbPaletteAt(rgb, t) {
   if (rgb.length === 1) return rgb[0]
   const x = Math.min(Math.max(t, 0), 1) * (rgb.length - 1)
   const i = Math.min(Math.floor(x), rgb.length - 2)
@@ -175,14 +179,31 @@ const GENERATORS = {
     const dark = hexToRgb(colors[0])
     const line = hexToRgb(accentAt(colors, 0))
     const glow = mix(dark, line, 0.12)
+    // Only a few colours appear: the two line weights and one fill per band.
+    const majorLine = mix(dark, line, 1)
+    const minorLine = mix(dark, line, 0.65)
+    const fills = Array.from({ length: levels + 1 }, (_, band) => mix(dark, glow, (band / levels) * 1.4))
+    // Each pixel is compared with the ones 2px right and below, so work out every pixel's
+    // band once up front instead of three noise lookups per pixel.
+    let bands = null
+    let stride = 0
     pixelPass(ctx, w, h, makeCanvas, 960, (u, v, lw, lh) => {
-      const f = (x, y) => fbm(noise, ox + (x / lw) * scale * (w / h), oy + (y / lh) * scale) * levels
-      const x = u * lw
-      const y = v * lh
-      const band = Math.floor(f(x, y))
-      const edge = band !== Math.floor(f(x + 2, y)) || band !== Math.floor(f(x, y + 2))
-      if (edge) return mix(dark, line, band % 4 === 0 ? 1 : 0.65)
-      return mix(dark, glow, (band / levels) * 1.4)
+      if (!bands) {
+        stride = lw + 2
+        bands = new Int16Array(stride * (lh + 2))
+        for (let y = 0; y < lh + 2; y++) {
+          for (let x = 0; x < stride; x++) {
+            bands[y * stride + x] = Math.floor(
+              fbm(noise, ox + (x / lw) * scale * (w / h), oy + (y / lh) * scale) * levels
+            )
+          }
+        }
+      }
+      const x = Math.round(u * lw)
+      const y = Math.round(v * lh)
+      const band = bands[y * stride + x]
+      const edge = band !== bands[y * stride + x + 2] || band !== bands[(y + 2) * stride + x]
+      return edge ? (band % 4 === 0 ? majorLine : minorLine) : fills[band]
     })
   },
 
@@ -301,22 +322,26 @@ const GENERATORS = {
       t: rand(),
     }))
     const dark = hexToRgb(colors[0])
-    const pal = [colors[0], accentAt(colors, 0), colors[2] ?? colors[1]]
+    // Parsed once: this runs per pixel, and re-parsing the hex palette dominated the time.
+    const pal = [colors[0], accentAt(colors, 0), colors[2] ?? colors[1]].map(hexToRgb)
     const aspect = w / h
     pixelPass(ctx, w, h, makeCanvas, 640, (u, v) => {
+      // Squared distances; the square root is only needed for the two nearest.
       let best = Infinity
       let second = Infinity
       let owner = sites[0]
       for (const s of sites) {
-        const d = Math.hypot((s.x - u) * aspect, s.y - v)
+        const dx = (s.x - u) * aspect
+        const dy = s.y - v
+        const d = dx * dx + dy * dy
         if (d < best) {
           second = best
           best = d
           owner = s
         } else if (d < second) second = d
       }
-      const cell = paletteAt(pal, owner.t * owner.t * 0.9 + 0.1 * (1 - v))
-      return mix(dark, cell, Math.min(1, (second - best) * 70))
+      const cell = rgbPaletteAt(pal, owner.t * owner.t * 0.9 + 0.1 * (1 - v))
+      return mix(dark, cell, Math.min(1, (Math.sqrt(second) - Math.sqrt(best)) * 70))
     })
   },
 }
