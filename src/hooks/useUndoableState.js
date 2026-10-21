@@ -51,8 +51,12 @@ export function useUndoableState(initialValue) {
     setRevision((count) => count + 1)
   }, [])
 
+  // The latest value, including edits React hasn't rendered yet (for async work).
+  const getValue = useCallback(() => valueRef.current, [])
+
   return {
     value,
+    getValue,
     setValue: update,
     undo,
     redo,

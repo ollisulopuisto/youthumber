@@ -103,7 +103,7 @@ const loadBugImage = (file) =>
   })
 
 function App() {
-  const { value: project, setValue: setProject, undo, redo, canUndo, canRedo } = useUndoableState(() => {
+  const { value: project, getValue: getProject, setValue: setProject, undo, redo, canUndo, canRedo } = useUndoableState(() => {
     // Try restoring last modified project or create default
     const existing = listStoredProjects()
     if (existing.length > 0) {
@@ -321,41 +321,54 @@ function App() {
     setProject((prev) => updateSpeakerTransform(prev, slotId, { ...slot.transform }))
   }
 
-  const handleUpdateSpeakerMaskOptions = useCallback(
-    async (slotId, newOptions) => {
-      setProject((prev) => updateSpeakerMaskOptions(prev, slotId, newOptions))
+  // Mask sliders fire on every pixel of a drag, and each recomposite decodes, masks and
+  // re-encodes the full-size photo on the main thread. Run at most one per speaker; if the
+  // options change meanwhile, run once more with the latest ones when it finishes. Results
+  // land in order, so a slow early composite can't overwrite the final slider position.
+  const maskJobs = useRef(new Map()) // slotId -> { dirty }
 
-      const currentSpeaker = getSpeaker(project, slotId)
-      if (currentSpeaker?.sourceImageUrl && currentSpeaker?.maskUrl) {
-        const merged = {
-          feather: 0,
-          threshold: 0,
-          opacity: 1,
-          invert: false,
-          ...(currentSpeaker.maskOptions || {}),
-          ...newOptions,
-        }
-        try {
-          const newCutoutUrl = await compositeFromDataUrls(
-            currentSpeaker.sourceImageUrl,
-            activeMaskUrl({ ...currentSpeaker, maskOptions: merged }),
-            merged
-          )
-          setProject((prev) =>
-            setSpeakerCutout(
-              prev,
-              slotId,
-              newCutoutUrl,
-              currentSpeaker.maskUrl,
-              currentSpeaker.removerId
+  const recompositeSpeakerCutout = useCallback(
+    async (slotId) => {
+      const running = maskJobs.current.get(slotId)
+      if (running) {
+        running.dirty = true
+        return
+      }
+      const job = { dirty: true }
+      maskJobs.current.set(slotId, job)
+      try {
+        while (job.dirty) {
+          job.dirty = false
+          const speaker = getSpeaker(getProject(), slotId)
+          if (!speaker?.sourceImageUrl || !speaker?.maskUrl) break
+          const options = { feather: 0, threshold: 0, opacity: 1, invert: false, ...speaker.maskOptions }
+          try {
+            const newCutoutUrl = await compositeFromDataUrls(
+              speaker.sourceImageUrl,
+              activeMaskUrl({ ...speaker, maskOptions: options }),
+              options
             )
-          )
-        } catch (err) {
-          console.warn('Live mask recompositing error:', err)
+            // Skip it if the photo or mask was replaced while compositing.
+            const latest = getSpeaker(getProject(), slotId)
+            if (latest?.sourceImageUrl !== speaker.sourceImageUrl || latest?.maskUrl !== speaker.maskUrl) continue
+            setProject((prev) => setSpeakerCutout(prev, slotId, newCutoutUrl, speaker.maskUrl, speaker.removerId))
+          } catch (err) {
+            console.warn('Live mask recompositing error:', err)
+          }
         }
+      } finally {
+        maskJobs.current.delete(slotId)
       }
     },
-    [project]
+    [getProject, setProject]
+  )
+
+  const handleUpdateSpeakerMaskOptions = useCallback(
+    (slotId, newOptions) => {
+      setProject((prev) => updateSpeakerMaskOptions(prev, slotId, newOptions))
+      recompositeSpeakerCutout(slotId)
+    },
+    [setProject, recompositeSpeakerCutout]
   )
 
   // Background Actions
