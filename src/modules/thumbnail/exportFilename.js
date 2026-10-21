@@ -2,6 +2,8 @@ const DEFAULT_PROJECT_NAME = 'YouTube Thumbnail'
 
 function cleanPart(value) {
   return String(value ?? '')
+    // Control characters are not allowed in file names, hence the range.
+    // eslint-disable-next-line no-control-regex
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, ' ')
     .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '')
