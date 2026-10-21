@@ -42,6 +42,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 ) {
   const fitRef = useRef(null)
   const backgroundImageRef = useRef(null) // { url, img, blur, brightness }
+  const backgroundFillKeyRef = useRef(null)
   const latestBackgroundRef = useRef(project.background)
   const containerRef = useRef(null)
   const canvasElRef = useRef(null)
@@ -178,11 +179,13 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         height: canvasHeight * scale,
       })
       canvas.setZoom(scale)
-      canvas.renderAll()
+      canvas.requestRenderAll()
     }
 
+    let resizeFrame = 0
     const resizeObserver = new ResizeObserver(() => {
-      updateCanvasScale()
+      cancelAnimationFrame(resizeFrame)
+      resizeFrame = requestAnimationFrame(updateCanvasScale)
     })
 
     if (fitRef.current) {
@@ -194,9 +197,11 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
     return () => {
       resizeObserver.disconnect()
+      cancelAnimationFrame(resizeFrame)
       // The cached background photo belongs to this canvas; a remount (React StrictMode
       // mounts twice in dev) must load it again for the new one.
       backgroundImageRef.current = null
+      backgroundFillKeyRef.current = null
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.dispose()
         fabricCanvasRef.current = null
@@ -214,16 +219,24 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     // Set background
     const bg = project.background
     latestBackgroundRef.current = bg
-    if (bg.type === 'gradient' && bg.gradient) {
-      canvas.setBackgroundColor(
-        new fabric.Gradient(gradientSpec(bg.gradient, canvasWidth, canvasHeight)),
-        () => canvas.renderAll()
-      )
-      canvas.setBackgroundImage(null, () => canvas.renderAll())
-    } else if (bg.type === 'solid' || !bg.imageUrl) {
-      canvas.setBackgroundColor(bg.color || '#111827', () => canvas.renderAll())
-      canvas.setBackgroundImage(null, () => canvas.renderAll())
+    // Gradient/solid fills are rebuilt only when they change, not on every unrelated edit.
+    const fillKey = bg.type === 'gradient' && bg.gradient
+      ? `g:${JSON.stringify(bg.gradient)}`
+      : bg.type === 'solid' || !bg.imageUrl
+        ? `s:${bg.color || '#111827'}`
+        : null
+    if (fillKey) {
+      if (backgroundFillKeyRef.current !== fillKey || canvas.backgroundImage) {
+        if (bg.type === 'gradient' && bg.gradient) {
+          canvas.setBackgroundColor(new fabric.Gradient(gradientSpec(bg.gradient, canvasWidth, canvasHeight)))
+        } else {
+          canvas.setBackgroundColor(bg.color || '#111827')
+        }
+        canvas.setBackgroundImage(null)
+        backgroundFillKeyRef.current = fillKey
+      }
     } else {
+      backgroundFillKeyRef.current = null
       syncBackgroundImage(canvas, bg)
     }
     syncVignette(canvas, bg.vignette || 0)
@@ -268,7 +281,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       }
     }
 
-    canvas.renderAll()
+    canvas.requestRenderAll()
     isUpdatingFromStateRef.current = false
   }, [project, selectedLayer])
 
@@ -290,7 +303,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       entry.img.applyFilters()
       entry.blur = blur
       entry.brightness = brightness
-      canvas.setBackgroundImage(entry.img, () => canvas.renderAll())
+      canvas.setBackgroundImage(entry.img, () => canvas.requestRenderAll())
     }
 
     if (cached?.url === bg.imageUrl) {
@@ -413,8 +426,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
             hasRotatingPoint: true,
           })
           canvas.add(img)
-          reorderCanvasObjects(canvas, project.layerOrder)
-          canvas.renderAll()
+          reorderCanvasObjects(canvas, latestProjectRef.current.layerOrder)
+          canvas.requestRenderAll()
         },
         { crossOrigin: 'anonymous' }
       )
@@ -600,7 +613,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
           img.setCoords()
           live.add(img)
           reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
-          live.renderAll()
+          live.requestRenderAll()
         },
         { crossOrigin: 'anonymous' }
       )

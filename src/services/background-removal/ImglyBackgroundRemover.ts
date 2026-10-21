@@ -1,4 +1,3 @@
-import { removeBackground, segmentForeground } from '@imgly/background-removal'
 import type { BackgroundRemover, ImageSource, RemovalOptions, RemovalResult } from './types'
 
 export class ImglyBackgroundRemover implements BackgroundRemover {
@@ -25,6 +24,9 @@ export class ImglyBackgroundRemover implements BackgroundRemover {
     }
 
     onProgress?.(10, 'Initializing WebAssembly model')
+
+    // Loaded on first use: the library and its ONNX runtime are ~1 MB of startup parse.
+    const { removeBackground, segmentForeground } = await import('@imgly/background-removal')
 
     // Run background removal
     const cutoutBlob = await removeBackground(inputSource as any, {

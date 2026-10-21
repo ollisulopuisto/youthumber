@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react'
 import { useUndoableState } from './hooks/useUndoableState'
 import Toolbar from './components/ThumbnailEditor/Toolbar'
 import ThumbnailStudioCanvas from './components/ThumbnailEditor/ThumbnailStudioCanvas'
 import LayersPanel from './components/ThumbnailEditor/LayersPanel'
 import PropertiesPanel from './components/ThumbnailEditor/PropertiesPanel'
 import SpeakerSlotsPanel from './components/ThumbnailEditor/SpeakerSlotsPanel'
-import ProjectGalleryModal from './components/ThumbnailEditor/ProjectGalleryModal'
-import ShowPresetModal from './components/ThumbnailEditor/ShowPresetModal'
-import ElementPickerModal from './components/ThumbnailEditor/ElementPickerModal'
+const ProjectGalleryModal = lazy(() => import('./components/ThumbnailEditor/ProjectGalleryModal'))
+const ShowPresetModal = lazy(() => import('./components/ThumbnailEditor/ShowPresetModal'))
+const ElementPickerModal = lazy(() => import('./components/ThumbnailEditor/ElementPickerModal'))
 import { findElement } from './data/elements'
 import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail/elementFit'
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
@@ -142,10 +142,17 @@ function App() {
 
   // Auto-save project changes to local storage
   useEffect(() => {
+    // Serialising a project full of data-URL images is heavy; do it when the browser is idle.
+    let idle
     const timer = setTimeout(() => {
-      saveProjectToStorage(project)
+      const save = () => saveProjectToStorage(project)
+      if (window.requestIdleCallback) idle = window.requestIdleCallback(save, { timeout: 2000 })
+      else save()
     }, 600)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      if (idle) window.cancelIdleCallback(idle)
+    }
   }, [project])
 
   // Handlers for Project & Templates
@@ -613,6 +620,7 @@ function App() {
         </div>
       </div>
 
+      <Suspense fallback={null}>
       {/* Project Manager Modal */}
       {showProjectsModal && (
         <ProjectGalleryModal
@@ -634,6 +642,7 @@ function App() {
           onClose={() => setShowShowsModal(false)}
         />
       )}
+      </Suspense>
     </div>
   )
 }

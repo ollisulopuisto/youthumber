@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { lazy, Suspense, useRef, useState } from 'react'
 import { isDesktopVideoScanAvailable } from '../../services/videoScan'
 import { positionLabels } from '../../modules/thumbnail/layouts'
-import VideoScanModal from './VideoScanModal'
+const VideoScanModal = lazy(() => import('./VideoScanModal'))
 import MattingModelBanner from './MattingModelBanner'
 
 function readFileAsDataUrl(e, callback) {
@@ -297,14 +297,16 @@ function SpeakerSlotsPanel({
       </div>
 
       {videoScanTarget !== undefined && (
-        <VideoScanModal
-          project={project}
-          targetSpeakerId={videoScanTarget}
-          scan={lastScan}
-          onScanComplete={setLastScan}
-          onAssign={onUploadSpeakerSource}
-          onClose={() => setVideoScanTarget(undefined)}
-        />
+        <Suspense fallback={null}>
+          <VideoScanModal
+            project={project}
+            targetSpeakerId={videoScanTarget}
+            scan={lastScan}
+            onScanComplete={setLastScan}
+            onAssign={onUploadSpeakerSource}
+            onClose={() => setVideoScanTarget(undefined)}
+          />
+        </Suspense>
       )}
     </div>
   )
