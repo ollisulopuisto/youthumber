@@ -1,7 +1,7 @@
 """FastAPI application serving YouThumber web UI and Core ML segmentation APIs."""
 
-import logging
 import json
+import logging
 import os
 import sys
 import threading
@@ -76,7 +76,13 @@ def show_presets_path() -> Path:
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
         return base / "YouThumber" / "show-presets.json"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "YouThumber" / "show-presets.json"
+        return (
+            Path.home()
+            / "Library"
+            / "Application Support"
+            / "YouThumber"
+            / "show-presets.json"
+        )
     base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
     return base / "youthumber" / "show-presets.json"
 
@@ -135,7 +141,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     def put_show_preset(req: ShowPresetRequest) -> dict[str, Any]:
         preset = req.preset
         if not preset.get("id") or not preset.get("name"):
-            raise HTTPException(status_code=400, detail="Preset id and name are required")
+            raise HTTPException(
+                status_code=400, detail="Preset id and name are required"
+            )
         path = show_presets_path()
         presets = [p for p in read_show_presets(path) if p.get("id") != preset["id"]]
         presets.insert(0, preset)
@@ -143,7 +151,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             write_show_presets(path, presets)
         except OSError as err:
             logger.exception("Could not save show preset")
-            raise HTTPException(status_code=500, detail="Could not save show preset") from err
+            raise HTTPException(
+                status_code=500, detail="Could not save show preset"
+            ) from err
         return {"presets": presets}
 
     @app.delete("/show-presets/{preset_id}")
@@ -154,7 +164,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             write_show_presets(path, presets)
         except OSError as err:
             logger.exception("Could not delete show preset")
-            raise HTTPException(status_code=500, detail="Could not delete show preset") from err
+            raise HTTPException(
+                status_code=500, detail="Could not delete show preset"
+            ) from err
         return {"presets": presets}
 
     @app.get("/health")

@@ -3,8 +3,11 @@ name = "youthumber"
 version = "26.10.10.85"
 description = "Local-first YouTube thumbnail editor with Apple Silicon background removal"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
+    # Frame scoring and ranking, shared with pycapslap. Pinned to a commit: the
+    # release tag could not be pushed from the build session.
+    "framescore @ git+https://github.com/ollisulopuisto/podcast@720e323897c4c851d9bef488bd457f1c3e4a445e#subdirectory=packages/framescore",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "pywebview>=5.0.0",
@@ -30,6 +33,10 @@ youthumber = "youthumber.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# framescore is a git dependency, pinned to a commit (see dependencies).
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["youthumber"]
