@@ -19,6 +19,7 @@ import logging
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from importlib.util import find_spec
 
 from framescore import (
     FrameCandidate,
@@ -61,18 +62,15 @@ CORE_MEMBER_FRACTION = (
 MAX_FACES_TO_CLUSTER = 300
 MAX_REFERENCE_FACES = 40  # faces compared against when judging how typical a face is
 
+# Checked for, not imported (slow on a cold start); see segmentation.HAS_VISION.
 HAS_AVFOUNDATION = False
 if sys.platform == "darwin":
-    try:
-        import AVFoundation  # noqa: F401
-        import CoreMedia  # noqa: F401
-        import Quartz  # noqa: F401
-        import Vision  # noqa: F401
-        from Foundation import NSURL  # noqa: F401
-
-        HAS_AVFOUNDATION = True
-    except ImportError as e:
-        logger.warning("AVFoundation/Vision not available for video scanning: %s", e)
+    HAS_AVFOUNDATION = all(
+        find_spec(name)
+        for name in ("AVFoundation", "CoreMedia", "Quartz", "Vision", "Foundation")
+    )
+    if not HAS_AVFOUNDATION:
+        logger.warning("AVFoundation/Vision not available for video scanning")
 
 
 @dataclass

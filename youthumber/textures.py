@@ -13,6 +13,7 @@ import logging
 import random
 import sys
 import threading
+from importlib.util import find_spec
 
 from PIL import Image
 
@@ -20,16 +21,13 @@ from .cgimage import cgimage_to_pil
 
 logger = logging.getLogger(__name__)
 
-HAS_CORE_IMAGE = False
-if sys.platform == "darwin":
-    try:
-        import Quartz
-
-        HAS_CORE_IMAGE = (
-            Quartz.CIFilter.filterWithName_("CIRandomGenerator") is not None
-        )
-    except ImportError as e:
-        logger.warning("Core Image not available for textures: %s", e)
+# Checked for, not imported: importing Quartz is slow on a cold start and kept the app
+# window from opening (see segmentation.HAS_VISION). It is imported by the first render.
+# Core Image's generators have shipped with every macOS since 10.4.
+Quartz = None
+HAS_CORE_IMAGE = sys.platform == "darwin" and find_spec("Quartz") is not None
+if sys.platform == "darwin" and not HAS_CORE_IMAGE:
+    logger.warning("Core Image not available for textures")
 
 TEXTURE_PRESETS = [
     {"id": "grain", "name": "Film grain"},
@@ -60,6 +58,13 @@ def parse_hex_color(value: str) -> tuple[float, float, float]:
 
 
 # --- Core Image plumbing -------------------------------------------------------------
+
+
+def _load_quartz() -> None:
+    """Imports Quartz for the helpers below, which use it as a module global."""
+    global Quartz
+    if Quartz is None:
+        import Quartz
 
 
 def _ci_context():
@@ -344,6 +349,7 @@ def render_texture(
         raise RuntimeError("Textures need macOS Core Image")
 
     with _render_lock:
+        _load_quartz()
         image = _crop(
             _build(preset, c0, c1, random.Random(seed), width, height), width, height
         )

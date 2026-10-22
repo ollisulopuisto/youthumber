@@ -4,27 +4,24 @@ import base64
 import io
 import logging
 import sys
+from importlib.util import find_spec
 
 from PIL import Image, ImageFilter
 
 logger = logging.getLogger(__name__)
 
-# Check if Apple Vision framework is available on macOS
+# Check if Apple Vision framework is available on macOS. Only checked for, not
+# imported: importing Quartz and Vision took ~9 s on a cold start (2026-10-21), which
+# kept the app window from opening. They are imported where they are used.
 HAS_VISION = False
 if sys.platform == "darwin":
-    try:
-        import Quartz  # noqa: F401
-        import Vision  # noqa: F401
-        from Foundation import NSData  # noqa: F401
-
-        HAS_VISION = True
+    HAS_VISION = all(find_spec(name) for name in ("Quartz", "Vision", "Foundation"))
+    if HAS_VISION:
         logger.info(
-            "Apple Vision framework loaded (Apple Neural Engine / Metal enabled)"
+            "Apple Vision framework found (Apple Neural Engine / Metal enabled)"
         )
-    except ImportError as e:
-        logger.warning(
-            "Apple Vision framework not available: %s. Using fallback mode.", e
-        )
+    else:
+        logger.warning("Apple Vision framework not available. Using fallback mode.")
 else:
     logger.info("Non-macOS platform detected (%s). Using fallback mode.", sys.platform)
 

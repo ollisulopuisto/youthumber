@@ -105,6 +105,21 @@ def write_show_presets(path: Path, presets: list[dict[str, Any]]) -> None:
     temporary.replace(path)
 
 
+class HashedAssetFiles(StaticFiles):
+    """Serves Vite's build output under /assets for caching forever: every file name
+    there carries a hash of its content, so a changed file gets a new name.
+
+    Not gzipped: over loopback the 300 kB main bundle arrives in well under a
+    millisecond, while compressing it took 12 ms (2026-10-21).
+    """
+
+    async def get_response(self, path: str, scope) -> Any:
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 304):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
+
 def create_app(dist_dir: Path | None = None) -> FastAPI:
     """Creates and configures the FastAPI application."""
     if dist_dir is None:
@@ -114,8 +129,14 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     async def lifespan(_app: FastAPI):
         # Load a downloaded model in the background at startup (~14 s for PyTorch), so
         # the first cutout doesn't pay for it. Not run by plain TestClient(app).
-        if MODEL.state()["status"] == "ready":
-            warm_up(MATTER)
+        # Checking for the model hashes all 440 MB of it (0.8 s warm, longer after a
+        # reboot), and the server takes no requests until this returns, so that check
+        # is in the background too.
+        def load_if_downloaded() -> None:
+            if MODEL.state()["status"] == "ready":
+                warm_up(MATTER)
+
+        threading.Thread(target=load_if_downloaded, daemon=True).start()
         yield
 
     app = FastAPI(
@@ -329,13 +350,16 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     if dist_dir and dist_dir.is_dir():
         assets_dir = dist_dir / "assets"
         if assets_dir.is_dir():
-            app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+            app.mount(
+                "/assets", HashedAssetFiles(directory=str(assets_dir)), name="assets"
+            )
 
         @app.api_route("/", methods=["GET", "HEAD"])
         async def serve_index() -> FileResponse:
             index_html = dist_dir / "index.html"
             if index_html.is_file():
-                return FileResponse(index_html)
+                # Revalidated every time, so a rebuilt app's new asset names are seen.
+                return FileResponse(index_html, headers={"Cache-Control": "no-cache"})
             raise HTTPException(status_code=404, detail="index.html not found in dist")
 
         @app.api_route("/{path:path}", methods=["GET", "HEAD"])
@@ -345,7 +369,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 return FileResponse(target)
             index_html = dist_dir / "index.html"
             if index_html.is_file():
-                return FileResponse(index_html)
+                return FileResponse(index_html, headers={"Cache-Control": "no-cache"})
             raise HTTPException(status_code=404, detail=f"Path not found: {path}")
     else:
 

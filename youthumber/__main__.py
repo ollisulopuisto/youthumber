@@ -7,14 +7,12 @@ import sys
 import threading
 import webbrowser
 
+# The GUI and the engine are imported only once it's known which one runs: the desktop
+# window opens while the engine is still importing (see gui.launch_gui).
 try:
-    from .gui import launch_gui
     from .paths import get_dist_dir
-    from .server import create_app
 except (ImportError, ValueError):
-    from youthumber.gui import launch_gui
     from youthumber.paths import get_dist_dir
-    from youthumber.server import create_app
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -78,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
     dist_dir = get_dist_dir()
 
     if use_gui:
+        from youthumber.gui import launch_gui
+
         target_url = "http://localhost:5173" if args.dev else None
         launch_gui(
             dist_dir=dist_dir,
@@ -89,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # Headless server mode
+    from youthumber.server import create_app
+
     app = create_app(dist_dir=dist_dir)
     url = f"http://{args.host}:{args.port}/"
 

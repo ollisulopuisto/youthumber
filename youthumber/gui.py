@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import html
+import importlib
 import logging
 import socket
 import sys
@@ -10,10 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-import uvicorn
-
 from .paths import get_app_icon_path, get_dist_dir
-from .server import create_app
 
 logger = logging.getLogger(__name__)
 
@@ -71,38 +70,63 @@ class DesktopApi:
         return result[0]
 
 
-def find_free_port(start_port: int = 8731) -> int:
-    """Finds an available TCP port starting from start_port."""
+def bind_free_socket(host: str = "127.0.0.1", start_port: int = 8731) -> socket.socket:
+    """Binds and listens on the first free TCP port from ``start_port``.
+
+    Listening before the engine is loaded lets the window open on its URL at once: the
+    page's first request waits in the socket's backlog until the server takes it.
+    """
     port = start_port
     while port < 65535:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("127.0.0.1", port))
-                return port
-            except OSError:
-                port += 1
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind((host, port))
+        except OSError:
+            sock.close()
+            port += 1
+            continue
+        sock.listen(2048)
+        return sock
     raise RuntimeError("No free TCP port found")
 
 
 class DesktopServer:
-    """Embedded Uvicorn server running in a daemon background thread."""
+    """Embedded Uvicorn server running in a daemon background thread.
 
-    def __init__(self, app: Any, host: str = "127.0.0.1", port: int = 8731):
-        self.host = host
-        self.port = port
-        self.config = uvicorn.Config(
-            app=app,
-            host=host,
-            port=port,
-            log_level="warning",
-            access_log=False,
-        )
-        self.server = uvicorn.Server(self.config)
-        self.thread = threading.Thread(target=self.server.run, daemon=True)
+    The engine is imported in that thread too: on a cold start its imports (FastAPI,
+    numpy, PyObjC) take seconds, and the window doesn't need to wait for them.
+    """
+
+    def __init__(self, dist_dir: Path, sock: socket.socket):
+        self.dist_dir = dist_dir
+        self.sock = sock
+        self.host, self.port = sock.getsockname()[:2]
+        self.server: Any = None
+        self.error: BaseException | None = None
+        self._should_exit = False
+        self.thread = threading.Thread(target=self._run, daemon=True)
 
     @property
     def url(self) -> str:
         return f"http://{self.host}:{self.port}"
+
+    def _run(self) -> None:
+        try:
+            import uvicorn
+
+            from .server import create_app
+
+            config = uvicorn.Config(
+                app=create_app(dist_dir=self.dist_dir),
+                log_level="warning",
+                access_log=False,
+            )
+            self.server = uvicorn.Server(config)
+            self.server.should_exit = self._should_exit
+            self.server.run(sockets=[self.sock])
+        except BaseException as err:  # reported by wait_until_ready
+            logger.exception("Engine failed to start")
+            self.error = err
 
     def start(self) -> None:
         self.thread.start()
@@ -110,13 +134,38 @@ class DesktopServer:
     def wait_until_ready(self, timeout: float = 5.0) -> bool:
         start_time = time.time()
         while time.time() - start_time < timeout:
-            if self.server.started:
+            if self.server is not None and self.server.started:
                 return True
+            if self.error is not None or not self.thread.is_alive():
+                return False
             time.sleep(0.02)
         return False
 
     def stop(self) -> None:
-        self.server.should_exit = True
+        self._should_exit = True
+        if self.server is not None:
+            self.server.should_exit = True
+
+
+def preload_frameworks() -> None:
+    """Imports the macOS frameworks the engine uses, so the first cutout, texture or
+    video scan doesn't pay for it. The engine only checks for them at startup (importing
+    them took ~9 s after a reboot), so this runs once the page is up."""
+    for name in ("Quartz", "Vision", "AVFoundation", "CoreMedia"):
+        try:
+            importlib.import_module(name)
+        except ImportError:
+            pass
+
+
+STARTUP_FAILED_HTML = """
+<html>
+    <body style="background:#030712;color:#f3f4f6;font-family:sans-serif;padding:40px;text-align:center;">
+        <h2>YouThumber's engine didn't start</h2>
+        <p>{error}</p>
+    </body>
+</html>
+"""
 
 
 def launch_gui(
@@ -126,20 +175,18 @@ def launch_gui(
     port: int = 8731,
     debug: bool = False,
 ) -> None:
-    """Launches the embedded FastAPI server and opens a native desktop window."""
-    import webview
+    """Launches the embedded FastAPI server and opens a native desktop window.
 
+    The window opens straight away, while the engine loads in the background; its page
+    request is answered as soon as the engine is up.
+    """
     if dist_dir is None:
         dist_dir = get_dist_dir()
 
-    app = create_app(dist_dir=dist_dir)
-    free_port = find_free_port(port)
-    server = DesktopServer(app, host=host, port=free_port)
+    server = DesktopServer(dist_dir, bind_free_socket(host, port))
     server.start()
 
-    if not server.wait_until_ready(timeout=8.0):
-        server.stop()
-        raise RuntimeError("FastAPI server initialization timed out")
+    import webview
 
     url_to_open = target_url if target_url else server.url
 
@@ -158,6 +205,17 @@ def launch_gui(
 
     window.events.closed += on_closed
 
+    def watch_startup() -> None:
+        # The first start after a reboot imports for several seconds; give it time.
+        if not server.wait_until_ready(timeout=60.0):
+            server.stop()
+            server.sock.close()  # refuses the waiting page request instead of hanging
+            error = server.error or "Timed out while starting."
+            window.load_html(STARTUP_FAILED_HTML.format(error=html.escape(str(error))))
+            return
+        window.events.loaded.wait(timeout=30.0)
+        preload_frameworks()
+
     icon_path = get_app_icon_path()
     icon_str = str(icon_path) if icon_path else None
 
@@ -174,7 +232,7 @@ def launch_gui(
             logger.debug("Could not set application dock icon: %s", err)
 
     try:
-        webview.start(debug=debug)
+        webview.start(func=watch_startup, debug=debug)
     finally:
         server.stop()
         server.thread.join(timeout=2.0)
