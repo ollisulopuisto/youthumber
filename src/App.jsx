@@ -103,16 +103,27 @@ const loadBugImage = (file) =>
     img.src = objectUrl
   })
 
+/** Restores the last modified project (or starts a new one) before showing the editor. */
 function App() {
-  const { value: project, getValue: getProject, setValue: setProject, undo, redo, canUndo, canRedo } = useUndoableState(() => {
-    // Try restoring last modified project or create default
-    const existing = listStoredProjects()
-    if (existing.length > 0) {
-      const loaded = loadProjectFromStorage(existing[0].id)
-      if (loaded) return loaded
+  const [initialProject, setInitialProject] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const [latest] = await listStoredProjects()
+      const loaded = latest ? await loadProjectFromStorage(latest.id) : null
+      if (!cancelled) setInitialProject(loaded ?? createDefaultProject('YouTube Thumbnail'))
+    })()
+    return () => {
+      cancelled = true
     }
-    return createDefaultProject('YouTube Thumbnail')
-  })
+  }, [])
+
+  return initialProject ? <Editor initialProject={initialProject} /> : null
+}
+
+function Editor({ initialProject }) {
+  const { value: project, getValue: getProject, setValue: setProject, undo, redo, canUndo, canRedo } = useUndoableState(initialProject)
 
   const [selectedLayer, setSelectedLayer] = useState('text')
   const [showProjectsModal, setShowProjectsModal] = useState(false)
@@ -146,7 +157,8 @@ function App() {
     // Serialising a project full of data-URL images is heavy; do it when the browser is idle.
     let idle
     const timer = setTimeout(() => {
-      const save = () => saveProjectToStorage(project)
+      const save = () =>
+        saveProjectToStorage(project).catch((err) => console.warn('Autosave failed:', err))
       if (window.requestIdleCallback) idle = window.requestIdleCallback(save, { timeout: 2000 })
       else save()
     }, 600)
@@ -209,9 +221,13 @@ function App() {
     setProject((prev) => renameSpeaker(prev, speakerId, name))
   }
 
-  const handleSaveProject = () => {
-    saveProjectToStorage(project)
-    alert(`Project "${project.name}" saved to local storage.`)
+  const handleSaveProject = async () => {
+    try {
+      await saveProjectToStorage(project)
+      alert(`Project "${project.name}" saved.`)
+    } catch (err) {
+      alert(`Could not save the project: ${err.message}`)
+    }
   }
 
   const handleExport = async ({ format = 'jpeg', quality = 0.95, resolution = 'hd' }) => {

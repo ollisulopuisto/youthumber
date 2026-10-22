@@ -1,5 +1,6 @@
 """Resource and file path resolution for YouThumber."""
 
+import os
 import sys
 from pathlib import Path
 
@@ -51,3 +52,17 @@ def get_app_icon_path() -> Path | None:
         if path.is_file():
             return path
     return None
+
+
+def get_user_data_dir() -> Path:
+    """Returns the per-user folder for YouThumber's own data (created on demand)."""
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+        path = base / "YouThumber"
+    elif sys.platform == "darwin":
+        path = Path.home() / "Library" / "Application Support" / "YouThumber"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+        path = base / "youthumber"
+    path.mkdir(parents=True, exist_ok=True)
+    return path

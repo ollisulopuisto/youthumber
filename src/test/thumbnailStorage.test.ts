@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import 'fake-indexeddb/auto'
+import { IDBFactory } from 'fake-indexeddb'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   saveProjectToStorage,
   loadProjectFromStorage,
@@ -48,40 +50,50 @@ function v1Project(speaker2Overrides: Record<string, unknown> = {}) {
 }
 
 describe('Thumbnail Storage & Serialization', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear()
+    for (const { id } of await listStoredProjects()) await deleteStoredProject(id)
   })
 
-  it('saves and reloads a project from storage without loss of properties', () => {
+  it('saves and reloads a project from storage without loss of properties', async () => {
     let project = createDefaultProject('Episode 42')
     const id = project.speakers[0].id
     project = setSpeakerSource(project, id, 'data:image/jpeg;base64,speakerPhoto')
 
-    saveProjectToStorage(project)
-    const loaded = loadProjectFromStorage(project.id)
+    await saveProjectToStorage(project)
+    const loaded = await loadProjectFromStorage(project.id)
 
     expect(loaded).toEqual(project)
   })
 
-  it('lists stored projects sorted by recent update', () => {
+  it('lists stored projects sorted by recent update', async () => {
     const p1 = createDefaultProject('Project 1')
     p1.updatedAt = '2026-09-10T10:00:00.000Z'
     const p2 = createDefaultProject('Project 2')
     p2.updatedAt = '2026-09-12T10:00:00.000Z'
 
-    saveProjectToStorage(p1)
-    saveProjectToStorage(p2)
+    await saveProjectToStorage(p1)
+    await saveProjectToStorage(p2)
 
-    const list = listStoredProjects()
+    const list = await listStoredProjects()
     expect(list.length).toBe(2)
     expect(list[0].id).toBe(p2.id)
   })
 
-  it('deletes stored project', () => {
+  it('deletes stored project', async () => {
     const p = createDefaultProject('To Delete')
-    saveProjectToStorage(p)
-    deleteStoredProject(p.id)
-    expect(loadProjectFromStorage(p.id)).toBeNull()
+    await saveProjectToStorage(p)
+    await deleteStoredProject(p.id)
+    expect(await loadProjectFromStorage(p.id)).toBeNull()
+    expect(await listStoredProjects()).toEqual([])
+  })
+
+  it('stores projects far larger than the localStorage quota', async () => {
+    const project = createDefaultProject('Big')
+    const photo = `data:image/png;base64,${'A'.repeat(12 * 1024 * 1024)}`
+    await saveProjectToStorage(setSpeakerSource(project, project.speakers[0].id, photo))
+    const loaded = await loadProjectFromStorage(project.id)
+    expect(loaded?.speakers[0].sourceImageUrl).toHaveLength(photo.length)
   })
 
   it('exports and imports project as JSON string', () => {
@@ -138,9 +150,21 @@ describe('Thumbnail Storage & Serialization', () => {
       expect(migrateProject(project)).toBe(project)
     })
 
-    it('migrates on load from storage and on JSON import', () => {
+    it('migrates on load from storage and on JSON import', async () => {
       localStorage.setItem('yt_thumb_proj_proj_old', JSON.stringify(v1Project()))
-      expect(loadProjectFromStorage('proj_old')?.speakers).toHaveLength(2)
+      localStorage.setItem(
+        'yt_thumb_projects_index',
+        JSON.stringify([{ id: 'proj_old', name: 'Old Episode', updatedAt: '2026-09-12T10:00:00.000Z' }])
+      )
+      // A fresh module and database, as on the first launch after upgrading.
+      vi.resetModules()
+      globalThis.indexedDB = new IDBFactory()
+      const fresh = await import('../modules/thumbnail/thumbnailStorage')
+
+      expect((await fresh.loadProjectFromStorage('proj_old'))?.speakers).toHaveLength(2)
+      expect((await fresh.listStoredProjects()).map((p) => p.id)).toEqual(['proj_old'])
+      expect(localStorage.getItem('yt_thumb_proj_proj_old')).toBeNull()
+      expect(localStorage.getItem('yt_thumb_projects_index')).toBeNull()
       expect(importProjectFromJSON(JSON.stringify(v1Project())).speakers).toHaveLength(2)
     })
   })

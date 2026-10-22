@@ -30,6 +30,7 @@ describe('isMapTransparent', () => {
 describe('installAlphaHitTest', () => {
   // A 100×50 image whose left half is opaque, drawn at 2× and flipped, on a canvas zoomed to 0.5.
   async function setup() {
+    // @ts-expect-error fabric ships no type declarations
     const { fabric } = await import('fabric')
     const { installAlphaHitTest } = await import('../modules/thumbnail/alphaHitTest')
     const element = { width: 100, height: 50, naturalWidth: 100, naturalHeight: 50 }
@@ -58,7 +59,7 @@ describe('installAlphaHitTest', () => {
       viewportTransform: [0.5, 0, 0, 0.5, 0, 0],
       getZoom: () => 0.5,
       targetFindTolerance: 0,
-      isTargetTransparent: fallback,
+      isTargetTransparent: fallback as (...args: unknown[]) => boolean,
     }
     installAlphaHitTest(canvas)
     return { image, canvas, fallback }

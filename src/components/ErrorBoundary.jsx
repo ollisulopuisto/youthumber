@@ -32,7 +32,7 @@ class ErrorBoundary extends Component {
               Something went wrong
             </h1>
             <p className="text-gray-400 mb-4 text-sm">
-              An unexpected error occurred. Your projects are safe in localStorage.
+              An unexpected error occurred. Your saved projects are safe.
             </p>
             {this.state.error && (
               <details className="mb-4 text-left">

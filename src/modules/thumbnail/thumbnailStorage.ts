@@ -39,6 +39,9 @@ export function migrateProject(raw: any): ThumbnailProject {
   }
 }
 const INDEX_KEY = 'yt_thumb_projects_index'
+const DB_NAME = 'youthumber'
+const PROJECTS = 'projects' // id -> full project (can be tens of MB with photos)
+const INDEX = 'index' // id -> { id, name, updatedAt }, so listing never loads projects
 
 interface ProjectIndexEntry {
   id: string
@@ -46,57 +49,111 @@ interface ProjectIndexEntry {
   updatedAt: string
 }
 
-function getIndex(): ProjectIndexEntry[] {
+let dbPromise: Promise<IDBDatabase> | null = null
+
+function openDb(): Promise<IDBDatabase> {
+  dbPromise ??= new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1)
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(PROJECTS)
+      request.result.createObjectStore(INDEX)
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  }).then(async (db) => {
+    await migrateFromLocalStorage(db)
+    return db
+  })
+  // A failed open must not be cached, or every later save would fail too.
+  dbPromise.catch(() => {
+    dbPromise = null
+  })
+  return dbPromise
+}
+
+function done(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error)
+  })
+}
+
+function result<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+/**
+ * Projects used to live in localStorage, which holds ~5 MB and was wiped on every
+ * desktop launch. Moves any left there into IndexedDB, once, then clears them.
+ */
+async function migrateFromLocalStorage(db: IDBDatabase): Promise<void> {
+  let legacy: ProjectIndexEntry[]
   try {
     const raw = localStorage.getItem(INDEX_KEY)
-    return raw ? JSON.parse(raw) : []
+    if (!raw) return
+    legacy = JSON.parse(raw)
   } catch {
-    return []
+    return
   }
-}
-
-function saveIndex(index: ProjectIndexEntry[]): void {
-  try {
-    localStorage.setItem(INDEX_KEY, JSON.stringify(index))
-  } catch (err) {
-    console.warn('Failed to save project index to localStorage', err)
+  const tx = db.transaction([PROJECTS, INDEX], 'readwrite')
+  for (const entry of legacy) {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${entry.id}`)
+    if (!stored) continue
+    try {
+      tx.objectStore(PROJECTS).put(JSON.parse(stored), entry.id)
+      tx.objectStore(INDEX).put(entry, entry.id)
+    } catch {
+      // A corrupt legacy project is skipped, not allowed to block the rest.
+    }
   }
+  await done(tx)
+  for (const entry of legacy) localStorage.removeItem(`${STORAGE_KEY_PREFIX}${entry.id}`)
+  localStorage.removeItem(INDEX_KEY)
 }
 
-export function saveProjectToStorage(project: ThumbnailProject): void {
-  const key = `${STORAGE_KEY_PREFIX}${project.id}`
-  localStorage.setItem(key, JSON.stringify(project))
-
-  const index = getIndex().filter((entry) => entry.id !== project.id)
-  index.unshift({
-    id: project.id,
-    name: project.name,
-    updatedAt: project.updatedAt,
-  })
-  saveIndex(index)
+export async function saveProjectToStorage(project: ThumbnailProject): Promise<void> {
+  const db = await openDb()
+  const tx = db.transaction([PROJECTS, INDEX], 'readwrite')
+  tx.objectStore(PROJECTS).put(project, project.id)
+  tx.objectStore(INDEX).put(
+    { id: project.id, name: project.name, updatedAt: project.updatedAt },
+    project.id
+  )
+  await done(tx)
 }
 
-export function loadProjectFromStorage(id: string): ThumbnailProject | null {
-  const key = `${STORAGE_KEY_PREFIX}${id}`
-  const raw = localStorage.getItem(key)
-  if (!raw) return null
+export async function loadProjectFromStorage(id: string): Promise<ThumbnailProject | null> {
   try {
-    return migrateProject(JSON.parse(raw))
+    const db = await openDb()
+    const stored = await result(db.transaction(PROJECTS).objectStore(PROJECTS).get(id))
+    return stored ? migrateProject(stored) : null
   } catch {
     return null
   }
 }
 
-export function listStoredProjects(): ProjectIndexEntry[] {
-  const index = getIndex()
-  return index.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+export async function listStoredProjects(): Promise<ProjectIndexEntry[]> {
+  try {
+    const db = await openDb()
+    const entries: ProjectIndexEntry[] = await result(
+      db.transaction(INDEX).objectStore(INDEX).getAll()
+    )
+    return entries.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  } catch {
+    return []
+  }
 }
 
-export function deleteStoredProject(id: string): void {
-  const key = `${STORAGE_KEY_PREFIX}${id}`
-  localStorage.removeItem(key)
-  const index = getIndex().filter((entry) => entry.id !== id)
-  saveIndex(index)
+export async function deleteStoredProject(id: string): Promise<void> {
+  const db = await openDb()
+  const tx = db.transaction([PROJECTS, INDEX], 'readwrite')
+  tx.objectStore(PROJECTS).delete(id)
+  tx.objectStore(INDEX).delete(id)
+  await done(tx)
 }
 
 export function exportProjectToJSON(project: ThumbnailProject): string {

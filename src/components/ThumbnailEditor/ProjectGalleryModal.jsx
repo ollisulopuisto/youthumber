@@ -11,33 +11,33 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
   const [projects, setProjects] = useState([])
   const fileInputRef = useRef(null)
 
-  const refreshList = () => {
-    setProjects(listStoredProjects())
+  const refreshList = async () => {
+    setProjects(await listStoredProjects())
   }
 
   useEffect(() => {
     refreshList()
   }, [])
 
-  const handleSelect = (id) => {
-    const proj = loadProjectFromStorage(id)
+  const handleSelect = async (id) => {
+    const proj = await loadProjectFromStorage(id)
     if (proj) {
       onLoadProject(proj)
       onClose()
     }
   }
 
-  const handleDelete = (e, id) => {
+  const handleDelete = async (e, id) => {
     e.stopPropagation()
     if (confirm('Delete this project?')) {
-      deleteStoredProject(id)
+      await deleteStoredProject(id)
       refreshList()
     }
   }
 
-  const handleExportJSON = (e, id) => {
+  const handleExportJSON = async (e, id) => {
     e.stopPropagation()
-    const proj = loadProjectFromStorage(id)
+    const proj = await loadProjectFromStorage(id)
     if (!proj) return
     const jsonStr = exportProjectToJSON(proj)
     const blob = new Blob([jsonStr], { type: 'application/json' })

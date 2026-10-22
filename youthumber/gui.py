@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .paths import get_app_icon_path, get_dist_dir
+from .paths import get_app_icon_path, get_dist_dir, get_user_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +232,14 @@ def launch_gui(
             logger.debug("Could not set application dock icon: %s", err)
 
     try:
-        webview.start(func=watch_startup, debug=debug)
+        # pywebview defaults to a private session, which wipes the page's storage (saved
+        # projects) on every launch; keep it in a fixed folder instead.
+        webview.start(
+            func=watch_startup,
+            debug=debug,
+            private_mode=False,
+            storage_path=str(get_user_data_dir() / "webview"),
+        )
     finally:
         server.stop()
         server.thread.join(timeout=2.0)
