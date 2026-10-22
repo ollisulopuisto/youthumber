@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listTextures, renderTexture } from '../../services/textures'
 import { PROCGEN_STYLES, renderProcgen } from '../../modules/thumbnail/procgen'
 
@@ -6,6 +6,11 @@ const PREVIEW = { width: 320, height: 180 }
 const FULL = { width: 1920, height: 1080 }
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000)
+const previewKey = (colors, seed) => `${colors.join()}|${seed}`
+
+// Kept across mounts: the picker unmounts whenever another layer is selected, and
+// re-rendering every preview each time Background was picked again froze the panel.
+let remembered = null // { available, presets, colors, seed, previews, freshFor }
 
 /**
  * Procedural backgrounds (always available, drawn in the browser) plus GPU textures from
@@ -14,47 +19,66 @@ const randomSeed = () => Math.floor(Math.random() * 1_000_000)
  * photo, so blur, darken and vignette work on it too.
  */
 function TexturePicker({ initialColors, onPick }) {
-  const [available, setAvailable] = useState(null) // null = checking
-  const [presets, setPresets] = useState([])
+  const [available, setAvailable] = useState(() => remembered?.available ?? null) // null = checking
+  const [presets, setPresets] = useState(() => remembered?.presets ?? [])
   const styles = PROCGEN_STYLES
-  const [colors, setColors] = useState(initialColors)
-  const [seed, setSeed] = useState(randomSeed)
-  const [previews, setPreviews] = useState({})
+  const [colors, setColors] = useState(() => remembered?.colors ?? initialColors)
+  const [seed, setSeed] = useState(() => remembered?.seed ?? randomSeed())
+  const [previews, setPreviews] = useState(() => remembered?.previews ?? {})
+  // Which colours+seed each preview was drawn with, so up-to-date ones aren't redrawn.
+  const freshFor = useRef(remembered?.freshFor ?? {})
   const [picking, setPicking] = useState(null)
   const [error, setError] = useState(null)
 
-  const checkEngine = () => {
-    setAvailable(null)
+  useEffect(() => {
+    remembered = { available, presets, colors, seed, previews, freshFor: freshFor.current }
+  })
+
+  const checkEngine = (quiet = false) => {
+    if (!quiet) setAvailable(null)
     listTextures().then(({ textures, available: ok }) => {
       setPresets(textures)
       setAvailable(ok && textures.length > 0)
     })
   }
 
-  useEffect(checkEngine, [])
+  // Quiet on remount, so a known engine state doesn't flash back to "checking".
+  useEffect(() => checkEngine(remembered?.available != null), [])
 
-  // Procedural previews are cheap and synchronous, so they follow the colours live.
+  // Procedural previews are drawn in the browser, one per task so colour drags and clicks
+  // stay responsive between them (a few take tens of milliseconds each).
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const next = {}
-      styles.forEach((style) => {
-        next[style.id] = renderProcgen(style.id, { colors, seed, width: 320, height: 180 })
-      })
-      setPreviews((prev) => ({ ...prev, ...next }))
-    }, 120)
+    const key = previewKey(colors, seed)
+    const todo = styles.filter((style) => freshFor.current[style.id] !== key)
+    if (!todo.length) return undefined
+    const drawNext = () => {
+      const style = todo.shift()
+      const image = renderProcgen(style.id, { colors, seed, ...PREVIEW })
+      freshFor.current[style.id] = key
+      setPreviews((prev) => ({ ...prev, [style.id]: image }))
+      if (todo.length) timer = setTimeout(drawNext, 0)
+    }
+    let timer = setTimeout(drawNext, 120)
     return () => clearTimeout(timer)
   }, [styles, colors, seed])
 
   useEffect(() => {
     if (!available) return
     let cancelled = false
+    const key = previewKey(colors, seed)
     // Wait briefly so dragging a colour picker doesn't fire a render per pixel.
     const timer = setTimeout(() => {
-      presets.forEach((preset) => {
-        renderTexture({ preset: preset.id, colors, seed, ...PREVIEW })
-          .then((image) => !cancelled && setPreviews((prev) => ({ ...prev, [preset.id]: image })))
-          .catch((err) => !cancelled && setError(err.message))
-      })
+      presets
+        .filter((preset) => freshFor.current[preset.id] !== key)
+        .forEach((preset) => {
+          renderTexture({ preset: preset.id, colors, seed, ...PREVIEW })
+            .then((image) => {
+              if (cancelled) return
+              freshFor.current[preset.id] = key
+              setPreviews((prev) => ({ ...prev, [preset.id]: image }))
+            })
+            .catch((err) => !cancelled && setError(err.message))
+        })
     }, 250)
     return () => {
       cancelled = true
@@ -67,6 +91,8 @@ function TexturePicker({ initialColors, onPick }) {
     setError(null)
     try {
       const procedural = styles.some((style) => style.id === presetId)
+      // Let "Rendering…" paint before the synchronous full-size draw blocks the thread.
+      if (procedural) await new Promise((resolve) => setTimeout(resolve, 0))
       onPick(
         procedural
           ? renderProcgen(presetId, { colors, seed, ...FULL })
@@ -122,7 +148,7 @@ function TexturePicker({ initialColors, onPick }) {
       {available === false && (
         <p className="text-[10px] text-gray-500">
           More textures come from the YouThumber app&apos;s local engine, which isn&apos;t reachable here.{' '}
-          <button onClick={checkEngine} className="underline text-gray-300 hover:text-white">
+          <button onClick={() => checkEngine()} className="underline text-gray-300 hover:text-white">
             Try again
           </button>
         </p>
