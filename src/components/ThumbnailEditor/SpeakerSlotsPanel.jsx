@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react'
+import { lazy, memo, Suspense, useRef, useState } from 'react'
 import { isDesktopVideoScanAvailable } from '../../services/videoScan'
 import { positionLabels } from '../../modules/thumbnail/layouts'
 const VideoScanModal = lazy(() => import('./VideoScanModal'))
@@ -13,7 +13,9 @@ function readFileAsDataUrl(e, callback) {
   e.target.value = ''
 }
 
-function SpeakerCard({
+// Memoised: a card only depends on its own speaker, and the parent passes stable handlers,
+// so edits elsewhere in the project skip it.
+const SpeakerCard = memo(function SpeakerCard({
   speaker,
   index,
   count,
@@ -198,7 +200,7 @@ function SpeakerCard({
       />
     </div>
   )
-}
+})
 
 function SpeakerSlotsPanel({
   project,

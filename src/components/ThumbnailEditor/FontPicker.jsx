@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { closestWeight, findStudioFont, fontsByCategory } from '../../data/studioFonts'
 
 const WEIGHT_BUTTONS = [
@@ -6,8 +7,11 @@ const WEIGHT_BUTTONS = [
   { weight: 900, label: 'Black' },
 ]
 
-/** Headline font list, each name shown in its own font, plus the weights that font has. */
-function FontPicker({ fontFamily, fontWeight, onChange }) {
+/**
+ * Headline font list, each name shown in its own font, plus the weights that font has.
+ * Memoised: it only depends on the font, not on the sliders around it.
+ */
+const FontPicker = memo(function FontPicker({ fontFamily, fontWeight, onChange }) {
   const current = findStudioFont(fontFamily)
   const currentWeight = current ? closestWeight(current, fontWeight) : 700
 
@@ -76,6 +80,6 @@ function FontPicker({ fontFamily, fontWeight, onChange }) {
       </div>
     </div>
   )
-}
+})
 
 export default FontPicker

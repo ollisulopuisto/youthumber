@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react'
 import { useUndoableState } from './hooks/useUndoableState'
+import { useStableCallback } from './hooks/useStableCallback'
 import Toolbar from './components/ThumbnailEditor/Toolbar'
 import ThumbnailStudioCanvas from './components/ThumbnailEditor/ThumbnailStudioCanvas'
 import LayersPanel from './components/ThumbnailEditor/LayersPanel'
@@ -511,6 +512,17 @@ function App() {
     setProject((prev) => setStickerBehindText(prev, stickerId, behind))
   }
 
+  // Stable identities for the memoised speaker cards, so editing text, stickers or the
+  // background doesn't re-render every card on each keystroke or slider tick.
+  const speakerCardHandlers = {
+    onUploadSpeakerSource: useStableCallback(handleUploadSpeakerSource),
+    onTriggerRemoveBackground: useStableCallback(handleTriggerRemoveBackground),
+    onAutoFrameSpeaker: useStableCallback(handleAutoFrameSpeaker),
+    onRemoveSpeaker: useStableCallback(handleRemoveSpeaker),
+    onRenameSpeaker: useStableCallback(handleRenameSpeaker),
+    onMoveSpeaker: useStableCallback(handleMoveSpeaker),
+  }
+
   // Layer Actions
   const handleReorderLayers = (newOrder) => {
     setProject((prev) => reorderLayers(prev, newOrder))
@@ -621,12 +633,7 @@ function App() {
         <div className="shrink-0">
           <SpeakerSlotsPanel
             project={project}
-            onUploadSpeakerSource={handleUploadSpeakerSource}
-            onTriggerRemoveBackground={handleTriggerRemoveBackground}
-            onAutoFrameSpeaker={handleAutoFrameSpeaker}
-            onRemoveSpeaker={handleRemoveSpeaker}
-            onRenameSpeaker={handleRenameSpeaker}
-            onMoveSpeaker={handleMoveSpeaker}
+            {...speakerCardHandlers}
             onUploadBackgroundImage={handleUploadBackgroundImage}
             onClearBackgroundImage={handleClearBackgroundImage}
           />

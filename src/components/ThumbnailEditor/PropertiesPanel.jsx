@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { backgroundGradientPresets } from '../../data/backgroundGradients'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { cssGradient } from '../../modules/thumbnail/backgroundRender'
@@ -122,6 +123,12 @@ function PropertiesPanel({
   onFitSticker,
   onStickerBehindText,
 }) {
+  // Stable per selection, so the memoised font list doesn't re-render on every edit.
+  const updateSelectedText = useCallback(
+    (updates) => updateAnyText(updates, selectedLayer),
+    [updateAnyText, selectedLayer]
+  )
+
   if (!selectedLayer) {
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center text-center text-gray-500 text-xs h-full shadow-lg">
@@ -169,7 +176,7 @@ function PropertiesPanel({
   const extraText = project.textLayers?.find((t) => t.id === selectedLayer)
   if (selectedLayer === 'text' || extraText) {
     const textState = extraText ?? project.text
-    const onUpdateText = extraText ? (updates) => updateAnyText(updates, extraText.id) : updateAnyText
+    const onUpdateText = extraText ? updateSelectedText : updateAnyText
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
         <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
