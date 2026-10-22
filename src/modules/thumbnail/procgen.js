@@ -99,6 +99,7 @@ function pixelPass(ctx, w, h, makeCanvas, maxSide, shade) {
   sctx.putImageData(img, 0, 0)
   if ('imageSmoothingEnabled' in ctx || ctx.imageSmoothingEnabled === undefined) ctx.imageSmoothingEnabled = true
   ctx.drawImage(small, 0, 0, w, h)
+  small.width = small.height = 0
 }
 
 const mix = (a, b, t) => a.map((c, k) => Math.round(c + (b[k] - c) * t))
@@ -376,5 +377,9 @@ export function renderProcgen(id, { colors, seed, width, height, makeCanvas = br
   const canvas = makeCanvas(width, height)
   const ctx = canvas.getContext('2d')
   generate(ctx, width, height, colors, mulberry32(seed * 7919 + 13), { seed, makeCanvas })
-  return canvas.toDataURL('image/jpeg', 0.92)
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+  // WebKit keeps a canvas's bitmap until the element is collected; a full-size render
+  // is 8 MB, so release it now rather than whenever GC gets to the wrapper.
+  canvas.width = canvas.height = 0
+  return dataUrl
 }

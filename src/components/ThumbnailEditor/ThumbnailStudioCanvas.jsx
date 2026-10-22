@@ -305,7 +305,10 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       entry.img.applyFilters()
       entry.blur = blur
       entry.brightness = brightness
+      const replaced = canvas.backgroundImage
       canvas.setBackgroundImage(entry.img, () => canvas.requestRenderAll())
+      // A filtered photo holds a full-size WebGL texture and two canvases until disposed.
+      if (replaced && replaced !== entry.img && replaced instanceof fabric.Image) replaced.dispose()
     }
 
     if (cached?.url === bg.imageUrl) {
@@ -313,6 +316,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       return
     }
 
+    // A photo replaced while off screen (e.g. under a gradient) is never swapped out below.
+    if (cached?.img && canvasAtCall.backgroundImage !== cached.img) cached.img.dispose()
     const entry = { url: bg.imageUrl, img: null, blur: null, brightness: null }
     backgroundImageRef.current = entry
     fabric.Image.fromURL(
@@ -406,15 +411,22 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       fabric.Image.fromURL(
         imageSrc,
         (img) => {
-          if (!fabricCanvasRef.current) return
+          const live = fabricCanvasRef.current
+          if (!live || live !== canvas) return
+          // Drop a load that a newer image or a hide overtook, or that another sync added.
+          const latest = latestProjectRef.current.speakers.find((s) => s.id === layerId)
+          if (!latest?.visible || (latest.cutoutUrl || latest.sourceImageUrl) !== imageSrc) return
+          if (live.getObjects().some((o) => o.data?.layerId === layerId)) return
+          // Auto-frame may have moved the speaker while the image decoded.
+          const { transform } = latest
           img.set({
             data: { layerId, currentSrc: imageSrc },
-            left: speakerState.transform.x,
-            top: speakerState.transform.y,
-            scaleX: speakerState.transform.scaleX,
-            scaleY: speakerState.transform.scaleY,
-            angle: speakerState.transform.rotation,
-            flipX: !!speakerState.transform.flipX,
+            left: transform.x,
+            top: transform.y,
+            scaleX: transform.scaleX,
+            scaleY: transform.scaleY,
+            angle: transform.rotation,
+            flipX: !!transform.flipX,
             originX: 'center',
             originY: 'center',
             // Clicks on a cutout's transparent area reach whatever is visible below it.

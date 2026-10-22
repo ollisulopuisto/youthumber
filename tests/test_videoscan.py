@@ -1,5 +1,6 @@
 """Unit tests for video frame scanning: pure ranking/clustering logic and endpoint error paths."""
 
+import threading
 import time
 
 import pytest
@@ -303,3 +304,32 @@ def test_scan_job_reports_a_failed_scan(
 
 def test_scan_job_unknown_id_is_404(mac_client: TestClient) -> None:
     assert mac_client.get("/scan-video-speakers/nope").status_code == 404
+
+
+def test_finished_scan_nobody_fetched_is_dropped_after_a_while(
+    mac_client: TestClient, monkeypatch, tmp_path
+) -> None:
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+    finished = threading.Event()
+
+    def fake_scan(*args, **kwargs):
+        return []
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", fake_scan)
+    monkeypatch.setattr("youthumber.server.SCAN_JOB_TTL_SECONDS", -1)
+    original_thread = threading.Thread
+
+    class SignallingThread(original_thread):
+        def run(self):
+            super().run()
+            finished.set()
+
+    monkeypatch.setattr("youthumber.server.threading.Thread", SignallingThread)
+
+    job_id = mac_client.post("/scan-video-speakers", json={"path": str(video)}).json()[
+        "jobId"
+    ]
+    assert finished.wait(2)
+
+    assert mac_client.get(f"/scan-video-speakers/{job_id}").status_code == 404

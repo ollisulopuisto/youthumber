@@ -96,7 +96,13 @@ export async function compositeSourceWithMask(
   const outputImageData = new ImageData(compositedRgba, width, height)
   ctx.putImageData(outputImageData, 0, 0)
 
-  return canvas.toDataURL('image/png')
+  const dataUrl = canvas.toDataURL('image/png')
+  // WebKit (the desktop window) frees a canvas's bitmap only when the element is
+  // collected, which lags far behind its few-KB wrapper: every mask-slider tick left
+  // two full-HD bitmaps waiting. Releasing them here keeps that bounded.
+  canvas.width = canvas.height = 0
+  maskCanvas.width = maskCanvas.height = 0
+  return dataUrl
 }
 
 export async function compositeFromDataUrls(

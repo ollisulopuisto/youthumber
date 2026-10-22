@@ -156,6 +156,19 @@ MAX_HANDS = 8
 HAND_JOINT_MIN_CONFIDENCE = 0.3
 
 
+_context = None
+
+
+def _ci_context():
+    """One Core Image context for every cutout: creating one compiles Metal pipelines."""
+    global _context
+    if _context is None:
+        import Quartz
+
+        _context = Quartz.CIContext.context()
+    return _context
+
+
 def _hand_points(observations, width: int, height: int) -> list[tuple[float, float]]:
     """Pixel positions (top-left origin) of every confidently detected hand joint."""
     import Vision
@@ -220,7 +233,7 @@ def _vision_person(
     pixel_buffer = observation.pixelBuffer()
 
     ci_img = Quartz.CIImage.imageWithCVPixelBuffer_(pixel_buffer)
-    ci_context = Quartz.CIContext.context()
+    ci_context = _ci_context()
     cg_mask = ci_context.createCGImage_fromRect_(ci_img, ci_img.extent())
 
     data = Quartz.CFDataCreateMutable(None, 0)

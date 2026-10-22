@@ -38,6 +38,8 @@ from .videoscan import (
 
 logger = logging.getLogger(__name__)
 
+SCAN_JOB_TTL_SECONDS = 600  # how long an unfetched finished scan is kept
+
 
 class RemovalRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded source image or data URL")
@@ -282,8 +284,20 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     # 60 s ("Load failed") while the scan carries on unseen. So POST starts a job in a
     # thread and returns at once; the page polls GET for progress and the result.
     scan_jobs: dict[str, dict[str, Any]] = {}
+    scan_finished_at: dict[str, float] = {}
 
-    def run_scan_job(job: dict[str, Any], req: VideoSpeakerScanRequest) -> None:
+    def prune_scan_jobs() -> None:
+        # A finished scan nobody fetched (the page reloaded or closed mid-scan) would
+        # otherwise keep its ~70 thumbnails for the life of the process.
+        cutoff = time.time() - SCAN_JOB_TTL_SECONDS
+        for job_id, finished in list(scan_finished_at.items()):
+            if finished < cutoff:
+                scan_jobs.pop(job_id, None)
+                del scan_finished_at[job_id]
+
+    def run_scan_job(
+        job_id: str, job: dict[str, Any], req: VideoSpeakerScanRequest
+    ) -> None:
         def report(fraction: float) -> None:
             job["progress"] = round(min(max(fraction, 0.0), 1.0), 3)
 
@@ -301,6 +315,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             logger.exception("Multi-speaker video scan failed")
             job["error"] = f"Video scan failed: {err}"
             job["status"] = "error"
+        finally:
+            if job_id in scan_jobs:
+                scan_finished_at[job_id] = time.time()
 
     @app.post("/scan-video-speakers", status_code=202)
     def scan_video_speakers(req: VideoSpeakerScanRequest) -> dict[str, str]:
@@ -312,20 +329,25 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 detail="Video scanning requires macOS AVFoundation/Vision",
             )
 
+        prune_scan_jobs()
         job_id = uuid.uuid4().hex
         job: dict[str, Any] = {"status": "running", "progress": 0.0}
         scan_jobs[job_id] = job
-        threading.Thread(target=run_scan_job, args=(job, req), daemon=True).start()
+        threading.Thread(
+            target=run_scan_job, args=(job_id, job, req), daemon=True
+        ).start()
         return {"jobId": job_id}
 
     @app.get("/scan-video-speakers/{job_id}")
     def scan_job_status(job_id: str) -> dict[str, Any]:
+        prune_scan_jobs()
         job = scan_jobs.get(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail="Unknown scan job")
         if job["status"] != "running":
             # Delivered once; a finished scan holds ~70 thumbnails in memory.
             del scan_jobs[job_id]
+            scan_finished_at.pop(job_id, None)
         return dict(job)
 
     @app.post("/grab-frame")
