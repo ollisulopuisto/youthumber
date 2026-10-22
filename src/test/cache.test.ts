@@ -43,6 +43,43 @@ describe('CachedBackgroundRemover', () => {
     expect(cachedRemover.getCacheSize()).toBe(2)
   })
 
+  it('drops the oldest results once the cutouts it holds exceed the byte budget', async () => {
+    // Each removal of a new photo adds a multi-MB cutout; over a session that added up.
+    const inner = {
+      id: 'big',
+      name: 'Big',
+      isAvailable: async () => true,
+      remove: async (image: string) => ({
+        image: `cutout-${image}`.padEnd(1000, 'x'),
+        mask: `mask-${image}`.padEnd(500, 'x'),
+        source: image,
+      }),
+    }
+    const cachedRemover = new CachedBackgroundRemover(inner, 50, 3200)
+
+    await cachedRemover.remove('photo1')
+    await cachedRemover.remove('photo2')
+    await cachedRemover.remove('photo3')
+
+    expect(cachedRemover.getCacheSize()).toBe(2)
+    expect(cachedRemover.getCacheBytes()).toBe(3000)
+    expect(cachedRemover.hasCached('photo1')).toBe(false)
+    expect(cachedRemover.hasCached('photo3')).toBe(true)
+  })
+
+  it('does not count or keep the source photo, but still returns it on a hit', async () => {
+    const inner = new MockBackgroundRemover()
+    const cachedRemover = new CachedBackgroundRemover(inner)
+    const photo = 'data:image/png;base64,' + 'p'.repeat(5000)
+
+    await cachedRemover.remove(photo)
+    const hit = await cachedRemover.remove(photo)
+
+    expect(cachedRemover.getCacheBytes()).toBeLessThan(1000)
+    expect(hit.source).toBe(photo)
+    expect(hit.metadata?.cached).toBe(true)
+  })
+
   it('allows clearing the cache', async () => {
     const inner = new MockBackgroundRemover()
     const removeSpy = vi.spyOn(inner, 'remove')

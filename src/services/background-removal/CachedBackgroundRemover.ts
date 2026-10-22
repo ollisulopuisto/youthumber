@@ -1,5 +1,10 @@
 import type { BackgroundRemover, ImageSource, RemovalOptions, RemovalResult } from './types'
 
+// A full-HD cutout PNG plus its masks is 5–10 MB of data URL; this holds the last
+// handful of removals (a re-run on the same photo is free) without the cache itself
+// growing into hundreds of MB over a long session.
+const DEFAULT_MAX_BYTES = 64 * 1024 * 1024
+
 /**
  * Generates a simple 32-bit FNV-1a hash string for fast cache key generation
  */
@@ -31,18 +36,32 @@ function serializeSource(source: ImageSource): string {
   return 'unknown_source'
 }
 
+function byteSize(value: unknown): number {
+  if (typeof value === 'string') return value.length
+  if (value instanceof Blob) return value.size
+  return 0
+}
+
+/** What a cached result costs to keep: its cutout and masks. */
+function resultBytes(result: RemovalResult): number {
+  return byteSize(result.image) + byteSize(result.mask) + byteSize(result.objectsMask)
+}
+
 export class CachedBackgroundRemover implements BackgroundRemover {
   readonly id: string
   readonly name: string
   private readonly inner: BackgroundRemover
   private readonly cache: Map<string, RemovalResult> = new Map()
   private readonly maxCacheEntries: number
+  private readonly maxCacheBytes: number
+  private cacheBytes = 0
 
-  constructor(inner: BackgroundRemover, maxEntries = 50) {
+  constructor(inner: BackgroundRemover, maxEntries = 50, maxBytes = DEFAULT_MAX_BYTES) {
     this.inner = inner
     this.id = `cached-${inner.id}`
     this.name = `Cached ${inner.name}`
     this.maxCacheEntries = maxEntries
+    this.maxCacheBytes = maxBytes
   }
 
   async isAvailable(): Promise<boolean> {
@@ -64,8 +83,14 @@ export class CachedBackgroundRemover implements BackgroundRemover {
     return this.cache.size
   }
 
+  /** Characters of data URL (or Blob bytes) the cache holds. */
+  getCacheBytes(): number {
+    return this.cacheBytes
+  }
+
   clearCache(): void {
     this.cache.clear()
+    this.cacheBytes = 0
   }
 
   hasCached(image: ImageSource, options: RemovalOptions = {}): boolean {
@@ -73,13 +98,24 @@ export class CachedBackgroundRemover implements BackgroundRemover {
     return this.cache.has(key)
   }
 
+  private evict(key: string): void {
+    const entry = this.cache.get(key)
+    if (!entry) return
+    this.cache.delete(key)
+    this.cacheBytes -= resultBytes(entry)
+  }
+
   async remove(image: ImageSource, options: RemovalOptions = {}): Promise<RemovalResult> {
     const cacheKey = this.computeCacheKey(image, options)
 
     const cached = this.cache.get(cacheKey)
     if (cached) {
+      // Re-insert so eviction is least-recently-used.
+      this.cache.delete(cacheKey)
+      this.cache.set(cacheKey, cached)
       return {
         ...cached,
+        source: image,
         metadata: {
           ...cached.metadata,
           backendId: cached.metadata?.backendId ?? this.inner.id,
@@ -90,15 +126,22 @@ export class CachedBackgroundRemover implements BackgroundRemover {
 
     const result = await this.inner.remove(image, options)
 
-    // Store in cache (evict oldest if over limit)
-    if (this.cache.size >= this.maxCacheEntries) {
-      const oldestKey = this.cache.keys().next().value
-      if (oldestKey) {
-        this.cache.delete(oldestKey)
-      }
+    // The source photo is the caller's to keep; caching it too would pin every
+    // photo ever cut out, even after it left the project.
+    const stored: RemovalResult = { ...result }
+    delete stored.source
+    const bytes = resultBytes(stored)
+
+    // Evict oldest entries until the new one fits (by count and by size).
+    while (
+      this.cache.size > 0 &&
+      (this.cache.size >= this.maxCacheEntries || this.cacheBytes + bytes > this.maxCacheBytes)
+    ) {
+      this.evict(this.cache.keys().next().value!)
     }
 
-    this.cache.set(cacheKey, result)
+    this.cache.set(cacheKey, stored)
+    this.cacheBytes += bytes
     return result
   }
 }

@@ -2,6 +2,41 @@ import { useCallback, useRef, useState } from 'react'
 
 const GROUP_WINDOW_MS = 500
 const HISTORY_LIMIT = 60
+// Undo entries share every unchanged object and string with the live project, so an
+// ordinary edit costs a few hundred bytes. An edit that makes a new image (a cutout from
+// the mask sliders, a texture, an upload) leaves its multi-MB data URL in the entries
+// before it; 60 such entries held hundreds of MB. Once the data URLs that only the
+// history still references exceed this many characters, the oldest entries go.
+const HISTORY_BYTE_BUDGET = 96 * 1024 * 1024
+const HEAVY_STRING_MIN = 4096
+
+/** Every string of HEAVY_STRING_MIN+ characters (data URLs) reachable from `value`. */
+export function heavyStrings(value, out = new Set()) {
+  if (typeof value === 'string') {
+    if (value.length >= HEAVY_STRING_MIN) out.add(value)
+  } else if (value && typeof value === 'object') {
+    for (const child of Object.values(value)) heavyStrings(child, out)
+  }
+  return out
+}
+
+/**
+ * The newest entries of `stack` whose data URLs, beyond those `live` shares, fit in
+ * `budget` characters. The newest entry is always kept so one undo stays possible.
+ */
+export function trimHistory(stack, live, budget = HISTORY_BYTE_BUDGET) {
+  const seen = heavyStrings(live)
+  let bytes = 0
+  for (let i = stack.length - 1; i >= 0; i--) {
+    for (const text of heavyStrings(stack[i])) {
+      if (seen.has(text)) continue
+      seen.add(text)
+      bytes += text.length
+    }
+    if (bytes > budget && i < stack.length - 1) return stack.slice(i + 1)
+  }
+  return stack
+}
 
 /** State with bounded undo/redo history; rapid edits are grouped into one step. */
 export function useUndoableState(initialValue) {
@@ -23,6 +58,7 @@ export function useUndoableState(initialValue) {
     if (!lastChangeAt.current || now - lastChangeAt.current > GROUP_WINDOW_MS) {
       undoStack.current.push(previous)
       if (undoStack.current.length > HISTORY_LIMIT) undoStack.current.shift()
+      undoStack.current = trimHistory(undoStack.current, next)
     }
     lastChangeAt.current = now
     redoStack.current = []
