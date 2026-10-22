@@ -86,18 +86,26 @@ jobs:
           kill "$pid" || true
           if [ "$status" != 0 ]; then cat server.log; exit 1; fi
 
+      - name: Create DMG
+        run: |
+          staging=$(mktemp -d)
+          cp -R release/YouThumber.app "$staging/"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname YouThumber -srcfolder "$staging" -ov -format UDZO \
+            "release/YouThumber-macOS-arm64.dmg"
+
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
           name: YouThumber-macOS-arm64-${{ steps.version.outputs.version }}-${{ github.sha }}
-          path: release/YouThumber-macOS-*.zip
+          path: release/YouThumber-macOS-arm64.dmg
           if-no-files-found: error
 
       - name: Publish to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: release/YouThumber-macOS-*.zip
+          files: release/YouThumber-macOS-arm64.dmg
           draft: false
           prerelease: false
           generate_release_notes: true
