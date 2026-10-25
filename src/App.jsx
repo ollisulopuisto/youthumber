@@ -15,7 +15,8 @@ import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
 import { createExportFilename } from './modules/thumbnail/exportFilename'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
-import { commandForShortcut, isCommandEnabled } from './modules/commands/commands'
+import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
+import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
 
 import {
   createDefaultProject,
@@ -138,6 +139,8 @@ function Editor({ initialProject }) {
   const [showPalette, setShowPalette] = useState(false)
   const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'hd' })
   const canvasRef = useRef(null)
+  const canvasAreaRef = useRef(null)
+  const [selectionRect, setSelectionRect] = useState(null)
 
   // Auto-save project changes to local storage
   useEffect(() => {
@@ -687,7 +690,7 @@ function Editor({ initialProject }) {
           rather than squeezing it (with 4 speaker cards it shrank to a sliver). */}
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {/* 2. Top / Canvas Area (Center 1280x720 Canvas) */}
-        <div className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden">
+        <div ref={canvasAreaRef} className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden">
           <div className="w-full max-w-5xl h-full flex items-center justify-center">
             <ThumbnailStudioCanvas
               ref={canvasRef}
@@ -698,8 +701,17 @@ function Editor({ initialProject }) {
               onUpdateTextLayer={handleUpdateText}
               onUpdateSticker={handleUpdateSticker}
               onUpdateBug={handleUpdateBug}
+              onSelectionRectChange={setSelectionRect}
             />
           </div>
+          <SelectionActionBar
+            rect={selectionRect}
+            viewportRef={canvasAreaRef}
+            label={selectedLayer ? layerLabel(selectedLayer, project) : ''}
+            commands={selectedLayer ? barCommands(selectedLayer, project) : []}
+            isEnabled={(command) => isCommandEnabled(command, { layerId: selectedLayer, project, canUndo, canRedo })}
+            onRun={(command) => runCommand(command)}
+          />
         </div>
 
         {/* 3. Middle Section: Layers and Properties */}
