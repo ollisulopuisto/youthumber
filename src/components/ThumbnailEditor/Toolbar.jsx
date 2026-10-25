@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { MAX_SPEAKERS, getLayoutsForCount } from '../../modules/thumbnail/layouts'
 import { defaultRemoverRegistry } from '../../services/background-removal'
 import { loadShowPresetsPersistent } from '../../modules/shows/showPreferences'
+import { ariaKeyShortcuts, shortcutTitle } from '../../modules/shortcuts/shortcuts'
 
 const SPEAKER_COUNTS = Array.from({ length: MAX_SPEAKERS }, (_, i) => i + 1)
 
@@ -18,6 +19,9 @@ function Toolbar({
   canRedo,
   onOpenProjects,
   onExport,
+  exportSettings,
+  onChangeExportSettings,
+  onOpenShortcuts,
   onSetSpeakerCount,
 }) {
   const [activeRemoverId, setActiveRemoverId] = useState(() => {
@@ -29,8 +33,6 @@ function Toolbar({
   })
   const [availableRemovers, setAvailableRemovers] = useState([])
   const [showPresets, setShowPresets] = useState([])
-  const [exportFormat, setExportFormat] = useState('jpeg')
-  const [exportResolution, setExportResolution] = useState('hd')
   const [coreMLStatus, setCoreMLStatus] = useState('checking')
 
   useEffect(() => {
@@ -249,8 +251,9 @@ function Toolbar({
           onClick={onUndo}
           disabled={!canUndo}
           className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Undo (⌘Z / Ctrl+Z)"
+          title={shortcutTitle('undo')}
           aria-label="Undo"
+          aria-keyshortcuts={ariaKeyShortcuts('undo')}
         >
           ↶
         </button>
@@ -258,8 +261,9 @@ function Toolbar({
           onClick={onRedo}
           disabled={!canRedo}
           className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Redo (⌘⇧Z / Ctrl+Y)"
+          title={shortcutTitle('redo')}
           aria-label="Redo"
+          aria-keyshortcuts={ariaKeyShortcuts('redo')}
         >
           ↷
         </button>
@@ -267,7 +271,8 @@ function Toolbar({
         <button
           onClick={onOpenProjects}
           className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
-          title="Open Project Manager"
+          title={shortcutTitle('projects', 'Open Project Manager')}
+          aria-keyshortcuts={ariaKeyShortcuts('projects')}
         >
           Projects
         </button>
@@ -275,7 +280,8 @@ function Toolbar({
         <button
           onClick={onSaveProject}
           className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
-          title="Save to local storage"
+          title={shortcutTitle('save', 'Save to local storage')}
+          aria-keyshortcuts={ariaKeyShortcuts('save')}
         >
           Save
         </button>
@@ -284,8 +290,8 @@ function Toolbar({
 
         {/* Format Selector */}
         <select
-          value={exportFormat}
-          onChange={(e) => setExportFormat(e.target.value)}
+          value={exportSettings.format}
+          onChange={(e) => onChangeExportSettings({ format: e.target.value })}
           className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
         >
           <option value="jpeg">JPG</option>
@@ -294,8 +300,8 @@ function Toolbar({
 
         {/* Resolution Selector */}
         <select
-          value={exportResolution}
-          onChange={(e) => setExportResolution(e.target.value)}
+          value={exportSettings.resolution}
+          onChange={(e) => onChangeExportSettings({ resolution: e.target.value })}
           className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
           title="Export resolution"
         >
@@ -305,10 +311,22 @@ function Toolbar({
 
         {/* Export Button */}
         <button
-          onClick={() => onExport({ format: exportFormat, quality: 0.95, resolution: exportResolution })}
+          onClick={onExport}
+          title={shortcutTitle('export')}
+          aria-keyshortcuts={ariaKeyShortcuts('export')}
           className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5"
         >
-          <span>Export {exportResolution === 'fullhd' ? fullHdDimensions : hdDimensions}</span>
+          <span>Export {exportSettings.resolution === 'fullhd' ? fullHdDimensions : hdDimensions}</span>
+        </button>
+
+        <button
+          onClick={onOpenShortcuts}
+          className="w-7 h-7 text-sm font-bold rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+          title={shortcutTitle('help', 'Keyboard shortcuts')}
+          aria-label="Keyboard shortcuts"
+          aria-keyshortcuts={ariaKeyShortcuts('help')}
+        >
+          ?
         </button>
       </div>
     </header>

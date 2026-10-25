@@ -1,5 +1,6 @@
 import { findElement } from '../../data/elements'
 import { LOUD_COLORS } from '../../modules/thumbnail/textEffects'
+import { ariaKeyShortcuts, shortcutTitle } from '../../modules/shortcuts/shortcuts'
 import ElementPreview from './ElementPreview'
 
 function ColorRow({ label, value, onChange }) {
@@ -68,11 +69,18 @@ function StickerPanel({ project, sticker, onUpdate, onRemove, onDuplicate, onFit
           <h3 className="font-bold uppercase tracking-wider text-pink-400 text-[11px] truncate">{spec.name}</h3>
         </div>
         <div className="flex gap-1 shrink-0">
-          <button onClick={() => onDuplicate(sticker.id)} className={BUTTON}>
+          <button
+            onClick={() => onDuplicate(sticker.id)}
+            className={BUTTON}
+            title={shortcutTitle('duplicate', 'Duplicate')}
+            aria-keyshortcuts={ariaKeyShortcuts('duplicate')}
+          >
             Duplicate
           </button>
           <button
             onClick={() => onRemove(sticker.id)}
+            title={shortcutTitle('delete', 'Delete')}
+            aria-keyshortcuts={ariaKeyShortcuts('delete')}
             className="text-[10px] px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-100 border border-red-800"
           >
             Delete
