@@ -2,11 +2,13 @@ import { useCallback } from 'react'
 import { backgroundGradientPresets } from '../../data/backgroundGradients'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { cssGradient } from '../../modules/thumbnail/backgroundRender'
+import { ariaKeyShortcuts, shortcutTitle } from '../../modules/shortcuts/shortcuts'
 import FontPicker from './FontPicker'
 import TexturePicker from './TexturePicker'
 import DecorPanel from './DecorPanel'
 import BugPanel from './BugPanel'
 import StickerPanel from './StickerPanel'
+import Kbd from './Kbd'
 import { TEXT_LOOKS } from '../../data/textLooks'
 import {
   ACCENT_LINE_MODES,
@@ -137,6 +139,9 @@ function PropertiesPanel({
         <p className="text-[11px] mt-1 text-gray-500">
           Click an element on the canvas or in the Layers list to adjust its properties.
         </p>
+        <p className="text-[11px] mt-2 text-gray-500">
+          Press <Kbd>?</Kbd> for keyboard shortcuts.
+        </p>
       </div>
     )
   }
@@ -187,12 +192,16 @@ function PropertiesPanel({
             <div className="flex gap-1">
               <button
                 onClick={() => onDuplicateText(extraText.id)}
+                title={shortcutTitle('duplicate', 'Duplicate')}
+                aria-keyshortcuts={ariaKeyShortcuts('duplicate')}
                 className="text-[10px] px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700"
               >
                 Duplicate
               </button>
               <button
                 onClick={() => onRemoveText(extraText.id)}
+                title={shortcutTitle('delete', 'Delete')}
+                aria-keyshortcuts={ariaKeyShortcuts('delete')}
                 className="text-[10px] px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-100 border border-red-800"
               >
                 Delete

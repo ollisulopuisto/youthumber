@@ -1,3 +1,5 @@
+import { ariaKeyShortcuts, shortcutTitle } from '../../modules/shortcuts/shortcuts'
+
 const BUTTON = 'text-[10px] px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700'
 
 function Slider({ label, value, min, max, step, format, onChange }) {
@@ -31,11 +33,18 @@ function BugPanel({ bug, onUpdate, onRemove, onDuplicate }) {
           <h3 className="font-bold uppercase tracking-wider text-violet-400 text-[11px] truncate">{bug.name}</h3>
         </div>
         <div className="flex gap-1 shrink-0">
-          <button onClick={() => onDuplicate(bug.id)} className={BUTTON}>
+          <button
+            onClick={() => onDuplicate(bug.id)}
+            className={BUTTON}
+            title={shortcutTitle('duplicate', 'Duplicate')}
+            aria-keyshortcuts={ariaKeyShortcuts('duplicate')}
+          >
             Duplicate
           </button>
           <button
             onClick={() => onRemove(bug.id)}
+            title={shortcutTitle('delete', 'Delete')}
+            aria-keyshortcuts={ariaKeyShortcuts('delete')}
             className="text-[10px] px-2 py-1 rounded bg-red-900/60 hover:bg-red-800 text-red-100 border border-red-800"
           >
             Delete

@@ -9,10 +9,12 @@ import SpeakerSlotsPanel from './components/ThumbnailEditor/SpeakerSlotsPanel'
 const ProjectGalleryModal = lazy(() => import('./components/ThumbnailEditor/ProjectGalleryModal'))
 const ShowPresetModal = lazy(() => import('./components/ThumbnailEditor/ShowPresetModal'))
 const ElementPickerModal = lazy(() => import('./components/ThumbnailEditor/ElementPickerModal'))
+const ShortcutsModal = lazy(() => import('./components/ThumbnailEditor/ShortcutsModal'))
 import { findElement } from './data/elements'
 import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail/elementFit'
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
 import { createExportFilename } from './modules/thumbnail/exportFilename'
+import { matchShortcut } from './modules/shortcuts/shortcuts'
 
 import {
   createDefaultProject,
@@ -40,6 +42,7 @@ import {
   removeTextLayer,
   newTextLayerId,
   isTextLayer,
+  isExtraTextLayer,
   isBugLayer,
   createBug,
   addBug,
@@ -129,28 +132,9 @@ function Editor({ initialProject }) {
   const [showProjectsModal, setShowProjectsModal] = useState(false)
   const [showShowsModal, setShowShowsModal] = useState(false)
   const [showElementPicker, setShowElementPicker] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'hd' })
   const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const handleUndoShortcut = (event) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey) return
-      const target = event.target
-      if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName)) return
-      const key = event.key.toLowerCase()
-      if (key === 'z' && event.shiftKey) {
-        event.preventDefault()
-        redo()
-      } else if (key === 'z') {
-        event.preventDefault()
-        undo()
-      } else if (key === 'y') {
-        event.preventDefault()
-        redo()
-      }
-    }
-    window.addEventListener('keydown', handleUndoShortcut)
-    return () => window.removeEventListener('keydown', handleUndoShortcut)
-  }, [undo, redo])
 
   // Auto-save project changes to local storage
   useEffect(() => {
@@ -230,8 +214,10 @@ function Editor({ initialProject }) {
     }
   }
 
-  const handleExport = async ({ format = 'jpeg', quality = 0.95, resolution = 'hd' }) => {
+  const handleExport = async () => {
     if (!canvasRef.current) return
+    const { format, resolution } = exportSettings
+    const quality = 0.95
     const scale = resolution === 'fullhd' ? 1.5 : 1
     const exportWidth = Math.round(project.canvas.width * scale)
     const exportHeight = Math.round(project.canvas.height * scale)
@@ -569,6 +555,51 @@ function Editor({ initialProject }) {
     }
   }
 
+  // Keyboard shortcuts: the keys themselves live in modules/shortcuts, next to the labels the
+  // toolbar and the shortcuts sheet show for them.
+  const anyModalOpen = showProjectsModal || showShowsModal || showElementPicker || showShortcuts
+
+  const handleDeleteSelected = () => {
+    if (!selectedLayer) return
+    if (isExtraTextLayer(selectedLayer)) handleRemoveText(selectedLayer)
+    else if (isBugLayer(selectedLayer)) handleRemoveBug(selectedLayer)
+    else if (isStickerLayer(selectedLayer)) handleRemoveSticker(selectedLayer)
+  }
+
+  const handleDuplicateSelected = () => {
+    if (!selectedLayer) return
+    if (isExtraTextLayer(selectedLayer)) handleDuplicateText(selectedLayer)
+    else if (isBugLayer(selectedLayer)) handleDuplicateBug(selectedLayer)
+    else if (isStickerLayer(selectedLayer)) handleDuplicateSticker(selectedLayer)
+  }
+
+  const closeShortcuts = useCallback(() => setShowShortcuts(false), [])
+
+  const shortcutActions = {
+    undo,
+    redo,
+    save: handleSaveProject,
+    export: handleExport,
+    projects: () => setShowProjectsModal(true),
+    duplicate: handleDuplicateSelected,
+    delete: handleDeleteSelected,
+    help: () => setShowShortcuts(true),
+  }
+
+  const handleShortcutKey = useStableCallback((event) => {
+    // Open dialogs handle their own keys.
+    if (anyModalOpen || event.defaultPrevented) return
+    const id = matchShortcut(event)
+    if (!id) return
+    event.preventDefault()
+    shortcutActions[id]()
+  })
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleShortcutKey)
+    return () => window.removeEventListener('keydown', handleShortcutKey)
+  }, [handleShortcutKey])
+
   return (
     <div className="flex flex-col h-screen w-screen bg-gray-950 text-gray-100 overflow-hidden font-sans select-none">
       {/* 1. Header Toolbar */}
@@ -585,6 +616,9 @@ function Editor({ initialProject }) {
         canRedo={canRedo}
         onOpenProjects={() => setShowProjectsModal(true)}
         onExport={handleExport}
+        exportSettings={exportSettings}
+        onChangeExportSettings={(changes) => setExportSettings((prev) => ({ ...prev, ...changes }))}
+        onOpenShortcuts={() => setShowShortcuts(true)}
         onSetSpeakerCount={handleSetSpeakerCount}
       />
 
@@ -669,6 +703,8 @@ function Editor({ initialProject }) {
       {showElementPicker && (
         <ElementPickerModal onPick={handleAddElement} onClose={() => setShowElementPicker(false)} />
       )}
+
+      {showShortcuts && <ShortcutsModal onClose={closeShortcuts} />}
 
       {/* Show Preset Preferences Modal */}
       {showShowsModal && (

@@ -28,7 +28,7 @@ Compose stunning 1280×720 thumbnails from dual speaker photos (1920×1080) with
 - **Error Boundaries**: Graceful error handling to prevent app crashes
 - **Data Migration**: Automatic schema migration ensures user data is preserved across app updates
 - **Third Text Line**: Optional extra text field below subtitle for additional information
-- **Keyboard Shortcuts**: Ctrl+S save, Ctrl+E export, Delete remove object, Ctrl+Z/Y undo/redo
+- **Keyboard Shortcuts**: ⌘/Ctrl+S save, ⌘/Ctrl+E export, ⌘/Ctrl+O projects, ⌘/Ctrl+D duplicate, Delete/Backspace remove, ⌘/Ctrl+Z / ⌘⇧Z / Ctrl+Y undo/redo. Press **?** (or the **?** button in the toolbar) for the full list; buttons show their shortcut in the tooltip
 - **Image Filters**: Real-time brightness, contrast, saturation, and blur adjustments
 - **Canvas Zoom**: Zoom controls (50%-200%) for detail editing
 - **Background Removal**: AI-powered background removal running entirely in browser (no API costs)
