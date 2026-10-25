@@ -77,7 +77,12 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Show preferences"
+    >
       <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl flex flex-col gap-4 text-white">
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <div className="flex items-center gap-2">

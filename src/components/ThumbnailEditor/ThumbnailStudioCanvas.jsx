@@ -19,6 +19,7 @@ import { skewXToSlant } from '../../modules/thumbnail/textEffects'
 import { DECOR_LAYER_ID, withDecorLayer } from '../../modules/thumbnail/decor'
 import { DecorLayer } from '../../modules/thumbnail/decorObject'
 import { installAlphaHitTest } from '../../modules/thumbnail/alphaHitTest'
+import { intersectRect } from '../../modules/thumbnail/floatingPosition'
 
 const MAX_BACKGROUND_SIDE = 4096
 // Fabric builds its WebGL filter backend at load time with a 2048px texture limit, so
@@ -38,6 +39,8 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     onUpdateSticker,
     onUpdateBug,
     onCanvasReady,
+    onSelectionRectChange,
+    onContextMenu,
   },
   ref
 ) {
@@ -51,6 +54,10 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   const isUpdatingFromStateRef = useRef(false)
   const latestProjectRef = useRef(project)
   latestProjectRef.current = project
+  // Read from Fabric's listeners, which are set up once per canvas.
+  const callbacksRef = useRef({})
+  callbacksRef.current = { onSelectionRectChange, onContextMenu }
+  const reportSelectionRef = useRef(() => {})
   const canvasWidth = project.canvas?.width || 1280
   const canvasHeight = project.canvas?.height || 720
   const aspectRatio = canvasWidth / canvasHeight
@@ -90,12 +97,46 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       return findTopmostTarget(e, skipGroup)
     }
 
+    // Where the selected object is on screen, for the selection bar: its bounding box in
+    // window pixels, cut to the canvas. Null while nothing is selected or it's being dragged.
+    let dragging = false
+    let lastRect = null
+    const sendRect = (rect) => {
+      const key = rect && `${rect.left},${rect.top},${rect.width},${rect.height}`
+      if (key === lastRect) return
+      lastRect = key
+      callbacksRef.current.onSelectionRectChange?.(rect)
+    }
+    const reportSelection = () => {
+      const active = canvas.getActiveObject()
+      if (!active || dragging || !canvas.upperCanvasEl) return sendRect(null)
+      const box = active.getBoundingRect(false, true)
+      const el = canvas.upperCanvasEl.getBoundingClientRect()
+      const rect = intersectRect(
+        { left: el.left + box.left, top: el.top + box.top, width: box.width, height: box.height },
+        { left: el.left, top: el.top, width: el.width, height: el.height }
+      )
+      sendRect(rect && {
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      })
+    }
+    reportSelectionRef.current = reportSelection
+    const hideSelection = () => sendRect(null)
+    const startDrag = () => {
+      dragging = true
+      hideSelection()
+    }
+
     // Selection event listeners
     canvas.on('selection:created', (e) => {
       const activeObj = e.selected?.[0]
       if (activeObj?.data?.layerId) {
         onSelectLayer?.(activeObj.data.layerId)
       }
+      reportSelection()
     })
 
     canvas.on('selection:updated', (e) => {
@@ -103,11 +144,40 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       if (activeObj?.data?.layerId) {
         onSelectLayer?.(activeObj.data.layerId)
       }
+      reportSelection()
     })
 
     canvas.on('selection:cleared', () => {
-      onSelectLayer?.(null)
+      // Not when the editor itself moved the selection off the canvas (see the sync below).
+      if (!isUpdatingFromStateRef.current) onSelectLayer?.(null)
+      hideSelection()
     })
+
+    canvas.on('mouse:down', hideSelection)
+    canvas.on('object:moving', startDrag)
+    canvas.on('object:scaling', startDrag)
+    canvas.on('object:rotating', startDrag)
+    canvas.on('mouse:up', () => {
+      dragging = false
+      reportSelection()
+    })
+    canvas.on('object:modified', reportSelection)
+
+    // Right-click: select what's under the pointer and open the editor's menu for it,
+    // instead of the browser's (or WebKit's) own.
+    const handleContextMenu = (e) => {
+      e.preventDefault()
+      const target = canvas.findTarget(e, false)
+      const layerId = target?.data?.layerId
+      if (!layerId || !target.selectable) return
+      if (canvas.getActiveObject() !== target) {
+        canvas.setActiveObject(target)
+        canvas.requestRenderAll()
+      }
+      callbacksRef.current.onContextMenu?.({ layerId, x: e.clientX, y: e.clientY })
+    }
+    const upperCanvasEl = canvas.upperCanvasEl
+    upperCanvasEl.addEventListener('contextmenu', handleContextMenu)
 
     // Transform modification listeners
     canvas.on('object:modified', (e) => {
@@ -182,6 +252,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       })
       canvas.setZoom(scale)
       canvas.requestRenderAll()
+      reportSelection()
     }
 
     let resizeFrame = 0
@@ -197,7 +268,16 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     updateCanvasScale()
     onCanvasReady?.()
 
+    // The editor scrolls; the bar follows the object.
+    window.addEventListener('scroll', reportSelection, true)
+    window.addEventListener('resize', reportSelection)
+
     return () => {
+      window.removeEventListener('scroll', reportSelection, true)
+      window.removeEventListener('resize', reportSelection)
+      upperCanvasEl.removeEventListener('contextmenu', handleContextMenu)
+      reportSelectionRef.current = () => {}
+      callbacksRef.current.onSelectionRectChange?.(null)
       resizeObserver.disconnect()
       cancelAnimationFrame(resizeFrame)
       // The cached background photo belongs to this canvas; a remount (React StrictMode
@@ -275,16 +355,19 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     const vignette = canvas.getObjects().find((o) => o.data?.role === 'vignette')
     if (vignette) canvas.sendToBack(vignette)
 
-    // Handle active selection sync
-    if (selectedLayer) {
-      const targetObj = findObj(selectedLayer)
-      if (targetObj?.selectable && canvas.getActiveObject() !== targetObj) {
-        canvas.setActiveObject(targetObj)
-      }
+    // Handle active selection sync. Deselecting (Esc), or picking a layer with nothing to
+    // grab on the canvas (the background), drops the canvas selection too.
+    const targetObj = selectedLayer && findObj(selectedLayer)
+    if (targetObj?.selectable) {
+      if (canvas.getActiveObject() !== targetObj) canvas.setActiveObject(targetObj)
+    } else if (canvas.getActiveObject()) {
+      canvas.discardActiveObject()
     }
 
     canvas.requestRenderAll()
     isUpdatingFromStateRef.current = false
+    // Edits from the panel, the keys or undo move the object without a Fabric event.
+    reportSelectionRef.current()
   }, [project, selectedLayer])
 
   // Background photo: loaded once per URL, filters re-applied only when blur/darken change

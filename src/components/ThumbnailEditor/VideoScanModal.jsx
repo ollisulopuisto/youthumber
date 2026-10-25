@@ -142,7 +142,12 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Pick speaker frames from a video"
+    >
       <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-5 shadow-2xl flex flex-col gap-4 text-white">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-bold text-gray-200">🎬 Pick speaker frames from a video</h2>

@@ -15,6 +15,8 @@ import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
 import { createExportFilename } from './modules/thumbnail/exportFilename'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
+import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
+import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
 
 import {
   createDefaultProject,
@@ -40,6 +42,7 @@ import {
   createTextLayer,
   addTextLayer,
   removeTextLayer,
+  nudgeLayer,
   newTextLayerId,
   isTextLayer,
   isExtraTextLayer,
@@ -133,8 +136,11 @@ function Editor({ initialProject }) {
   const [showShowsModal, setShowShowsModal] = useState(false)
   const [showElementPicker, setShowElementPicker] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showPalette, setShowPalette] = useState(false)
   const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'hd' })
   const canvasRef = useRef(null)
+  const canvasAreaRef = useRef(null)
+  const [selectionRect, setSelectionRect] = useState(null)
 
   // Auto-save project changes to local storage
   useEffect(() => {
@@ -555,44 +561,101 @@ function Editor({ initialProject }) {
     }
   }
 
-  // Keyboard shortcuts: the keys themselves live in modules/shortcuts, next to the labels the
-  // toolbar and the shortcuts sheet show for them.
-  const anyModalOpen = showProjectsModal || showShowsModal || showElementPicker || showShortcuts
-
-  const handleDeleteSelected = () => {
-    if (!selectedLayer) return
-    if (isExtraTextLayer(selectedLayer)) handleRemoveText(selectedLayer)
-    else if (isBugLayer(selectedLayer)) handleRemoveBug(selectedLayer)
-    else if (isStickerLayer(selectedLayer)) handleRemoveSticker(selectedLayer)
+  const handleFlip = (layerId) => {
+    const speaker = getSpeaker(project, layerId)
+    if (speaker) handleUpdateSpeakerTransform(layerId, { flipX: !speaker.transform.flipX })
+    const bug = project.bugs?.find((b) => b.id === layerId)
+    if (bug) handleUpdateBug(layerId, { flipX: !bug.flipX })
+    const sticker = project.stickers?.find((s) => s.id === layerId)
+    if (sticker) handleUpdateSticker(layerId, { flipX: !sticker.flipX })
   }
 
-  const handleDuplicateSelected = () => {
-    if (!selectedLayer) return
-    if (isExtraTextLayer(selectedLayer)) handleDuplicateText(selectedLayer)
-    else if (isBugLayer(selectedLayer)) handleDuplicateBug(selectedLayer)
-    else if (isStickerLayer(selectedLayer)) handleDuplicateSticker(selectedLayer)
+  const handleResetMask = (slotId) => {
+    handleUpdateSpeakerMaskOptions(slotId, { feather: 0, threshold: 0, opacity: 1, invert: false })
+  }
+
+  // "More…" and "Edit text" bring the properties panel below the canvas into view.
+  const propertiesRef = useRef(null)
+  const showProperties = (layerId, focusText = false) => {
+    setSelectedLayer(layerId)
+    // After the panel has rendered for this layer.
+    requestAnimationFrame(() => {
+      const panel = propertiesRef.current
+      if (!panel) return
+      panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      const target = (focusText && panel.querySelector('textarea')) || panel
+      target.focus({ preventScroll: true })
+    })
+  }
+
+  // Commands (modules/commands) are what the keys, the selection bar, the right-click menu
+  // and the command palette run; the keys themselves live in modules/shortcuts.
+  const anyModalOpen = showProjectsModal || showShowsModal || showElementPicker || showShortcuts
+
+  const handleDeleteSelected = (layerId) => {
+    if (isExtraTextLayer(layerId)) handleRemoveText(layerId)
+    else if (isBugLayer(layerId)) handleRemoveBug(layerId)
+    else if (isStickerLayer(layerId)) handleRemoveSticker(layerId)
+  }
+
+  const handleDuplicateSelected = (layerId) => {
+    if (isExtraTextLayer(layerId)) handleDuplicateText(layerId)
+    else if (isBugLayer(layerId)) handleDuplicateBug(layerId)
+    else if (isStickerLayer(layerId)) handleDuplicateSticker(layerId)
   }
 
   const closeShortcuts = useCallback(() => setShowShortcuts(false), [])
 
-  const shortcutActions = {
+  const commandContext = (layerId, key) => ({
+    layerId,
+    project,
+    canUndo,
+    canRedo,
+    key,
     undo,
     redo,
     save: handleSaveProject,
-    export: handleExport,
-    projects: () => setShowProjectsModal(true),
+    exportImage: handleExport,
+    openProjects: () => setShowProjectsModal(true),
+    openHelp: () => setShowShortcuts(true),
+    openPalette: () => setShowPalette(true),
+    addText: handleAddText,
+    addElement: () => setShowElementPicker(true),
+    deselect: () => setSelectedLayer(null),
+    editText: (id) => showProperties(id, true),
+    showProperties: (id) => showProperties(id),
     duplicate: handleDuplicateSelected,
-    delete: handleDeleteSelected,
-    help: () => setShowShortcuts(true),
+    remove: handleDeleteSelected,
+    fitToHeadline: handleFitSticker,
+    setBehindText: handleStickerBehindText,
+    flip: handleFlip,
+    resetPosition: handleResetSpeakerTransform,
+    resetMask: handleResetMask,
+    removeBackground: handleTriggerRemoveBackground,
+    autoFrame: (id) => handleAutoFrameSpeaker(id),
+    nudge: (id, dx, dy) => setProject((prev) => nudgeLayer(prev, id, dx, dy)),
+    reorderLayers: handleReorderLayers,
+  })
+
+  /** Runs `command` on `layerId` (the selection by default), if it applies and is enabled. */
+  const runCommand = (command, layerId = selectedLayer, key) => {
+    const ctx = commandContext(layerId, key)
+    if (!command.appliesTo(layerId, project) || !isCommandEnabled(command, ctx)) return false
+    command.run(ctx)
+    return true
   }
 
   const handleShortcutKey = useStableCallback((event) => {
-    // Open dialogs handle their own keys.
-    if (anyModalOpen || event.defaultPrevented) return
+    // Open dialogs, menus and the palette handle their own keys.
+    if (anyModalOpen || showPalette || event.defaultPrevented) return
+    // Dialogs opened further down the tree (the video scan) say so on the page.
+    if (document.querySelector('[aria-modal="true"]')) return
     const id = matchShortcut(event)
     if (!id) return
-    event.preventDefault()
-    shortcutActions[id]()
+    const ran = runCommand(commandForShortcut(id), selectedLayer, event.key)
+    // Arrows and Esc with nothing to act on keep doing what they do on the page; ⌘ keys
+    // never reach the browser (⌘D would bookmark).
+    if (ran || event.metaKey || event.ctrlKey) event.preventDefault()
   })
 
   useEffect(() => {
@@ -627,7 +690,7 @@ function Editor({ initialProject }) {
           rather than squeezing it (with 4 speaker cards it shrank to a sliver). */}
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {/* 2. Top / Canvas Area (Center 1280x720 Canvas) */}
-        <div className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden">
+        <div ref={canvasAreaRef} className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden">
           <div className="w-full max-w-5xl h-full flex items-center justify-center">
             <ThumbnailStudioCanvas
               ref={canvasRef}
@@ -638,8 +701,17 @@ function Editor({ initialProject }) {
               onUpdateTextLayer={handleUpdateText}
               onUpdateSticker={handleUpdateSticker}
               onUpdateBug={handleUpdateBug}
+              onSelectionRectChange={setSelectionRect}
             />
           </div>
+          <SelectionActionBar
+            rect={selectionRect}
+            viewportRef={canvasAreaRef}
+            label={selectedLayer ? layerLabel(selectedLayer, project) : ''}
+            commands={selectedLayer ? barCommands(selectedLayer, project) : []}
+            isEnabled={(command) => isCommandEnabled(command, { layerId: selectedLayer, project, canUndo, canRedo })}
+            onRun={(command) => runCommand(command)}
+          />
         </div>
 
         {/* 3. Middle Section: Layers and Properties */}
@@ -657,6 +729,7 @@ function Editor({ initialProject }) {
           />
 
           {/* Properties Panel */}
+          <div ref={propertiesRef} tabIndex={-1} aria-label="Properties" className="outline-none scroll-mb-4">
           <PropertiesPanel
             selectedLayer={selectedLayer}
             project={project}
@@ -677,6 +750,7 @@ function Editor({ initialProject }) {
             onResetSpeakerTransform={handleResetSpeakerTransform}
             onUpdateSpeakerMaskOptions={handleUpdateSpeakerMaskOptions}
           />
+          </div>
         </div>
 
         {/* 4. Bottom Dock: one card per speaker + background */}

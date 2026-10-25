@@ -12,6 +12,12 @@ export type ShortcutId =
   | 'projects'
   | 'duplicate'
   | 'delete'
+  | 'nudge'
+  | 'nudgeFar'
+  | 'bringForward'
+  | 'sendBackward'
+  | 'deselect'
+  | 'palette'
   | 'help'
 
 export interface KeyBinding {
@@ -31,6 +37,8 @@ export interface Shortcut {
   /** Also fires while typing in a text field, where the browser has nothing better to do with it. */
   inInputs?: boolean
 }
+
+const ARROWS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']
 
 export const SHORTCUTS: Shortcut[] = [
   { id: 'undo', label: 'Undo', group: 'Edit', bindings: [{ mod: true, key: 'z' }] },
@@ -57,6 +65,28 @@ export const SHORTCUTS: Shortcut[] = [
     label: 'Delete selected text, logo or element',
     group: 'Selection',
     bindings: [{ key: 'Delete' }, { key: 'Backspace' }],
+  },
+  {
+    id: 'nudge',
+    label: 'Move selection 1 px',
+    group: 'Selection',
+    bindings: ARROWS.map((key) => ({ key })),
+  },
+  {
+    id: 'nudgeFar',
+    label: 'Move selection 10 px',
+    group: 'Selection',
+    bindings: ARROWS.map((key) => ({ shift: true, key })),
+  },
+  { id: 'bringForward', label: 'Bring forward', group: 'Selection', bindings: [{ mod: true, key: ']' }] },
+  { id: 'sendBackward', label: 'Send backward', group: 'Selection', bindings: [{ mod: true, key: '[' }] },
+  { id: 'deselect', label: 'Deselect', group: 'Selection', bindings: [{ key: 'Escape' }] },
+  {
+    id: 'palette',
+    label: 'Find a command',
+    group: 'Help',
+    bindings: [{ mod: true, key: 'k' }],
+    inInputs: true,
   },
   { id: 'help', label: 'Show keyboard shortcuts', group: 'Help', bindings: [{ shift: true, key: '?' }] },
 ]
@@ -91,11 +121,31 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   return !['range', 'checkbox', 'radio', 'color', 'button', 'submit', 'file'].includes(type)
 }
 
+/** Fields the arrow keys already move: text fields, and sliders and radio buttons too. */
+function takesArrowKeys(target: EventTarget | null): boolean {
+  return isTypingTarget(target) || (target as HTMLElement | null)?.tagName === 'INPUT'
+}
+
+/** How far a nudge shortcut moves the selection, in canvas px: Shift moves 10. */
+export function nudgeOffset(key: string, far: boolean): { dx: number; dy: number } | null {
+  const step = far ? 10 : 1
+  if (key === 'ArrowLeft') return { dx: -step, dy: 0 }
+  if (key === 'ArrowRight') return { dx: step, dy: 0 }
+  if (key === 'ArrowUp') return { dx: 0, dy: -step }
+  if (key === 'ArrowDown') return { dx: 0, dy: step }
+  return null
+}
+
 type KeyEventLike = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'target'>
+
+// Many layouts type these with Option/AltGr (on a Finnish Mac, ] is ⌥9), so Alt is allowed.
+const ALT_TYPED_KEYS = new Set(['[', ']'])
 
 function matches(binding: KeyBinding, event: KeyEventLike): boolean {
   const mod = event.metaKey || event.ctrlKey
-  if (Boolean(binding.mod) !== mod || event.altKey) return false
+  if (Boolean(binding.mod) !== mod) return false
+  if (ALT_TYPED_KEYS.has(binding.key)) return event.key === binding.key
+  if (event.altKey) return false
   // '?' already implies Shift, and keyboard layouts disagree on which key makes it.
   if (binding.key === '?') return event.key === '?'
   if (Boolean(binding.shift) !== event.shiftKey) return false
@@ -105,8 +155,10 @@ function matches(binding: KeyBinding, event: KeyEventLike): boolean {
 /** The shortcut `event` triggers, or null. */
 export function matchShortcut(event: KeyEventLike): ShortcutId | null {
   const typing = isTypingTarget(event.target)
+  const arrowsTaken = event.key.startsWith('Arrow') && takesArrowKeys(event.target)
   for (const shortcut of SHORTCUTS) {
     if (typing && !shortcut.inInputs) continue
+    if (arrowsTaken) continue
     if (shortcut.bindings.some((b) => matches(b, event))) return shortcut.id
   }
   return null
@@ -115,6 +167,11 @@ export function matchShortcut(event: KeyEventLike): ShortcutId | null {
 const KEY_NAMES: Record<string, { mac: string; other: string; aria: string }> = {
   Delete: { mac: '⌦', other: 'Del', aria: 'Delete' },
   Backspace: { mac: '⌫', other: 'Backspace', aria: 'Backspace' },
+  Escape: { mac: 'Esc', other: 'Esc', aria: 'Escape' },
+  ArrowLeft: { mac: '←', other: '←', aria: 'ArrowLeft' },
+  ArrowRight: { mac: '→', other: '→', aria: 'ArrowRight' },
+  ArrowUp: { mac: '↑', other: '↑', aria: 'ArrowUp' },
+  ArrowDown: { mac: '↓', other: '↓', aria: 'ArrowDown' },
 }
 
 /** The keys of a binding as separate caps, e.g. ['⌘', '⇧', 'Z'] or ['Ctrl', 'Shift', 'Z']. */

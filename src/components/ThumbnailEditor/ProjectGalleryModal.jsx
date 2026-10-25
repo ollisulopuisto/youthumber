@@ -70,7 +70,12 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Saved projects"
+    >
       <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl p-5 shadow-2xl flex flex-col gap-4 text-white">
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <h2 className="text-base font-bold text-gray-100 flex items-center gap-2">

@@ -654,3 +654,22 @@ export function activeMaskUrl(speaker: SpeakerState): string | null {
   if (speaker.maskOptions?.keepObjects && speaker.objectsMaskUrl) return speaker.objectsMaskUrl
   return speaker.maskUrl
 }
+
+/** Moves a speaker, text, logo or element by `dx`, `dy` canvas px; other layers don't move. */
+export function nudgeLayer(project: ThumbnailProject, layerId: LayerId, dx: number, dy: number): ThumbnailProject {
+  const speaker = getSpeaker(project, layerId)
+  if (speaker) {
+    const { x, y } = speaker.transform
+    return updateSpeakerTransform(project, layerId, { x: x + dx, y: y + dy })
+  }
+  const text = layerId === 'text' ? project.text : project.textLayers?.find((t) => t.id === layerId)
+  if (text) {
+    const { x, y } = text.transform
+    return updateTextLayer(project, { transform: { ...text.transform, x: x + dx, y: y + dy } }, layerId)
+  }
+  const bug = project.bugs?.find((b) => b.id === layerId)
+  if (bug) return updateBug(project, layerId, { x: bug.x + dx, y: bug.y + dy })
+  const sticker = project.stickers?.find((s) => s.id === layerId)
+  if (sticker) return updateSticker(project, layerId, { x: sticker.x + dx, y: sticker.y + dy })
+  return project
+}
