@@ -8,6 +8,7 @@ import {
   ariaKeyShortcuts,
   isMacPlatform,
   isTypingTarget,
+  nudgeOffset,
 } from '../modules/shortcuts/shortcuts'
 
 const key = (k: string, mods: { meta?: boolean; ctrl?: boolean; shift?: boolean; alt?: boolean } = {}, target: EventTarget | null = document.body) => ({
@@ -68,6 +69,41 @@ describe('matchShortcut', () => {
   })
 })
 
+describe('selection keys', () => {
+  it('moves with the arrows, 10 px with Shift', () => {
+    expect(matchShortcut(key('ArrowLeft'))).toBe('nudge')
+    expect(matchShortcut(key('ArrowDown', { shift: true }))).toBe('nudgeFar')
+    expect(matchShortcut(key('ArrowUp', { meta: true }))).toBeNull()
+    expect(nudgeOffset('ArrowRight', false)).toEqual({ dx: 1, dy: 0 })
+    expect(nudgeOffset('ArrowUp', true)).toEqual({ dx: 0, dy: -10 })
+    expect(nudgeOffset('Enter', false)).toBeNull()
+  })
+
+  it('leaves the arrows to sliders, radio buttons and text fields', () => {
+    expect(matchShortcut(key('ArrowLeft', {}, input('range')))).toBeNull()
+    expect(matchShortcut(key('ArrowLeft', {}, input('radio')))).toBeNull()
+    expect(matchShortcut(key('ArrowLeft', { shift: true }, input()))).toBeNull()
+    expect(matchShortcut(key('ArrowLeft', {}, document.createElement('button')))).toBe('nudge')
+  })
+
+  it('reorders with ⌘] and ⌘[, also where the layout types brackets with Alt', () => {
+    expect(matchShortcut(key(']', { meta: true }))).toBe('bringForward')
+    expect(matchShortcut(key('[', { ctrl: true }))).toBe('sendBackward')
+    expect(matchShortcut(key(']', { meta: true, alt: true }))).toBe('bringForward')
+    expect(matchShortcut(key(']'))).toBeNull()
+  })
+
+  it('deselects with Esc, but not from a text field', () => {
+    expect(matchShortcut(key('Escape'))).toBe('deselect')
+    expect(matchShortcut(key('Escape', {}, input()))).toBeNull()
+  })
+
+  it('opens the command palette with ⌘K, even from a text field', () => {
+    expect(matchShortcut(key('k', { meta: true }))).toBe('palette')
+    expect(matchShortcut(key('k', { ctrl: true }, input()))).toBe('palette')
+  })
+})
+
 describe('isTypingTarget', () => {
   it('counts text inputs, textareas, selects and editable content', () => {
     expect(isTypingTarget(input())).toBe(true)
@@ -85,6 +121,9 @@ describe('labels', () => {
     expect(formatBinding(redo, false)).toBe('Ctrl+Shift+Z')
     expect(formatBinding({ key: 'Delete' }, true)).toBe('⌦')
     expect(formatBinding({ shift: true, key: '?' }, false)).toBe('?')
+    expect(formatBinding({ shift: true, key: 'ArrowLeft' }, true)).toBe('⇧←')
+    expect(formatBinding({ mod: true, key: ']' }, false)).toBe('Ctrl+]')
+    expect(formatBinding({ key: 'Escape' }, true)).toBe('Esc')
   })
 
   it('names the action and its first key in tooltips', () => {
@@ -97,6 +136,9 @@ describe('labels', () => {
     expect(ariaKeyShortcuts('redo', false)).toBe('Control+Shift+Z Control+Y')
     expect(ariaKeyShortcuts('delete', false)).toBe('Delete Backspace')
     expect(ariaKeyShortcuts('help', true)).toBe('Shift+?')
+    expect(ariaKeyShortcuts('nudgeFar', false)).toBe('Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown')
+    expect(ariaKeyShortcuts('bringForward', true)).toBe('Meta+]')
+    expect(ariaKeyShortcuts('deselect', true)).toBe('Escape')
   })
 })
 
