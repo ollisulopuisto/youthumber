@@ -2,6 +2,23 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.25.126] - 2026-10-25
+
+### Added
+- **Selection action bar & Command Registry**: Floating action bar above selected canvas objects with context-aware quick actions (duplicate, layer order, delete, edit text, open properties), backed by a unified command registry for shortcuts, menus, and the palette. Keyboard navigation polish with arrow nudge (1px / Shift: 10px), layer reordering (`⌘[` / `⌘]`), Esc to deselect.
+- **Keyboard Shortcuts modal & UI hints**: Visual shortcut help modal and badge hints across toolbar and controls.
+- **DMG packaging**: macOS standalone releases now package as a `.dmg` disk image.
+- **IndexedDB project persistence**: Projects are now saved in IndexedDB, retaining desktop window storage across launches.
+
+### Changed
+- **Performance & memory optimizations**:
+  - Bound undo history and background remover cache by image bytes to reduce memory pressure.
+  - Automatically release offscreen canvases, dispose replaced background photos, and expire unfetched video scans.
+  - Faster startup and canvas sync: lazy-load heavy modules, non-blocking fonts, coalesced renders, idle autosave, and early dark background paint before stylesheets load.
+  - Canvas responsiveness: alpha-map hit testing for cutouts, decor/splash geometry caching, and coalesced live mask recomposites.
+  - Speed up Facets and Contours procedural background generation.
+- **Dependencies**: Bumped GitHub Actions to v7/v3 and uv Python dependencies; added Dependabot automated version updates.
+
 ## [26.10.21.86] - 2026-10-21
 
 ### Changed
