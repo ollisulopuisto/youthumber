@@ -22,6 +22,7 @@ function Toolbar({
   exportSettings,
   onChangeExportSettings,
   onOpenShortcuts,
+  onOpenPalette,
   onSetSpeakerCount,
 }) {
   const [activeRemoverId, setActiveRemoverId] = useState(() => {
@@ -317,6 +318,15 @@ function Toolbar({
           className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5"
         >
           <span>Export {exportSettings.resolution === 'fullhd' ? fullHdDimensions : hdDimensions}</span>
+        </button>
+
+        <button
+          onClick={onOpenPalette}
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
+          title={shortcutTitle('palette', 'Find a command')}
+          aria-keyshortcuts={ariaKeyShortcuts('palette')}
+        >
+          Commands
         </button>
 
         <button
