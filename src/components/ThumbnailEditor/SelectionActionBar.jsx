@@ -13,13 +13,13 @@ function SelectionActionBar({ rect, viewportRef, label, commands, isEnabled, onR
   const barRef = useRef(null)
   const [size, setSize] = useState(null)
 
-  // Measure after each render; the bar's width depends on its buttons.
+  // Measure when the buttons change; the bar's width depends on them.
   useLayoutEffect(() => {
     const el = barRef.current
     if (!el) return
     const { offsetWidth: width, offsetHeight: height } = el
     if (width !== size?.width || height !== size?.height) setSize({ width, height })
-  })
+  }, [label, commands.length, size])
 
   if (!rect || !commands.length) return null
 
