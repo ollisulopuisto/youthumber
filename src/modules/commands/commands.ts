@@ -426,3 +426,21 @@ export function searchCommands(commands: Command[], query: string): Command[] {
     .sort((a, b) => b.score! - a.score! || a.index - b.index)
     .map((r) => r.command)
 }
+
+/**
+ * The index `step` (+1 or -1) away from `from` that the palette highlights next, wrapping at
+ * the ends and skipping greyed-out commands. `from` when none is enabled.
+ */
+export function nextEnabledIndex(
+  commands: Command[],
+  from: number,
+  step: 1 | -1,
+  isEnabled: (command: Command) => boolean
+): number {
+  const n = commands.length
+  for (let i = 1; i <= n; i++) {
+    const index = (from + step * i + n * n) % n
+    if (isEnabled(commands[index])) return index
+  }
+  return from
+}

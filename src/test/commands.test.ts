@@ -10,6 +10,8 @@ import {
   matchScore,
   stepLayerOrder,
   layerKind,
+  nextEnabledIndex,
+  type Command,
   type CommandContext,
 } from '../modules/commands/commands'
 import { SHORTCUTS, getShortcut } from '../modules/shortcuts/shortcuts'
@@ -309,5 +311,25 @@ describe('searchCommands', () => {
     expect(matchScore('Redo', 'red')!).toBeGreaterThan(matchScore('Remove background', 'rbg')!)
     expect(matchScore('Save project', 'proj')!).toBeGreaterThan(matchScore('Open projects', 'oprj')!)
     expect(matchScore('Undo', 'x')).toBeNull()
+  })
+})
+
+describe('nextEnabledIndex', () => {
+  const item = (id: string): Command => ({ id, label: id, scope: 'app', appliesTo: () => true, run: () => {} })
+  const commands = [item('a'), item('b'), item('c'), item('d')]
+  const enabled = (command: Command) => command.id !== 'b' && command.id !== 'c'
+
+  it('moves to the next enabled command, skipping greyed-out ones', () => {
+    expect(nextEnabledIndex(commands, 0, 1, enabled)).toBe(3)
+  })
+
+  it('wraps at both ends', () => {
+    expect(nextEnabledIndex(commands, 3, 1, () => true)).toBe(0)
+    expect(nextEnabledIndex(commands, 0, -1, () => true)).toBe(3)
+  })
+
+  it('stays put when nothing else is enabled', () => {
+    expect(nextEnabledIndex(commands, 0, 1, (command) => command.id === 'a')).toBe(0)
+    expect(nextEnabledIndex([], 0, 1, () => true)).toBe(0)
   })
 })

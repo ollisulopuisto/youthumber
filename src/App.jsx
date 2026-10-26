@@ -16,6 +16,7 @@ import { applyShowPresetToProject } from './modules/shows/showPreferences'
 import { createExportFilename } from './modules/thumbnail/exportFilename'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
 import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
+import CommandPalette from './components/ThumbnailEditor/CommandPalette'
 import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
 import ContextMenu from './components/ThumbnailEditor/ContextMenu'
 
@@ -138,6 +139,7 @@ function Editor({ initialProject }) {
   const [showElementPicker, setShowElementPicker] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showPalette, setShowPalette] = useState(false)
+  const closePalette = useCallback(() => setShowPalette(false), [])
   const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'hd' })
   const canvasRef = useRef(null)
   const canvasAreaRef = useRef(null)
@@ -685,6 +687,7 @@ function Editor({ initialProject }) {
         exportSettings={exportSettings}
         onChangeExportSettings={(changes) => setExportSettings((prev) => ({ ...prev, ...changes }))}
         onOpenShortcuts={() => setShowShortcuts(true)}
+        onOpenPalette={() => setShowPalette(true)}
         onSetSpeakerCount={handleSetSpeakerCount}
       />
 
@@ -727,6 +730,18 @@ function Editor({ initialProject }) {
             }}
             onClose={closeContextMenu}
           />
+          {showPalette && (
+            <CommandPalette
+              layerId={selectedLayer}
+              project={project}
+              isEnabled={(command) => isCommandEnabled(command, { layerId: selectedLayer, project, canUndo, canRedo })}
+              onRun={(command) => {
+                closePalette()
+                runCommand(command)
+              }}
+              onClose={closePalette}
+            />
+          )}
         </div>
 
         {/* 3. Middle Section: Layers and Properties */}
