@@ -1,4 +1,4 @@
-import { fabric } from 'fabric'
+import * as fabric from 'fabric'
 
 /** Longest side of the alpha map; plenty to tell a shoulder from the gap beside it. */
 const MAP_SIDE = 512

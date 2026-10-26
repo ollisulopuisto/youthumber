@@ -1,5 +1,5 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
-import { fabric } from 'fabric'
+import * as fabric from 'fabric'
 import {
   isSpeakerLayer,
   isStickerLayer,
@@ -24,9 +24,9 @@ import { intersectRect } from '../../modules/thumbnail/floatingPosition'
 const MAX_BACKGROUND_SIDE = 4096
 // Fabric builds its WebGL filter backend at load time with a 2048px texture limit, so
 // raising textureSize alone does nothing; rebuild the backend after raising it.
-if (fabric.textureSize < MAX_BACKGROUND_SIDE) {
-  fabric.textureSize = MAX_BACKGROUND_SIDE
-  fabric.filterBackend = fabric.initFilterBackend()
+if (fabric.config.textureSize < MAX_BACKGROUND_SIDE) {
+  fabric.config.textureSize = MAX_BACKGROUND_SIDE
+  fabric.setFilterBackend(fabric.initFilterBackend())
 }
 
 const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
@@ -618,7 +618,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       document.fonts.load(fontSpec).then(() => {
         const textObj = fabricCanvasRef.current?.getObjects().find((o) => o.data?.layerId === layerId)
         if (!textObj || textObj.fontFamily !== family) return
-        fabric.util.clearFabricFontCache(family)
+        fabric.cache.clearFontCache(family)
         textObj.initDimensions()
         applyTextColorEffects(textObj, textState)
         textObj.setCoords()

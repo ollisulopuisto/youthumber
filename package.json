@@ -18,7 +18,7 @@
     "@imgly/background-removal": "^1.7.0",
     "@vercel/analytics": "^1.6.1",
     "browser-image-compression": "^2.0.2",
-    "fabric": "^5.3.0",
+    "fabric": "^7.2.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
@@ -44,6 +44,7 @@
     "vitest": "^5.0.0"
   },
   "overrides": {
-    "tar": "^7.5.19"
+    "tar": "^7.5.19",
+    "zod": "4.6.6"
   }
 }

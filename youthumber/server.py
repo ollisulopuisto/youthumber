@@ -42,8 +42,22 @@ SCAN_JOB_TTL_SECONDS = 600  # how long an unfetched finished scan is kept
 VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
 
 
+def has_traversal_segments(raw_path: str) -> bool:
+    """Return True when the raw path string contains directory traversal segments.
+
+    Checked on the raw string, before any path object is built from it.
+    """
+    return ".." in raw_path.replace("\\", "/").split("/")
+
+
 def resolve_video_path(raw_path: str) -> Path:
-    """Resolve a selected video and reject paths that are not supported video files."""
+    """Resolve a selected video and reject paths that are not supported video files.
+
+    Traversal segments are rejected in the raw string before the path is resolved,
+    so a video scan or frame grab can never reach a file through a ".." detour.
+    """
+    if not raw_path or has_traversal_segments(raw_path):
+        raise HTTPException(status_code=400, detail="Video file not found")
     try:
         path = Path(raw_path).resolve(strict=True)
     except (OSError, RuntimeError) as err:
@@ -54,7 +68,18 @@ def resolve_video_path(raw_path: str) -> Path:
 
 
 def resolve_dist_file(root: Path, request_path: str) -> Path | None:
-    """Return a requested static file only when it resolves inside the build root."""
+    """Return a requested static file only when it resolves inside the build root.
+
+    Traversal segments and absolute paths are rejected in the raw request string
+    before any path is built from it; the resolved target must still stay inside
+    the build root and be a regular file.
+    """
+    if (
+        not request_path
+        or request_path.startswith("/")
+        or has_traversal_segments(request_path)
+    ):
+        return None
     try:
         root = root.resolve(strict=True)
         target = (root / request_path).resolve(strict=True)
