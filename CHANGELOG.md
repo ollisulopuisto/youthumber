@@ -2,6 +2,12 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.27.1] - 2026-10-27
+
+### Changed
+- **Fabric 7.4.0**: Portattu Fabric 5.x:stä — `fabric.util.createClass` korvattu ES6-luokilla (`fabric.classRegistry`-rekisteröinnin kera), `callSuper` ES6 `super`-kutsuin, poistetut canvas-metodit uusilla nimillä (`sendObjectToBack`, `moveObjectTo`, `backgroundColor`/`backgroundImage` ominaisuuksina), `_findTargetCorner` → `findControl`, ja `fabric.Image.fromURL` palauttaa nyt Promise'n.
+- **ESLint 10**: Päivitetty `eslint` 9 → 10.13.0, `@eslint/js` 10.0.1 ja `globals` 17.13.0; flat-konfiguraatio ei vaatinut muutoksia.
+
 ## [26.10.25.126] - 2026-10-25
 
 ### Added
