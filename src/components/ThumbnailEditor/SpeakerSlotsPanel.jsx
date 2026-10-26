@@ -153,7 +153,7 @@ const SpeakerCard = memo(function SpeakerCard({
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <button
                 onClick={() => onTriggerRemoveBackground(speaker.id)}
-                className={`flex-1 py-1.5 rounded text-xs font-bold transition-all shadow-sm ${
+                className={`flex-1 py-1.5 rounded text-xs font-bold transition-all shadow-xs ${
                   hasCutout
                     ? 'bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700'
                     : 'bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white'
