@@ -17,6 +17,7 @@ import { createExportFilename } from './modules/thumbnail/exportFilename'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
 import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
 import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
+import ContextMenu from './components/ThumbnailEditor/ContextMenu'
 
 import {
   createDefaultProject,
@@ -141,6 +142,8 @@ function Editor({ initialProject }) {
   const canvasRef = useRef(null)
   const canvasAreaRef = useRef(null)
   const [selectionRect, setSelectionRect] = useState(null)
+  const [contextMenu, setContextMenu] = useState(null)
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
 
   // Auto-save project changes to local storage
   useEffect(() => {
@@ -647,7 +650,7 @@ function Editor({ initialProject }) {
 
   const handleShortcutKey = useStableCallback((event) => {
     // Open dialogs, menus and the palette handle their own keys.
-    if (anyModalOpen || showPalette || event.defaultPrevented) return
+    if (anyModalOpen || showPalette || contextMenu || event.defaultPrevented) return
     // Dialogs opened further down the tree (the video scan) say so on the page.
     if (document.querySelector('[aria-modal="true"]')) return
     const id = matchShortcut(event)
@@ -702,6 +705,7 @@ function Editor({ initialProject }) {
               onUpdateSticker={handleUpdateSticker}
               onUpdateBug={handleUpdateBug}
               onSelectionRectChange={setSelectionRect}
+              onContextMenu={setContextMenu}
             />
           </div>
           <SelectionActionBar
@@ -711,6 +715,17 @@ function Editor({ initialProject }) {
             commands={selectedLayer ? barCommands(selectedLayer, project) : []}
             isEnabled={(command) => isCommandEnabled(command, { layerId: selectedLayer, project, canUndo, canRedo })}
             onRun={(command) => runCommand(command)}
+          />
+          <ContextMenu
+            menu={contextMenu}
+            label={contextMenu ? layerLabel(contextMenu.layerId, project) : ''}
+            project={project}
+            isEnabled={(command) => isCommandEnabled(command, { layerId: contextMenu?.layerId, project, canUndo, canRedo })}
+            onRun={(command) => {
+              closeContextMenu()
+              runCommand(command, contextMenu.layerId)
+            }}
+            onClose={closeContextMenu}
           />
         </div>
 
