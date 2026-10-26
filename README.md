@@ -2,62 +2,81 @@
 
 A focused, local-first YouTube thumbnail editor for creators.
 
-Compose stunning 1280×720 thumbnails from dual speaker photos (1920×1080) with local background removal, customizable show presets, and direct export.
+Compose 1280×720 thumbnails (or 1080×1920 for Shorts) from speaker photos with on-device background removal, show presets for recurring formats, and direct export as JPG or PNG. Everything runs on your machine: no account, no upload.
 
 ## Features
 
-### Implemented (Working)
+### Speakers and layouts
 
-- **Image Upload**: Drag & drop, file upload, or paste from clipboard (Ctrl+V) with automatic compression
-- **Video Frame Extraction**: Upload a video (MP4, WebM, MOV) and extract any frame as thumbnail background
-- **Dual Format Support**: 16:9 landscape (1920x1080) and 9:16 portrait (1080x1920) for YouTube Shorts
-- **14 Professional Templates**: Including Neon Glow, Minimal Clean, Vintage Film, Bold Impact, Gradient Fade, Split Screen, Corner Badge, and Polaroid
-- **Text Editing**: Title and subtitle with customizable fonts, colors, and effects
-- **Font Selector**: Choose from 23 Google Fonts (including luxury fonts: EB Garamond, Bodoni Moda, Cormorant, DM Serif Display) with size controls
-- **Color Picker**: Custom color selection for title and subtitle text with preset colors
-- **Interactive Canvas**: Drag and resize elements, format-aware positioning with persistent positions
-- **AI Generated Badge**: 4 styles, transparent or custom background, smart positioning across formats
-- **Project Gallery**: Visual gallery with thumbnails, grid/list view, search, and format filters
-- **Export System**: Download as JPG (80-100% quality) or PNG with Full HD resolution
-- **Auto-save**: Automatic project saving every 30 seconds with restore on load
-- **Storage Warning**: Dismissible banner informing users about localStorage limitations
-- **Storage Indicator**: Visual progress bar showing localStorage usage with color-coded warnings
-- **Export/Import JSON**: Backup and restore all projects as JSON files for local storage
-- **Undo/Redo**: History stack with Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
-- **Duplicate Project**: Create copies of existing projects with one click
-- **Error Boundaries**: Graceful error handling to prevent app crashes
-- **Data Migration**: Automatic schema migration ensures user data is preserved across app updates
-- **Third Text Line**: Optional extra text field below subtitle for additional information
-- **Keyboard Shortcuts**: ⌘/Ctrl+S save, ⌘/Ctrl+E export, ⌘/Ctrl+O projects, ⌘/Ctrl+D duplicate, Delete/Backspace remove, ⌘/Ctrl+Z / ⌘⇧Z / Ctrl+Y undo/redo. Press **?** (or the **?** button in the toolbar) for the full list; buttons show their shortcut in the tooltip
-- **Image Filters**: Real-time brightness, contrast, saturation, and blur adjustments
-- **Canvas Zoom**: Zoom controls (50%-200%) for detail editing
-- **Background Removal**: AI-powered background removal running entirely in browser (no API costs)
-- **Multiple Layers**: Add overlay images with drag, resize, rotate, and reorder support
-- **Crop Tool**: Interactive image cropping with real-time preview
-- **Grid & Guides**: Toggle grid overlay (20px), snap-to-grid, and center alignment guides
-- **Custom Templates**: Save your current layout as a reusable template
-- **Elements**: 38 recolourable vector elements (banners, frames, underlines, reactions, debate and podcast badges) that fit themselves to the headline
-- **Headline effects & Graphics layer**: slant, 3D depth, fades, accent bars, splashes; glowing rays, charts, arrows, halftone and sparkles
-- **Pix3lTools Branding**: Header link to the Pix3lTools website
+- **1 to 4 speakers**: pick the count in the toolbar. Each speaker has a photo, a name and a position on the canvas.
+- **Layouts for each count**: landscape (16:9) layouts such as Side by Side, Host & Guest Spotlight, Dramatic Clash, Panel of Three and Panel of Four, plus portrait (9:16) layouts for Shorts.
+- **Show presets**: three ready-made setups (Dual Speaker Debate, Solo Deep Dive, Interview Spotlight) that set the layout, speakers and text for a recurring format. Manage them with **Manage Shows**.
+- **Photo upload and video scan**: add a still, or scan an uploaded video for well-framed frames of a speaker and use one.
+- **Background removal**: runs in the browser with an on-device model. Choose the model in the toolbar; the sharper, larger model downloads once when you pick it.
+- **Auto-framing and mask reset**: frame a speaker automatically after removing the background, and reset the mask or position at any time.
+
+### Text, graphics and logos
+
+- **Headline and extra text layers**: edit the headline, add more text layers, and pick a look for each (for example Neon Pop, Banner, Sunburst or Brush).
+- **Fonts**: 28 studio fonts, grouped by style, with size, weight, alignment and colour controls.
+- **Elements**: 38 recolourable vector elements (banners, frames, underlines, reactions, debate and podcast badges) that fit themselves to the headline.
+- **Graphics layer**: rays, bursts, splats, brush strokes and other decorative shapes, placed behind or in front of the text.
+- **Logo layer**: add an image as a logo, with flip and duplicate.
+- **Background**: a gradient or your own photo, with blur and darken controls.
+
+### Editing
+
+- **Direct manipulation**: drag, resize and rotate objects on the canvas.
+- **Layers panel**: show or hide, reorder and select every layer. Keys bring the selection forward or back.
+- **Selection bar**: a small bar appears above the selected object with its most common actions. **More…** opens the full properties.
+- **Right-click menu**: right-click an object on the canvas for the same actions as a list.
+- **Command palette**: press **Ctrl/⌘K** (or the **Commands** button) and type part of a command's name. Enter runs it.
+- **Undo and redo**: a bounded history of your edits.
+- **Keyboard shortcuts**: see the list below. Press **?** (or the **?** button in the toolbar) for the full sheet. Every button shows its shortcut in its tooltip.
+
+### Keyboard shortcuts
+
+Ctrl and ⌘ both work on every platform, so the shortcuts below are the same everywhere.
+
+| Action | Keys |
+| --- | --- |
+| Undo / redo | Ctrl/⌘ Z, Ctrl/⌘ Shift Z, Ctrl/⌘ Y |
+| Save project | Ctrl/⌘ S |
+| Export thumbnail | Ctrl/⌘ E |
+| Open projects | Ctrl/⌘ O |
+| Duplicate selected text, logo or element | Ctrl/⌘ D |
+| Delete selected text, logo or element | Delete or Backspace |
+| Move selection 1 px / 10 px | Arrow keys / Shift + arrow keys |
+| Bring forward / send backward | Ctrl/⌘ ] / Ctrl/⌘ [ |
+| Deselect | Esc |
+| Command palette | Ctrl/⌘ K |
+| Keyboard shortcuts sheet | ? |
+
+### Export and projects
+
+- **Export**: JPG or PNG at 1280×720 (HD) or 1920×1080 (Full HD).
+- **Saved projects**: projects are kept in the browser's IndexedDB. Changes are saved automatically a moment after each edit, and **Save** writes the project explicitly. The desktop app keeps this storage between launches.
+- **Projects window**: open or delete saved projects.
+- **JSON export and import**: back up a project to a JSON file, or load one back in.
+- **Older projects** are migrated to the current format when they are opened.
 
 ## Tech Stack
 
-- **Frontend**: React 18 + Vite 6
-- **Styling**: Tailwind CSS 3.4
-- **Canvas**: Fabric.js 5.3
-- **Image Compression**: browser-image-compression
-- **Background Removal**: @imgly/background-removal (client-side AI)
-- **Fonts**: Google Fonts (23 total)
-- **Storage**: LocalStorage (project persistence)
-- **Deployment**: Vercel
+- **Frontend**: React 18 + Vite
+- **Styling**: Tailwind CSS
+- **Canvas**: Fabric.js 5
+- **Background removal**: @imgly/background-removal (in-browser AI)
+- **Storage**: IndexedDB (projects), localStorage (small preferences)
+- **Desktop app**: Python, with pywebview for the native macOS window and FastAPI with Uvicorn as the embedded server
+- **Deployment**: Vercel (web version)
 
 ## Getting Started
 
 ### Download the Mac app
 
-Download `YouThumber-macOS-arm64.zip` from the
-[latest release](https://github.com/ollisulopuisto/youthumber/releases/latest)
-(Apple Silicon Macs), unzip it and move `YouThumber.app` to Applications.
+Download the latest macOS release from the
+[releases page](https://github.com/ollisulopuisto/youthumber/releases/latest) (Apple Silicon Macs)
+and move `YouThumber.app` to Applications.
 
 **The app isn't signed with an Apple Developer ID, so macOS blocks it the first time**
 ("Apple could not verify YouThumber is free of malware"). To open it anyway:
@@ -68,8 +87,7 @@ Download `YouThumber-macOS-arm64.zip` from the
 - **macOS 14 and earlier:** right-click (Control-click) the app → **Open** → **Open**.
 - **Or, in Terminal** (any version): `xattr -dr com.apple.quarantine /Applications/YouThumber.app`
 
-You only need to do this once per downloaded version. For the sharpest cutouts, click
-**Get sharper cutout edges** in the app once; it downloads the 445 MB model.
+You only need to do this once per downloaded version.
 
 ### Installation (from source)
 
@@ -77,114 +95,94 @@ You only need to do this once per downloaded version. For the sharpest cutouts, 
 npm install
 ```
 
-### Development & Desktop App
-
-#### 1. Native Desktop GUI (Recommended — autoraffkat style)
-
-Launch the standalone desktop application in a native macOS window:
+### Desktop app (from source)
 
 ```bash
 uv run youthumber
 ```
 
-This starts the embedded FastAPI backend and opens YouThumber in a native WebKit window via `pywebview`.
+This starts the embedded server and opens YouThumber in a native window via `pywebview`.
 
 Options:
-* `uv run youthumber` — Launch native macOS desktop window
-* `uv run youthumber --dev` — Open native window attached to local Vite dev server (`http://localhost:5173`)
-* `uv run youthumber --no-gui` — Run as headless local server on `http://127.0.0.1:8731/`
-* `uv run youthumber --debug` — Enable WebKit developer tools / web inspector
 
-**App launcher (Dock, ⌘-Tab, Spotlight):** `uv run youthumber` is a plain `python`
-process, so macOS shows a generic icon and the name "python". To get a real app for this
-checkout, run once:
+- `uv run youthumber`: native desktop window
+- `uv run youthumber --dev`: native window attached to the Vite dev server (`http://localhost:5173`)
+- `uv run youthumber --no-gui`: headless local server on `http://127.0.0.1:8731/`
+- `uv run youthumber --debug`: enable the WebKit web inspector
+
+**App launcher (Dock, ⌘-Tab, Spotlight):** `uv run youthumber` runs as a plain Python process, so
+macOS shows a generic icon. To get a named app for this checkout, run once:
 
 ```bash
 uv run python scripts/make_launcher.py
 ```
 
-It creates `~/Applications/YouThumber.app` with the YouThumber name and icon, which runs
-`uv run youthumber` in this repo. The first time you open it, macOS asks whether
-YouThumber may access your Documents folder (if the repo is there): allow it. Output goes
-to `~/Library/Logs/YouThumber.log`. Re-run the script after moving the repo.
+It creates `~/Applications/YouThumber.app`, which runs `uv run youthumber` in this repo. The first
+time you open it, macOS may ask whether YouThumber can access your Documents folder: allow it.
+Output goes to `~/Library/Logs/YouThumber.log`. Run the script again after moving the repo.
 
-#### 2. Web Development Mode (Vite)
+### Web development
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) to view in your browser.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### Build
-
-```bash
-npm run build
-```
-
-### Preview Production Build
+### Build, test and lint
 
 ```bash
-npm run preview
+npm run build      # production build
+npm run preview    # serve the production build
+npm test           # unit tests (Vitest)
+npm run typecheck  # TypeScript check
+npm run lint       # ESLint
 ```
+
+Python tests run with `uv run pytest`.
 
 ## How to Use
 
-1. **Start the dev server**: `npm run dev`
-2. **Choose format**: Select 16:9 (landscape) or 9:16 (portrait/Shorts)
-3. **Upload an image**: Drag & drop, click to browse, or paste (Ctrl+V)
-4. **Select a template**: Choose from 14 professional designs
-5. **Add text**: Enter title (auto-uppercase) and optional subtitle
-6. **Customize fonts**: Choose from 23 Google Fonts with size controls
-7. **Customize colors**: Use color picker for custom title/subtitle colors
-8. **Position elements**: Drag text and badge to desired positions (positions are saved!)
-9. **Save project**: Name and save your project (auto-saves every 30 seconds)
-10. **Export**: Choose format (JPG/PNG), adjust quality, and download at Full HD resolution
+1. **Choose the speaker count** (1 to 4) and a layout. Pick a show preset to start from one.
+2. **Add the speakers**: upload a photo, or scan a video for a frame.
+3. **Remove the background** and frame each speaker.
+4. **Write the headline** and any extra text, and pick a look and a font.
+5. **Add elements, graphics or a logo** if you want them.
+6. **Export** as JPG or PNG at HD or Full HD.
 
 ### Tips
-- Use JPG format for smaller file sizes (recommended for YouTube)
-- Quality 90% is optimal balance between size and quality
-- Projects auto-save every 30 seconds - look for the indicator in the header
-- Use the Project Gallery to browse saved projects with visual thumbnails
-- Filter projects by format (16:9 / 9:16) or search by name
-- Canvas elements are fully interactive - click and drag to reposition
+
+- Use JPG for smaller files, which suits YouTube.
+- Press **?** at any time to see the shortcut sheet.
+- Select an object and press **Ctrl/⌘ K** to find any command by name.
+- Right-click an object to act on it from the canvas.
 
 ## Project Structure
 
 ```
 src/
-├── components/         # React components
-│   ├── Canvas/        # Canvas-related components
-│   │   └── ThumbnailCanvas.jsx  # Main Fabric.js canvas with grid/zoom
-│   ├── Sidebar/       # Sidebar panels
-│   │   ├── UploadPanel.jsx      # Image upload + crop + bg removal
-│   │   ├── TemplateSelector.jsx # Template selection + custom templates
-│   │   ├── FontSelector.jsx     # Font customization
-│   │   ├── TextColorPicker.jsx  # Text color picker
-│   │   ├── BadgeEditor.jsx      # AI badge editor
-│   │   ├── FilterPanel.jsx      # Image filter controls
-│   │   ├── LayerPanel.jsx       # Overlay layers management
-│   │   ├── ProjectGallery.jsx   # Project gallery with thumbnails
-│   │   └── ExportPanel.jsx      # Export settings
-│   ├── CropModal.jsx            # Image crop dialog
-│   ├── StorageWarning.jsx       # localStorage warning banner
-│   ├── StorageIndicator.jsx     # Storage usage indicator
-│   ├── ErrorBoundary.jsx        # Error handling wrapper
-│   └── AutoSaveIndicator.jsx    # Auto-save status indicator
-├── hooks/             # Custom React hooks
-│   ├── useAutoSave.js # Auto-save functionality
-│   └── useHistory.js  # Undo/redo history management
-├── utils/             # Utility functions
-│   ├── exportUtils.js # Export canvas to image
-│   └── storageUtils.js# localStorage management
-├── data/              # Static data
-│   ├── templates.js   # 14 thumbnail templates
-│   ├── fonts.js       # 23 Google Fonts
-│   └── badgeStyles.js # Badge style definitions
-├── styles/            # Global styles
-├── App.jsx            # Main app component
-└── main.jsx           # Entry point
+├── App.jsx                       # Editor state, command context, keyboard handling
+├── components/
+│   └── ThumbnailEditor/          # Toolbar, canvas, panels, modals, selection bar, menu, palette
+├── data/                         # Fonts, elements, text looks, background gradients
+├── hooks/                        # Undo/redo history
+├── modules/
+│   ├── commands/                 # The command registry shared by keys, bar, menu and palette
+│   ├── shortcuts/                # Shortcut definitions and matching
+│   ├── shows/                    # Show presets
+│   └── thumbnail/                # Layouts, project storage and migration, canvas helpers
+├── services/                     # Video scan and other async work
+├── test/                         # Vitest unit tests
+└── main.jsx                      # Entry point
+
+youthumber/                       # Python: desktop window (pywebview) and embedded server
+launcher.py                       # Desktop app entry point
+scripts/                          # Build, icon and launcher helpers
 ```
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
