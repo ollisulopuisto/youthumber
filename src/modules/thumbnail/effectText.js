@@ -13,14 +13,14 @@ import {
  * Editable headline text that can also draw a splash behind itself and a solid 3D side.
  * Both are drawn inside the text object, so they move, slant and scale with it.
  */
-export const EffectText = fabric.util.createClass(fabric.IText, {
-  type: 'effect-text',
+export class EffectText extends fabric.IText {
+  static type = 'effect-text'
 
-  initialize(text, options) {
-    this.callSuper('initialize', text, options)
+  constructor(text, options = {}) {
+    super(text, options)
     // The splash and the 3D side reach outside the text box, which a cache canvas would clip.
     this.objectCaching = false
-  },
+  }
 
   _render(ctx) {
     const effects = this.effects || {}
@@ -31,7 +31,7 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
 
     const offsets = extrusionOffsets(effects.extrudeDepth, effects.extrudeAngle)
     if (!offsets.length) {
-      this.callSuper('_render', ctx)
+      super._render(ctx)
       return
     }
 
@@ -55,9 +55,9 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
 
     ctx.save()
     this._removeShadow(ctx)
-    this.callSuper('_render', ctx)
+    super._render(ctx)
     ctx.restore()
-  },
+  }
 
   _renderAccentBoxes(ctx, effects) {
     const metrics = []
@@ -84,7 +84,7 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
       ctx.fill()
     }
     ctx.restore()
-  },
+  }
 
   _renderSplash(ctx, effects) {
     const key = [effects.splashStyle, this.width, this.height, effects.splashSeed, effects.splashSize ?? 1].join('|')
@@ -136,8 +136,11 @@ export const EffectText = fabric.util.createClass(fabric.IText, {
       ctx.stroke()
     }
     ctx.restore()
-  },
-})
+  }
+}
+
+// Register with Fabric's class registry for serialization.
+fabric.classRegistry.setClass(EffectText, 'effect-text')
 
 /** `hex` at zero opacity, so a gradient fades out in its own colour instead of through black. */
 function transparent(hex) {

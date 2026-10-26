@@ -21,11 +21,11 @@ function canvasGradient(ctx, spec) {
 }
 
 /** The Graphics layer: one full-canvas, click-through object that draws decorShapes(). */
-export const DecorLayer = fabric.util.createClass(fabric.Object, {
-  type: 'decor-layer',
+export class DecorLayer extends fabric.FabricObject {
+  static type = 'decor-layer'
 
-  initialize(options) {
-    this.callSuper('initialize', {
+  constructor(options = {}) {
+    super({
       left: 0,
       top: 0,
       width: CANVAS_WIDTH,
@@ -37,7 +37,7 @@ export const DecorLayer = fabric.util.createClass(fabric.Object, {
       objectCaching: false,
       ...options,
     })
-  },
+  }
 
   _render(ctx) {
     // shadowBlur is in device pixels and ignores the canvas transform, so scale the glow
@@ -88,5 +88,8 @@ export const DecorLayer = fabric.util.createClass(fabric.Object, {
       ctx.restore()
     }
     ctx.restore()
-  },
-})
+  }
+}
+
+// Register with Fabric's class registry for serialization.
+fabric.classRegistry.setClass(DecorLayer, 'decor-layer')

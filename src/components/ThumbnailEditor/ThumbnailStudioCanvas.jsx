@@ -90,7 +90,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       const active = canvas.getActiveObject()
       if (active && !skipGroup) {
         const pointer = canvas.getPointer(e, true)
-        if (active._findTargetCorner(pointer) || canvas._searchPossibleTargets([active], pointer)) {
+        if (active.findControl(pointer) || canvas._searchPossibleTargets([active], pointer)) {
           return active
         }
       }
@@ -310,11 +310,11 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     if (fillKey) {
       if (backgroundFillKeyRef.current !== fillKey || canvas.backgroundImage) {
         if (bg.type === 'gradient' && bg.gradient) {
-          canvas.setBackgroundColor(new fabric.Gradient(gradientSpec(bg.gradient, canvasWidth, canvasHeight)))
+          canvas.backgroundColor = new fabric.Gradient(gradientSpec(bg.gradient, canvasWidth, canvasHeight))
         } else {
-          canvas.setBackgroundColor(bg.color || '#111827')
+          canvas.backgroundColor = bg.color || '#111827'
         }
-        canvas.setBackgroundImage(null)
+        canvas.backgroundImage = null
         backgroundFillKeyRef.current = fillKey
       }
     } else {
@@ -353,7 +353,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     // Reorder layers according to project.layerOrder
     reorderCanvasObjects(canvas, project.layerOrder)
     const vignette = canvas.getObjects().find((o) => o.data?.role === 'vignette')
-    if (vignette) canvas.sendToBack(vignette)
+    if (vignette) canvas.sendObjectToBack(vignette)
 
     // Handle active selection sync. Deselecting (Esc), or picking a layer with nothing to
     // grab on the canvas (the background), drops the canvas selection too.
@@ -382,14 +382,15 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         return
       }
       entry.img.filters = [
-        blur > 0 && new fabric.Image.filters.Blur({ blur }),
-        brightness !== 0 && new fabric.Image.filters.Brightness({ brightness }),
+        blur > 0 && new fabric.filters.Blur({ blur }),
+        brightness !== 0 && new fabric.filters.Brightness({ brightness }),
       ].filter(Boolean)
       entry.img.applyFilters()
       entry.blur = blur
       entry.brightness = brightness
       const replaced = canvas.backgroundImage
-      canvas.setBackgroundImage(entry.img, () => canvas.requestRenderAll())
+      canvas.backgroundImage = entry.img
+      canvas.requestRenderAll()
       // A filtered photo holds a full-size WebGL texture and two canvases until disposed.
       if (replaced && replaced !== entry.img && replaced instanceof fabric.Image) replaced.dispose()
     }
@@ -403,9 +404,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     if (cached?.img && canvasAtCall.backgroundImage !== cached.img) cached.img.dispose()
     const entry = { url: bg.imageUrl, img: null, blur: null, brightness: null }
     backgroundImageRef.current = entry
-    fabric.Image.fromURL(
-      bg.imageUrl,
-      (loaded) => {
+    fabric.Image.fromURL(bg.imageUrl, { crossOrigin: 'anonymous' }).then((loaded) => {
         if (!fabricCanvasRef.current || backgroundImageRef.current !== entry) return
         // WebGL filters fail on textures larger than fabric.textureSize; shrink huge photos.
         let img = loaded
@@ -431,9 +430,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         })
         entry.img = img
         applyFilters(entry)
-      },
-      { crossOrigin: 'anonymous' }
-    )
+      })
   }
 
   // Vignette: a click-through radial overlay just above the background, below everything else.
@@ -491,43 +488,39 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       if (existing) {
         canvas.remove(existing)
       }
-      fabric.Image.fromURL(
-        imageSrc,
-        (img) => {
-          const live = fabricCanvasRef.current
-          if (!live || live !== canvas) return
-          // Drop a load that a newer image or a hide overtook, or that another sync added.
-          const latest = latestProjectRef.current.speakers.find((s) => s.id === layerId)
-          if (!latest?.visible || (latest.cutoutUrl || latest.sourceImageUrl) !== imageSrc) return
-          if (live.getObjects().some((o) => o.data?.layerId === layerId)) return
-          // Auto-frame may have moved the speaker while the image decoded.
-          const { transform } = latest
-          img.set({
-            data: { layerId, currentSrc: imageSrc },
-            left: transform.x,
-            top: transform.y,
-            scaleX: transform.scaleX,
-            scaleY: transform.scaleY,
-            angle: transform.rotation,
-            flipX: !!transform.flipX,
-            originX: 'center',
-            originY: 'center',
-            // Clicks on a cutout's transparent area reach whatever is visible below it.
-            perPixelTargetFind: true,
-            targetFindTolerance: 6,
-            cornerColor: '#38BDF8',
-            cornerSize: 12,
-            transparentCorners: false,
-            borderColor: '#0284C7',
-            borderScaleFactor: 2,
-            hasRotatingPoint: true,
-          })
-          canvas.add(img)
-          reorderCanvasObjects(canvas, latestProjectRef.current.layerOrder)
-          canvas.requestRenderAll()
-        },
-        { crossOrigin: 'anonymous' }
-      )
+      fabric.Image.fromURL(imageSrc, { crossOrigin: 'anonymous' }).then((img) => {
+        const live = fabricCanvasRef.current
+        if (!live || live !== canvas) return
+        // Drop a load that a newer image or a hide overtook, or that another sync added.
+        const latest = latestProjectRef.current.speakers.find((s) => s.id === layerId)
+        if (!latest?.visible || (latest.cutoutUrl || latest.sourceImageUrl) !== imageSrc) return
+        if (live.getObjects().some((o) => o.data?.layerId === layerId)) return
+        // Auto-frame may have moved the speaker while the image decoded.
+        const { transform } = latest
+        img.set({
+          data: { layerId, currentSrc: imageSrc },
+          left: transform.x,
+          top: transform.y,
+          scaleX: transform.scaleX,
+          scaleY: transform.scaleY,
+          angle: transform.rotation,
+          flipX: !!transform.flipX,
+          originX: 'center',
+          originY: 'center',
+          // Clicks on a cutout's transparent area reach whatever is visible below it.
+          perPixelTargetFind: true,
+          targetFindTolerance: 6,
+          cornerColor: '#38BDF8',
+          cornerSize: 12,
+          transparentCorners: false,
+          borderColor: '#0284C7',
+          borderScaleFactor: 2,
+          hasRotatingPoint: true,
+        })
+        live.add(img)
+        reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
+        live.requestRenderAll()
+      })
     }
   }
 
@@ -696,33 +689,29 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
         continue
       }
       if (existing) canvas.remove(existing)
-      fabric.Image.fromURL(
-        bug.imageUrl,
-        (img) => {
-          const live = fabricCanvasRef.current
-          if (!live || live !== canvas) return
-          // A sync that ran while this image loaded may already have added it.
-          if (live.getObjects().some((o) => o.data?.layerId === bug.id)) return
-          img.set({
-            data: { layerId: bug.id, currentSrc: bug.imageUrl, lastState: bug },
-            originX: 'center',
-            originY: 'center',
-            perPixelTargetFind: true,
-            targetFindTolerance: 6,
-            cornerColor: '#38BDF8',
-            cornerSize: 12,
-            transparentCorners: false,
-            borderColor: '#0284C7',
-            lockUniScaling: false,
-          })
-          img.set(placement(img))
-          img.setCoords()
-          live.add(img)
-          reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
-          live.requestRenderAll()
-        },
-        { crossOrigin: 'anonymous' }
-      )
+      fabric.Image.fromURL(bug.imageUrl, { crossOrigin: 'anonymous' }).then((img) => {
+        const live = fabricCanvasRef.current
+        if (!live || live !== canvas) return
+        // A sync that ran while this image loaded may already have added it.
+        if (live.getObjects().some((o) => o.data?.layerId === bug.id)) return
+        img.set({
+          data: { layerId: bug.id, currentSrc: bug.imageUrl, lastState: bug },
+          originX: 'center',
+          originY: 'center',
+          perPixelTargetFind: true,
+          targetFindTolerance: 6,
+          cornerColor: '#38BDF8',
+          cornerSize: 12,
+          transparentCorners: false,
+          borderColor: '#0284C7',
+          lockUniScaling: false,
+        })
+        img.set(placement(img))
+        img.setCoords()
+        live.add(img)
+        reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
+        live.requestRenderAll()
+      })
     }
   }
 
@@ -746,7 +735,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     withDecorLayer(layerOrder).forEach((layerId, targetIndex) => {
       const obj = objects.find((o) => o.data?.layerId === layerId)
       if (obj) {
-        canvas.moveTo(obj, targetIndex)
+        canvas.moveObjectTo(obj, targetIndex)
       }
     })
   }

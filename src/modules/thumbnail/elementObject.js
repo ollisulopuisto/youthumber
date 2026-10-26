@@ -20,11 +20,11 @@ function strokeReach(spec, sticker, uniform) {
  * width × height, but strokes and text keep even proportions: paths are scaled, the pen
  * isn't. Resizing on the canvas changes width/height, never scaleX/scaleY.
  */
-export const ElementObject = fabric.util.createClass(fabric.Object, {
-  type: 'element-sticker',
+export class ElementObject extends fabric.FabricObject {
+  static type = 'element-sticker'
 
-  initialize(options) {
-    this.callSuper('initialize', {
+  constructor(options = {}) {
+    super({
       originX: 'center',
       originY: 'center',
       // Cached, so the shadow falls from the element's outline once, not from every part.
@@ -35,10 +35,10 @@ export const ElementObject = fabric.util.createClass(fabric.Object, {
       borderColor: '#DB2777',
       ...options,
     })
-  },
+  }
 
   _getCacheCanvasDimensions() {
-    const dims = this.callSuper('_getCacheCanvasDimensions')
+    const dims = super._getCacheCanvasDimensions()
     const spec = findElement(this.sticker?.elementId)
     if (!spec) return dims
     const [vbWidth, vbHeight] = spec.viewBox
@@ -47,7 +47,7 @@ export const ElementObject = fabric.util.createClass(fabric.Object, {
     dims.width += room * dims.zoomX
     dims.height += room * dims.zoomY
     return dims
-  },
+  }
 
   _render(ctx) {
     const sticker = this.sticker
@@ -139,8 +139,11 @@ export const ElementObject = fabric.util.createClass(fabric.Object, {
       }
     }
     ctx.restore()
-  },
-})
+  }
+}
+
+// Register with Fabric's class registry for serialization.
+fabric.classRegistry.setClass(ElementObject, 'element-sticker')
 
 /** Fabric properties for a sticker's state. */
 export function elementObjectProps(sticker) {
