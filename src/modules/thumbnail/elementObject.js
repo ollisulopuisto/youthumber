@@ -1,4 +1,4 @@
-import { fabric } from 'fabric'
+import * as fabric from 'fabric'
 import { findElement } from '../../data/elements'
 
 const SLOT_DEFAULTS = { ink: '#111111', paper: '#FFFFFF' }

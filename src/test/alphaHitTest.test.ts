@@ -30,8 +30,7 @@ describe('isMapTransparent', () => {
 describe('installAlphaHitTest', () => {
   // A 100×50 image whose left half is opaque, drawn at 2× and flipped, on a canvas zoomed to 0.5.
   async function setup() {
-    // @ts-expect-error fabric ships no type declarations
-    const { fabric } = await import('fabric')
+    const fabric = await import('fabric')
     const { installAlphaHitTest } = await import('../modules/thumbnail/alphaHitTest')
     const element = { width: 100, height: 50, naturalWidth: 100, naturalHeight: 50 }
     const realCreate = document.createElement.bind(document)

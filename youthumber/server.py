@@ -39,6 +39,56 @@ from .videoscan import (
 logger = logging.getLogger(__name__)
 
 SCAN_JOB_TTL_SECONDS = 600  # how long an unfetched finished scan is kept
+VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
+
+
+def has_traversal_segments(raw_path: str) -> bool:
+    """Return True when the raw path string contains directory traversal segments.
+
+    Checked on the raw string, before any path object is built from it.
+    """
+    return ".." in raw_path.replace("\\", "/").split("/")
+
+
+def resolve_video_path(raw_path: str) -> Path:
+    """Resolve a selected video and reject paths that are not supported video files.
+
+    Traversal segments are rejected in the raw string before the path is resolved,
+    so a video scan or frame grab can never reach a file through a ".." detour.
+    """
+    if not raw_path or has_traversal_segments(raw_path):
+        raise HTTPException(status_code=400, detail="Video file not found")
+    try:
+        path = Path(raw_path).resolve(strict=True)
+    except (OSError, RuntimeError) as err:
+        raise HTTPException(status_code=400, detail="Video file not found") from err
+    if not path.is_file() or path.suffix.lower() not in VIDEO_SUFFIXES:
+        raise HTTPException(status_code=400, detail="Unsupported video file")
+    return path
+
+
+def resolve_dist_file(root: Path, request_path: str) -> Path | None:
+    """Return a requested static file only when it resolves inside the build root.
+
+    Traversal segments and absolute paths are rejected in the raw request string
+    before any path is built from it; the resolved target must still stay inside
+    the build root and be a regular file.
+    """
+    if (
+        not request_path
+        or request_path.startswith("/")
+        or has_traversal_segments(request_path)
+    ):
+        return None
+    try:
+        root = root.resolve(strict=True)
+        target = (root / request_path).resolve(strict=True)
+        target.relative_to(root)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if not target.is_file():
+        return None
+    return target
 
 
 class RemovalRequest(BaseModel):
@@ -321,8 +371,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
 
     @app.post("/scan-video-speakers", status_code=202)
     def scan_video_speakers(req: VideoSpeakerScanRequest) -> dict[str, str]:
-        if not Path(req.path).is_file():
-            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
+        video_path = resolve_video_path(req.path)
         if not HAS_AVFOUNDATION:
             raise HTTPException(
                 status_code=501,
@@ -334,7 +383,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         job: dict[str, Any] = {"status": "running", "progress": 0.0}
         scan_jobs[job_id] = job
         threading.Thread(
-            target=run_scan_job, args=(job_id, job, req), daemon=True
+            target=run_scan_job,
+            args=(job_id, job, req.model_copy(update={"path": str(video_path)})),
+            daemon=True,
         ).start()
         return {"jobId": job_id}
 
@@ -352,15 +403,14 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
 
     @app.post("/grab-frame")
     async def grab_frame(req: GrabFrameRequest) -> JSONResponse:
-        if not Path(req.path).is_file():
-            raise HTTPException(status_code=400, detail=f"File not found: {req.path}")
+        video_path = resolve_video_path(req.path)
         if not HAS_AVFOUNDATION:
             raise HTTPException(
                 status_code=501, detail="Frame grabbing requires macOS AVFoundation"
             )
 
         try:
-            data_url = grab_frame_at_time(req.path, req.timestampSeconds)
+            data_url = grab_frame_at_time(str(video_path), req.timestampSeconds)
             return JSONResponse({"image": data_url})
         except Exception as err:
             logger.exception("Frame grab failed")
@@ -386,8 +436,8 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
 
         @app.api_route("/{path:path}", methods=["GET", "HEAD"])
         async def serve_spa(path: str) -> FileResponse:
-            target = dist_dir / path
-            if target.is_file():
+            target = resolve_dist_file(dist_dir, path)
+            if target is not None:
                 return FileResponse(target)
             index_html = dist_dir / "index.html"
             if index_html.is_file():

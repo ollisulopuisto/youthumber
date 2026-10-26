@@ -1,4 +1,4 @@
-import { fabric } from 'fabric'
+import * as fabric from 'fabric'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './canvasSize'
 import { decorShapes } from './decor'
 

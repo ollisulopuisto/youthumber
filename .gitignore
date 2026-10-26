@@ -24,6 +24,10 @@ release
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*~
+*.bak
+*.backup
 
 # Environment variables
 .env
