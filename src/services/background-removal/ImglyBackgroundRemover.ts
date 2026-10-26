@@ -30,7 +30,7 @@ export class ImglyBackgroundRemover implements BackgroundRemover {
 
     // Run background removal
     const cutoutBlob = await removeBackground(inputSource as any, {
-      progress: (_key, current, total) => {
+      progress: (_key: string, current: number, total: number) => {
         if (total > 0) {
           const pct = Math.min(95, Math.round((current / total) * 100))
           onProgress?.(pct, 'Processing image')

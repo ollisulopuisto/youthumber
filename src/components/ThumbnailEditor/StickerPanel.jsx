@@ -20,7 +20,7 @@ function ColorRow({ label, value, onChange }) {
             key={hex}
             onClick={() => onChange(hex)}
             style={{ backgroundColor: hex }}
-            className="w-3.5 h-3.5 rounded-sm border border-gray-700 hover:scale-110 transition-transform"
+            className="w-3.5 h-3.5 rounded-xs border border-gray-700 hover:scale-110 transition-transform"
             aria-label={`${label} colour: ${hex}`}
           />
         ))}

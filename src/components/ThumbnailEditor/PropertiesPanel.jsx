@@ -34,7 +34,7 @@ function LoudSwatches({ onPick, label }) {
           key={hex}
           onClick={() => onPick(hex)}
           style={{ backgroundColor: hex }}
-          className="w-4 h-4 rounded-sm border border-gray-700 hover:scale-110 transition-transform"
+          className="w-4 h-4 rounded-xs border border-gray-700 hover:scale-110 transition-transform"
           title={hex}
           aria-label={`${label}: ${hex}`}
         />

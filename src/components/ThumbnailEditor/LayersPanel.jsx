@@ -125,7 +125,7 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
               onClick={() => onSelectLayer(layerId)}
               className={`flex items-center justify-between px-2.5 py-2 rounded-lg text-xs cursor-pointer border transition-all select-none ${
                 isSelected
-                  ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-sm'
+                  ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-xs'
                   : 'bg-gray-800/60 hover:bg-gray-850 border-gray-700/60 text-gray-300'
               }`}
             >

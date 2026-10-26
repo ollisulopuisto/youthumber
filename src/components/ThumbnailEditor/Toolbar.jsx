@@ -228,7 +228,7 @@ function Toolbar({
           {/* Health Status Indicator */}
           {coreMLStatus === 'online' ? (
             <div
-              className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-950/80 border border-emerald-600/40 text-emerald-400 text-[11px] font-medium shadow-sm"
+              className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-950/80 border border-emerald-600/40 text-emerald-400 text-[11px] font-medium shadow-xs"
               title="Apple Neural Engine / Metal acceleration active on local port"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
