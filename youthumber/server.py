@@ -60,7 +60,9 @@ def resolve_video_path(raw_path: str) -> Path:
         raise HTTPException(status_code=400, detail="Video file not found")
     try:
         path = Path(raw_path).resolve(strict=True)
-    except (OSError, RuntimeError) as err:
+    except (OSError, RuntimeError, ValueError) as err:
+        # ValueError: embedded null byte in the user-supplied path. Fail closed
+        # with the same "not found" response so no input detail leaks out.
         raise HTTPException(status_code=400, detail="Video file not found") from err
     if not path.is_file() or path.suffix.lower() not in VIDEO_SUFFIXES:
         raise HTTPException(status_code=400, detail="Unsupported video file")
