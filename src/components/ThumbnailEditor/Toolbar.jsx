@@ -32,13 +32,11 @@ function Toolbar({
       return 'imgly-wasm'
     }
   })
-  const [availableRemovers, setAvailableRemovers] = useState([])
+  const [availableRemovers] = useState(() => defaultRemoverRegistry.list())
   const [showPresets, setShowPresets] = useState([])
   const [coreMLStatus, setCoreMLStatus] = useState('checking')
 
   useEffect(() => {
-    const list = defaultRemoverRegistry.list()
-    setAvailableRemovers(list)
     let isMounted = true
     loadShowPresetsPersistent().then((presets) => {
       if (isMounted) setShowPresets(presets)

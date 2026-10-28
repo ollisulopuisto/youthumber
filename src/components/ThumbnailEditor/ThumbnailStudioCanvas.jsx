@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from 'react'
 import * as fabric from 'fabric'
 import {
   isSpeakerLayer,
@@ -20,6 +20,7 @@ import { DECOR_LAYER_ID, withDecorLayer } from '../../modules/thumbnail/decor'
 import { DecorLayer } from '../../modules/thumbnail/decorObject'
 import { installAlphaHitTest } from '../../modules/thumbnail/alphaHitTest'
 import { intersectRect } from '../../modules/thumbnail/floatingPosition'
+import { preferActiveTarget } from '../../modules/thumbnail/selectionTarget'
 
 const MAX_BACKGROUND_SIDE = 4096
 // Fabric builds its WebGL filter backend at load time with a 2048px texture limit, so
@@ -29,9 +30,10 @@ if (fabric.config.textureSize < MAX_BACKGROUND_SIDE) {
   fabric.setFilterBackend(fabric.initFilterBackend())
 }
 
-const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
+function ThumbnailStudioCanvas(
   {
     project,
+    ref,
     selectedLayer,
     onSelectLayer,
     onUpdateSpeakerTransform,
@@ -41,8 +43,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     onCanvasReady,
     onSelectionRectChange,
     onContextMenu,
-  },
-  ref
+  }
 ) {
   const fitRef = useRef(null)
   const backgroundImageRef = useRef(null) // { url, img, blur, brightness }
@@ -53,10 +54,10 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   const fabricCanvasRef = useRef(null)
   const isUpdatingFromStateRef = useRef(false)
   const latestProjectRef = useRef(project)
-  latestProjectRef.current = project
+  useLayoutEffect(() => { latestProjectRef.current = project }, [project])
   // Read from Fabric's listeners, which are set up once per canvas.
   const callbacksRef = useRef({})
-  callbacksRef.current = { onSelectionRectChange, onContextMenu }
+  useLayoutEffect(() => { callbacksRef.current = { onSelectionRectChange, onContextMenu } }, [onSelectionRectChange, onContextMenu])
   const reportSelectionRef = useRef(() => {})
   const canvasWidth = project.canvas?.width || 1280
   const canvasHeight = project.canvas?.height || 720
@@ -86,16 +87,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     // the pointer, so a selected speaker partly covered by another couldn't be dragged.
     // Keep the selected layer while the click lands on it (or its handles).
     const findTopmostTarget = canvas.findTarget.bind(canvas)
-    canvas.findTarget = (e, skipGroup) => {
-      const active = canvas.getActiveObject()
-      if (active && !skipGroup) {
-        const pointer = canvas.getPointer(e, true)
-        if (active.findControl(pointer) || canvas._searchPossibleTargets([active], pointer)) {
-          return active
-        }
-      }
-      return findTopmostTarget(e, skipGroup)
-    }
+    canvas.findTarget = (e) => preferActiveTarget(canvas, e, findTopmostTarget)
 
     // Where the selected object is on screen, for the selection bar: its bounding box in
     // window pixels, cut to the canvas. Null while nothing is selected or it's being dragged.
@@ -167,7 +159,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     // instead of the browser's (or WebKit's) own.
     const handleContextMenu = (e) => {
       e.preventDefault()
-      const target = canvas.findTarget(e, false)
+      const { target } = canvas.findTarget(e)
       const layerId = target?.data?.layerId
       if (!layerId || !target.selectable) return
       if (canvas.getActiveObject() !== target) {
@@ -291,88 +283,9 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
     }
   }, [canvasWidth, canvasHeight])
 
-  // 2. Sync Fabric objects with project state
-  useEffect(() => {
-    const canvas = fabricCanvasRef.current
-    if (!canvas) return
-
-    isUpdatingFromStateRef.current = true
-
-    // Set background
-    const bg = project.background
-    latestBackgroundRef.current = bg
-    // Gradient/solid fills are rebuilt only when they change, not on every unrelated edit.
-    const fillKey = bg.type === 'gradient' && bg.gradient
-      ? `g:${JSON.stringify(bg.gradient)}`
-      : bg.type === 'solid' || !bg.imageUrl
-        ? `s:${bg.color || '#111827'}`
-        : null
-    if (fillKey) {
-      if (backgroundFillKeyRef.current !== fillKey || canvas.backgroundImage) {
-        if (bg.type === 'gradient' && bg.gradient) {
-          canvas.backgroundColor = new fabric.Gradient(gradientSpec(bg.gradient, canvasWidth, canvasHeight))
-        } else {
-          canvas.backgroundColor = bg.color || '#111827'
-        }
-        canvas.backgroundImage = null
-        backgroundFillKeyRef.current = fillKey
-      }
-    } else {
-      backgroundFillKeyRef.current = null
-      syncBackgroundImage(canvas, bg)
-    }
-    syncVignette(canvas, bg.vignette || 0)
-
-    // Helper to find existing object by layerId
-    const findObj = (layerId) => canvas.getObjects().find((o) => o.data?.layerId === layerId)
-
-    // Drop canvas objects for speakers that no longer exist (speaker count went down)
-    const speakerIds = new Set(project.speakers.map((s) => s.id))
-    canvas
-      .getObjects()
-      .filter((o) => o.data?.layerId && isSpeakerLayer(o.data.layerId) && !speakerIds.has(o.data.layerId))
-      .forEach((o) => canvas.remove(o))
-
-    for (const speaker of project.speakers) {
-      syncSpeakerObject(canvas, speaker, speaker.id)
-    }
-
-    // Sync Text layer
-    syncTextObject(canvas, project.text, 'text')
-    const extraTexts = project.textLayers ?? []
-    const extraTextIds = new Set(extraTexts.map((t) => t.id))
-    canvas
-      .getObjects()
-      .filter((o) => o.data?.layerId && isExtraTextLayer(o.data.layerId) && !extraTextIds.has(o.data.layerId))
-      .forEach((o) => canvas.remove(o))
-    for (const extra of extraTexts) syncTextObject(canvas, extra, extra.id)
-    syncBugObjects(canvas, project.bugs ?? [])
-    syncDecorObject(canvas, project.decor)
-    syncStickerObjects(canvas, project.stickers ?? [])
-
-    // Reorder layers according to project.layerOrder
-    reorderCanvasObjects(canvas, project.layerOrder)
-    const vignette = canvas.getObjects().find((o) => o.data?.role === 'vignette')
-    if (vignette) canvas.sendObjectToBack(vignette)
-
-    // Handle active selection sync. Deselecting (Esc), or picking a layer with nothing to
-    // grab on the canvas (the background), drops the canvas selection too.
-    const targetObj = selectedLayer && findObj(selectedLayer)
-    if (targetObj?.selectable) {
-      if (canvas.getActiveObject() !== targetObj) canvas.setActiveObject(targetObj)
-    } else if (canvas.getActiveObject()) {
-      canvas.discardActiveObject()
-    }
-
-    canvas.requestRenderAll()
-    isUpdatingFromStateRef.current = false
-    // Edits from the panel, the keys or undo move the object without a Fabric event.
-    reportSelectionRef.current()
-  }, [project, selectedLayer])
-
   // Background photo: loaded once per URL, filters re-applied only when blur/darken change
   // (re-loading a full-HD photo and re-blurring it on every edit made sliders crawl).
-  const syncBackgroundImage = (canvasAtCall, bg) => {
+  function syncBackgroundImage(canvasAtCall, bg) {
     const cached = backgroundImageRef.current
     const applyFilters = (entry) => {
       // Photos load asynchronously; draw on whichever canvas is live by then.
@@ -434,7 +347,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   }
 
   // Vignette: a click-through radial overlay just above the background, below everything else.
-  const syncVignette = (canvas, strength) => {
+  function syncVignette(canvas, strength) {
     let vignette = canvas.getObjects().find((o) => o.data?.role === 'vignette')
     if (!strength) {
       if (vignette) canvas.remove(vignette)
@@ -461,7 +374,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   }
 
   // Helper function to sync a speaker object
-  const syncSpeakerObject = (canvas, speakerState, layerId) => {
+  function syncSpeakerObject(canvas, speakerState, layerId) {
     const existing = canvas.getObjects().find((o) => o.data?.layerId === layerId)
     const imageSrc = speakerState.cutoutUrl || speakerState.sourceImageUrl
 
@@ -525,7 +438,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   }
 
   // Helper function to sync text object
-  const syncTextObject = (canvas, textState, layerId) => {
+  function syncTextObject(canvas, textState, layerId) {
     let existing = canvas.getObjects().find((o) => o.data?.layerId === layerId)
 
     if (!textState.visible) {
@@ -622,7 +535,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   }
 
   // Elements (stickers): one object each, rebuilt from state on every sync.
-  const syncStickerObjects = (canvas, stickers) => {
+  function syncStickerObjects(canvas, stickers) {
     const ids = new Set(stickers.map((s) => s.id))
     canvas
       .getObjects()
@@ -657,7 +570,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
 
   // Bugs (logos): one image each. The image is reloaded only when its source changes;
   // the stored width/height become the object's scale.
-  const syncBugObjects = (canvas, bugs) => {
+  function syncBugObjects(canvas, bugs) {
     const ids = new Set(bugs.map((b) => b.id))
     canvas
       .getObjects()
@@ -716,7 +629,7 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
   }
 
   // Graphics layer: one click-through object, redrawn from the project's decor settings.
-  const syncDecorObject = (canvas, decor) => {
+  function syncDecorObject(canvas, decor) {
     let existing = canvas.getObjects().find((o) => o.data?.layerId === DECOR_LAYER_ID)
     if (!decor?.visible) {
       if (existing) canvas.remove(existing)
@@ -739,6 +652,85 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       }
     })
   }
+
+  // 2. Sync Fabric objects with project state
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+
+    isUpdatingFromStateRef.current = true
+
+    // Set background
+    const bg = project.background
+    latestBackgroundRef.current = bg
+    // Gradient/solid fills are rebuilt only when they change, not on every unrelated edit.
+    const fillKey = bg.type === 'gradient' && bg.gradient
+      ? `g:${JSON.stringify(bg.gradient)}`
+      : bg.type === 'solid' || !bg.imageUrl
+        ? `s:${bg.color || '#111827'}`
+        : null
+    if (fillKey) {
+      if (backgroundFillKeyRef.current !== fillKey || canvas.backgroundImage) {
+        if (bg.type === 'gradient' && bg.gradient) {
+          canvas.backgroundColor = new fabric.Gradient(gradientSpec(bg.gradient, canvasWidth, canvasHeight))
+        } else {
+          canvas.backgroundColor = bg.color || '#111827'
+        }
+        canvas.backgroundImage = null
+        backgroundFillKeyRef.current = fillKey
+      }
+    } else {
+      backgroundFillKeyRef.current = null
+      syncBackgroundImage(canvas, bg)
+    }
+    syncVignette(canvas, bg.vignette || 0)
+
+    // Helper to find existing object by layerId
+    const findObj = (layerId) => canvas.getObjects().find((o) => o.data?.layerId === layerId)
+
+    // Drop canvas objects for speakers that no longer exist (speaker count went down)
+    const speakerIds = new Set(project.speakers.map((s) => s.id))
+    canvas
+      .getObjects()
+      .filter((o) => o.data?.layerId && isSpeakerLayer(o.data.layerId) && !speakerIds.has(o.data.layerId))
+      .forEach((o) => canvas.remove(o))
+
+    for (const speaker of project.speakers) {
+      syncSpeakerObject(canvas, speaker, speaker.id)
+    }
+
+    // Sync Text layer
+    syncTextObject(canvas, project.text, 'text')
+    const extraTexts = project.textLayers ?? []
+    const extraTextIds = new Set(extraTexts.map((t) => t.id))
+    canvas
+      .getObjects()
+      .filter((o) => o.data?.layerId && isExtraTextLayer(o.data.layerId) && !extraTextIds.has(o.data.layerId))
+      .forEach((o) => canvas.remove(o))
+    for (const extra of extraTexts) syncTextObject(canvas, extra, extra.id)
+    syncBugObjects(canvas, project.bugs ?? [])
+    syncDecorObject(canvas, project.decor)
+    syncStickerObjects(canvas, project.stickers ?? [])
+
+    // Reorder layers according to project.layerOrder
+    reorderCanvasObjects(canvas, project.layerOrder)
+    const vignette = canvas.getObjects().find((o) => o.data?.role === 'vignette')
+    if (vignette) canvas.sendObjectToBack(vignette)
+
+    // Handle active selection sync. Deselecting (Esc), or picking a layer with nothing to
+    // grab on the canvas (the background), drops the canvas selection too.
+    const targetObj = selectedLayer && findObj(selectedLayer)
+    if (targetObj?.selectable) {
+      if (canvas.getActiveObject() !== targetObj) canvas.setActiveObject(targetObj)
+    } else if (canvas.getActiveObject()) {
+      canvas.discardActiveObject()
+    }
+
+    canvas.requestRenderAll()
+    isUpdatingFromStateRef.current = false
+    // Edits from the panel, the keys or undo move the object without a Fabric event.
+    reportSelectionRef.current()
+  }, [project, selectedLayer])
 
   // Expose imperative API for exact project-sized export.
   useImperativeHandle(ref, () => ({
@@ -795,6 +787,6 @@ const ThumbnailStudioCanvas = forwardRef(function ThumbnailStudioCanvas(
       </div>
     </div>
   )
-})
+}
 
 export default ThumbnailStudioCanvas

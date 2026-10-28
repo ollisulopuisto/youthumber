@@ -16,7 +16,9 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
   }
 
   useEffect(() => {
-    refreshList()
+    let active = true
+    listStoredProjects().then((items) => { if (active) setProjects(items) })
+    return () => { active = false }
   }, [])
 
   const handleSelect = async (id) => {

@@ -22,7 +22,11 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
   }
 
   useEffect(() => {
-    refreshList()
+    let active = true
+    loadShowPresetsPersistent()
+      .then((items) => { if (active) setPresets(items) })
+      .catch((err) => { if (active) setSaveError(`Could not load show presets: ${err.message}`) })
+    return () => { active = false }
   }, [])
 
   const handleApply = (preset) => {

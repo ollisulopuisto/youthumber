@@ -43,7 +43,15 @@ function TexturePicker({ initialColors, onPick }) {
   }
 
   // Quiet on remount, so a known engine state doesn't flash back to "checking".
-  useEffect(() => checkEngine(remembered?.available != null), [])
+  useEffect(() => {
+    let active = true
+    listTextures().then(({ textures, available: ok }) => {
+      if (!active) return
+      setPresets(textures)
+      setAvailable(ok && textures.length > 0)
+    })
+    return () => { active = false }
+  }, [])
 
   // Procedural previews are drawn in the browser, one per task so colour drags and clicks
   // stay responsive between them (a few take tens of milliseconds each).
