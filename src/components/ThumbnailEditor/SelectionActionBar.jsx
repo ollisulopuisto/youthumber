@@ -12,25 +12,27 @@ import { ShortcutKeys } from './Kbd'
 function SelectionActionBar({ rect, viewportRef, label, commands, isEnabled, onRun }) {
   const barRef = useRef(null)
   const [size, setSize] = useState(null)
+  const [viewport, setViewport] = useState(null)
 
   // Measure when the buttons change; the bar's width depends on them.
   useLayoutEffect(() => {
+    const box = viewportRef.current?.getBoundingClientRect()
+    const next = {
+      left: Math.max(0, box?.left ?? 0),
+      top: Math.max(0, box?.top ?? 0),
+      width: Math.min(window.innerWidth, box?.right ?? Infinity) - Math.max(0, box?.left ?? 0),
+      height: Math.min(window.innerHeight, box?.bottom ?? Infinity) - Math.max(0, box?.top ?? 0),
+    }
+    setViewport((previous) => previous && Object.keys(next).every((key) => previous[key] === next[key]) ? previous : next)
     const el = barRef.current
     if (!el) return
     const { offsetWidth: width, offsetHeight: height } = el
     if (width !== size?.width || height !== size?.height) setSize({ width, height })
-  }, [label, commands.length, size])
+  }, [label, commands.length, size, rect, viewportRef])
 
   if (!rect || !commands.length) return null
 
-  const box = viewportRef.current?.getBoundingClientRect()
-  const viewport = {
-    left: Math.max(0, box?.left ?? 0),
-    top: Math.max(0, box?.top ?? 0),
-    width: Math.min(window.innerWidth, box?.right ?? Infinity) - Math.max(0, box?.left ?? 0),
-    height: Math.min(window.innerHeight, box?.bottom ?? Infinity) - Math.max(0, box?.top ?? 0),
-  }
-  const at = size ? placeBar(rect, viewport, size) : null
+  const at = size && viewport ? placeBar(rect, viewport, size) : null
 
   // Arrow keys move between the buttons, as in any toolbar.
   const handleKeyDown = (e) => {

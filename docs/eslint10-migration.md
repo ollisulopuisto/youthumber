@@ -1,31 +1,32 @@
-# ESLint 10 migration review
+# ESLint 10 / React 19 migration
 
-Draft, not ready to merge. ESLint 10.13.0 and @eslint-react 5.28.8 install with ordinary npm ci, without force, peer overrides, or legacy-peer-deps. React hooks 7.1.1 supports ESLint 10. Rules-of-hooks and exhaustive-deps keep their previous severities; the broader new compiler preset is not silently enabled.
+User chose the broader migration on 2026-10-28: migrate the app rather than preserve old plugin compatibility. ESLint 10.13.0, @eslint-react 5.28.8 and React Hooks 7.1.1 install with ordinary npm ci, without force, peer overrides or legacy-peer-deps. No workflow or runtime dependency changes.
 
-TypeScript changes from 7.0.2 to 6.0.3 because the replacement's typescript-eslint parser requires >=4.8.4 <6.1.0. TypeScript 7 produces a ts-api-utils runtime crash. This is an explicit tooling compatibility tradeoff, not a claim that 7 works.
+## Tooling changes
 
-## Rule mapping
+TypeScript changes from 7.0.2 to 6.0.3 because the maintained React plugin's typescript-eslint parser requires >=4.8.4 <6.1.0. TypeScript 7 produces a ts-api-utils runtime crash. Typechecking and production build pass with the supported parser/tooling combination.
 
-- display-name -> no-missing-component-display-name (different detection, review needed).
-- jsx-key -> no-missing-key (different detection, review needed).
-- jsx-no-comment-textnodes -> jsx-no-comment-textnodes.
-- jsx-no-undef and jsx-uses-vars -> ESLint 10 native JSX reference tracking / no-undef and no-unused-vars.
-- no-children-prop -> jsx-no-children-prop.
-- no-danger-with-children -> dom-no-dangerously-set-innerhtml-with-children.
-- no-direct-mutation-state -> no-direct-mutation-state.
-- no-find-dom-node -> dom-no-find-dom-node.
-- no-render-return-value -> dom-no-render-return-value.
-- no-unknown-property -> dom-no-unknown-property.
-- no-deprecated -> explicit no-component-will-mount / receive-props / update. This is NOT full parity with every old deprecated API check.
-- Hooks rules retain their names and severities with the supported plugin.
-- Fast refresh retains its rule and warning severity. The newer plugin adds one warning in src/main.jsx, making eight total instead of seven.
+The maintained React recommended preset replaces the old React preset; the Hooks 7 recommended preset adds the compiler-era checks. Duplicate unified-plugin Hooks rules are switched off only where the matching react-hooks rule is enabled, avoiding duplicate reports, not removing coverage. Previously error-level comment-text, children-prop and unknown-property checks remain error-level. Missing component display names remain checked.
 
-## Unresolved coverage, must not silently disappear
+This is deliberately not semantic parity. Old jsx-no-duplicate-props, no-is-mounted, no-string-refs, no-unescaped-entities and require-render-return have no direct mapped check; no-deprecated becomes specific modern lifecycle/DOM checks. Those legacy constraints are retired with this migration, not claimed to be covered. Undefined JSX references and unused JSX variables are handled by ESLint 10 itself. Existing disabled prop-types, jsx-no-target-blank and old React-in-scope requirements stay absent.
 
-The old enabled jsx-no-duplicate-props, no-is-mounted, no-string-refs, no-unescaped-entities and require-render-return rules have no direct enabled replacement here. A duplicate JSX prop and unescaped apostrophe fixture both currently go unreported. Old no-deprecated also covers more than the enabled lifecycle replacements. Complete these checks with reviewed supported rules or explicitly approve the behavior change before marking ready.
+## Component changes
 
-Already-disabled prop-types, jsx-no-target-blank, react-in-jsx-scope and jsx-uses-react are not missing checks.
+- Gallery and show-preset initial loads set state from async completion and ignore unmounted results.
+- Toolbar remover list uses lazy state initialization instead of a synchronous effect update.
+- Texture picker checks availability asynchronously without resetting already initialized state on mount.
+- Undo/redo availability is render state, not reads from mutable history refs during render. Immediate getValue and grouped edits stay intact.
+- Selection toolbar measures viewport in layout effect, not during render.
+- Canvas takes ref as a React 19 prop, refreshes listener refs in layout effects and declares synchronization helpers before their use.
+
+No lint error was suppressed to complete those changes. Twenty warnings remain, including existing dependency-array warnings and new index-key/ref-naming/refresh warnings. They are not described as zero findings.
 
 ## Validation
 
-Ordinary clean npm ci, typecheck, 249 app tests and production build pass locally on Node 22. Lint reports zero errors and eight warnings. scripts/test-eslint-migration.mjs proves seven representative retained checks actually fire. It does not prove full semantic parity. Native desktop packaging remains unverified for this draft.
+- Clean npm ci, typecheck, 252 tests and production build pass on Node 22.
+- Lint: zero errors, twenty warnings. Seven synthetic checks prove representative lint rules actually fire.
+- New rendered hook test covers grouped edits, undo/redo availability and branching. It also passes against the prior implementation, so it is a preservation test, not a newly discovered bug reproduction.
+- New Hooks preset exposed real lint errors before component edits, including render-time ref access and effect initialization. The complete migrated app now clears those errors.
+- Chromium smoke: editor and Fabric canvas render without page errors, editing headline + undo/redo works, four-speaker selection and export invoke the imperative canvas ref, and show modal opens. Static preview has no Python API, so saved-show fetch reports unavailable there. Real native backend/CoreML/background removal and packaged Mac launch remain unverified, not inferred from frontend success.
+
+Browser interaction also exposed a pre-existing incomplete Fabric 7 port: removed getPointer and the old bare-object findTarget contract. Target preference now uses scene/viewport points and preserves Fabric 7 target-info shape; context-menu extraction follows that contract. Two dedicated tests cover active hit and miss. The interactive exception occurred before the repair and disappears after it.

@@ -25,21 +25,14 @@ export default [
     },
     rules: {
       ...js.configs.recommended.rules,
-      // Deliberate mapping of the old enabled recommended rules, not a new preset.
+      ...react.configs.recommended.rules,
+      ...reactHooks.configs.recommended.rules,
+      // One Hooks implementation, avoiding duplicate reports from the unified plugin.
+      ...Object.fromEntries(Object.keys(react.configs['disable-conflict-eslint-plugin-react-hooks'].rules).map((id) => [id.replace('react-hooks/', '@eslint-react/'), 'off'])),
       '@eslint-react/no-missing-component-display-name': 'error',
-      '@eslint-react/no-missing-key': 'error',
+      '@eslint-react/dom-no-unknown-property': 'error',
       '@eslint-react/jsx-no-comment-textnodes': 'error',
       '@eslint-react/jsx-no-children-prop': 'error',
-      '@eslint-react/dom-no-dangerously-set-innerhtml-with-children': 'error',
-      '@eslint-react/no-direct-mutation-state': 'error',
-      '@eslint-react/dom-no-find-dom-node': 'error',
-      '@eslint-react/dom-no-render-return-value': 'error',
-      '@eslint-react/dom-no-unknown-property': 'error',
-      '@eslint-react/no-component-will-mount': 'error',
-      '@eslint-react/no-component-will-receive-props': 'error',
-      '@eslint-react/no-component-will-update': 'error',
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

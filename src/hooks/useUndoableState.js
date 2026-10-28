@@ -45,7 +45,7 @@ export function useUndoableState(initialValue) {
   const undoStack = useRef([])
   const redoStack = useRef([])
   const lastChangeAt = useRef(0)
-  const [, setRevision] = useState(0)
+  const [history, setHistory] = useState({ canUndo: false, canRedo: false })
 
   const update = useCallback((nextValueOrUpdater) => {
     const previous = valueRef.current
@@ -64,7 +64,7 @@ export function useUndoableState(initialValue) {
     redoStack.current = []
     valueRef.current = next
     setValue(next)
-    setRevision((count) => count + 1)
+    setHistory({ canUndo: undoStack.current.length > 0, canRedo: redoStack.current.length > 0 })
   }, [])
 
   const undo = useCallback(() => {
@@ -74,7 +74,7 @@ export function useUndoableState(initialValue) {
     valueRef.current = previous
     lastChangeAt.current = 0
     setValue(previous)
-    setRevision((count) => count + 1)
+    setHistory({ canUndo: undoStack.current.length > 0, canRedo: redoStack.current.length > 0 })
   }, [])
 
   const redo = useCallback(() => {
@@ -84,7 +84,7 @@ export function useUndoableState(initialValue) {
     valueRef.current = next
     lastChangeAt.current = 0
     setValue(next)
-    setRevision((count) => count + 1)
+    setHistory({ canUndo: undoStack.current.length > 0, canRedo: redoStack.current.length > 0 })
   }, [])
 
   // The latest value, including edits React hasn't rendered yet (for async work).
@@ -96,7 +96,7 @@ export function useUndoableState(initialValue) {
     setValue: update,
     undo,
     redo,
-    canUndo: undoStack.current.length > 0,
-    canRedo: redoStack.current.length > 0,
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
   }
 }
