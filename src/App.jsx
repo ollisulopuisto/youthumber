@@ -131,7 +131,7 @@ function App() {
 }
 
 function Editor({ initialProject }) {
-  const { value: project, getValue: getProject, setValue: setProject, undo, redo, canUndo, canRedo } = useUndoableState(initialProject)
+  const { value: project, getValue: getProject, setValue: setProject, undo, redo, canUndo, canRedo, historyHead, historyTips, gotoHistory } = useUndoableState(initialProject)
 
   const [selectedLayer, setSelectedLayer] = useState('text')
   const [showProjectsModal, setShowProjectsModal] = useState(false)
@@ -682,6 +682,9 @@ function Editor({ initialProject }) {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
+        historyHead={historyHead}
+        historyTips={historyTips}
+        onGotoHistory={gotoHistory}
         onOpenProjects={() => setShowProjectsModal(true)}
         onExport={handleExport}
         exportSettings={exportSettings}
