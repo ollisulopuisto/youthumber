@@ -23,10 +23,12 @@ No lint error was suppressed to complete those changes. Twenty warnings remain, 
 
 ## Validation
 
-- Clean npm ci, typecheck, 252 tests and production build pass on Node 22.
+- Clean npm ci, typecheck, 253 tests and production build pass on Node 22.
 - Lint: zero errors, twenty warnings. Seven synthetic checks prove representative lint rules actually fire.
 - New rendered hook test covers grouped edits, undo/redo availability and branching. It also passes against the prior implementation, so it is a preservation test, not a newly discovered bug reproduction.
 - New Hooks preset exposed real lint errors before component edits, including render-time ref access and effect initialization. The complete migrated app now clears those errors.
 - Chromium smoke: editor and Fabric canvas render without page errors, editing headline + undo/redo works, four-speaker selection and export invoke the imperative canvas ref, and show modal opens. Static preview has no Python API, so saved-show fetch reports unavailable there. Real native backend/CoreML/background removal and packaged Mac launch remain unverified, not inferred from frontend success.
 
 Browser interaction also exposed a pre-existing incomplete Fabric 7 port: removed getPointer and the old bare-object findTarget contract. Target preference now uses scene/viewport points and preserves Fabric 7 target-info shape; context-menu extraction follows that contract. Two dedicated tests cover active hit and miss. The interactive exception occurred before the repair and disappears after it.
+
+The user requested the headline cutout fix in this same PR. A plain Fabric IText with loaded Montserrat reproduces the cuts when its black stroke is painted after the fill; the same font is clean when stroke is painted first. EffectText now defaults to paintFirst=stroke, preserving explicit caller overrides. The constructor regression fails before the change and passes after. Actual editor JPEG exports were inspected before and after: clean filled letters, outline behind the face, shadow preserved. No font substitution or removal of outline.

@@ -17,7 +17,7 @@ export class EffectText extends fabric.IText {
   static type = 'effect-text'
 
   constructor(text, options = {}) {
-    super(text, options)
+    super(text, { paintFirst: 'stroke', ...options })
     // The splash and the 3D side reach outside the text box, which a cache canvas would clip.
     this.objectCaching = false
   }
