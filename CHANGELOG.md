@@ -2,6 +2,20 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.28.1] - 2026-10-28
+
+### Added
+- Uncapped branching undo for the current editing session, retaining alternate branches until the app closes.
+
+### Changed
+- Include the merged React 19 component migration and ESLint 10/Fabric 7 compatibility work.
+
+### Fixed
+- Reject unsafe video paths, including embedded null bytes.
+
+### Packaging
+- Prepare a fresh Apple Silicon DMG from the merged feature state. Native packaging and download verification remain separate release steps.
+
 ## [26.10.27.1] - 2026-10-27
 
 ### Changed
