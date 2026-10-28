@@ -96,3 +96,32 @@ def test_resolve_dist_file_rejects_symlink_escape(tmp_path):
     outside.write_text("{}")
     (root / "link.json").symlink_to(outside)
     assert resolve_dist_file(root, "link.json") is None
+
+
+def test_resolve_video_path_rejects_embedded_null_byte(tmp_path):
+    """An embedded null byte anywhere in the video path must fail closed with 400.
+
+    Rejected before pathlib ever touches the string, so no filesystem call and no
+    unhandled 500 can result from a null byte in user input.
+    """
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+    evil = (
+        str(video)[: len(str(video)) // 2] + "\x00" + str(video)[len(str(video)) // 2 :]
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_video_path(evil)
+    assert exc_info.value.status_code == 400
+
+
+def test_resolve_dist_file_rejects_embedded_null_byte(tmp_path):
+    """An embedded null byte anywhere in the dist request path must fail closed.
+
+    Rejected before pathlib ever touches the string; the caller receives None
+    and the SPA falls back to index.html instead of serving an unintended file.
+    """
+    root = tmp_path / "build"
+    root.mkdir()
+    (root / "inner.json").write_text("{}")
+    evil = "inner" + "\x00" + ".json"
+    assert resolve_dist_file(root, evil) is None

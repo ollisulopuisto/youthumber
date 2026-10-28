@@ -56,7 +56,7 @@ def resolve_video_path(raw_path: str) -> Path:
     Traversal segments are rejected in the raw string before the path is resolved,
     so a video scan or frame grab can never reach a file through a ".." detour.
     """
-    if not raw_path or has_traversal_segments(raw_path):
+    if not raw_path or has_traversal_segments(raw_path) or "\x00" in raw_path:
         raise HTTPException(status_code=400, detail="Video file not found")
     try:
         path = Path(raw_path).resolve(strict=True)
@@ -80,6 +80,7 @@ def resolve_dist_file(root: Path, request_path: str) -> Path | None:
         not request_path
         or request_path.startswith("/")
         or has_traversal_segments(request_path)
+        or "\x00" in request_path
     ):
         return None
     try:
