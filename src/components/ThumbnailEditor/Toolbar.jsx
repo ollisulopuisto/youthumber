@@ -17,6 +17,9 @@ function Toolbar({
   onRedo,
   canUndo,
   canRedo,
+  historyHead,
+  historyTips,
+  onGotoHistory,
   onOpenProjects,
   onExport,
   exportSettings,
@@ -266,6 +269,16 @@ function Toolbar({
         >
           ↷
         </button>
+
+        <select
+          aria-label="Undo branches"
+          title="Session history: choose an alternate branch, then undo to earlier edits. History ends when this app closes. No automatic pruning; images can use significant memory."
+          className="max-w-32 bg-gray-800 text-xs rounded border border-gray-700 p-1"
+          value={historyHead}
+          onChange={(event) => onGotoHistory(event.target.value)}
+        >
+          {historyTips.map((node) => <option key={node.id} value={node.id}>{node.label}{node.id === historyHead ? ' (current)' : ' (branch)'}</option>)}
+        </select>
 
         <button
           onClick={onOpenProjects}
