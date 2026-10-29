@@ -2,6 +2,7 @@
 
 import threading
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -265,6 +266,7 @@ def mac_client(monkeypatch) -> TestClient:
 def test_scan_video_speakers_returns_a_job_at_once_and_polls_to_the_result(
     mac_client: TestClient, monkeypatch, tmp_path
 ) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     video = tmp_path / "episode.mp4"
     video.write_bytes(b"x")
     people = [{"frameCount": 3, "frames": []}]
@@ -285,6 +287,7 @@ def test_scan_video_speakers_returns_a_job_at_once_and_polls_to_the_result(
 def test_scan_job_reports_a_failed_scan(
     mac_client: TestClient, monkeypatch, tmp_path
 ) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     video = tmp_path / "episode.mp4"
     video.write_bytes(b"x")
 
@@ -309,6 +312,7 @@ def test_scan_job_unknown_id_is_404(mac_client: TestClient) -> None:
 def test_finished_scan_nobody_fetched_is_dropped_after_a_while(
     mac_client: TestClient, monkeypatch, tmp_path
 ) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     video = tmp_path / "episode.mp4"
     video.write_bytes(b"x")
     finished = threading.Event()
