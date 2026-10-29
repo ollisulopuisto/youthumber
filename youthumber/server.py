@@ -59,7 +59,19 @@ def resolve_video_path(raw_path: str) -> Path:
     if not raw_path or has_traversal_segments(raw_path) or "\x00" in raw_path:
         raise HTTPException(status_code=400, detail="Video file not found")
     try:
-        path = Path(raw_path).resolve(strict=True)
+        # Video paths are intentionally supplied by the native file picker, but
+        # the HTTP API is also reachable from the local network stack. Keep the
+        # accepted locations inside user-owned media roots so a forged request
+        # cannot probe arbitrary system files with a video extension.
+        path = Path(os.path.realpath(raw_path))
+        allowed_roots = [Path.home(), Path("/Volumes")]
+        if not any(
+            os.path.commonpath((str(root.resolve()), str(path))) == str(root.resolve())
+            for root in allowed_roots
+            if root.exists()
+        ):
+            raise ValueError("video path outside allowed roots")
+        path = path.resolve(strict=True)
     except (OSError, RuntimeError, ValueError) as err:
         # ValueError: embedded null byte in the user-supplied path. Fail closed
         # with the same "not found" response so no input detail leaks out.
@@ -84,9 +96,13 @@ def resolve_dist_file(root: Path, request_path: str) -> Path | None:
     ):
         return None
     try:
-        root = root.resolve(strict=True)
-        target = (root / request_path).resolve(strict=True)
-        target.relative_to(root)
+        root_path = os.path.realpath(root)
+        target_path = os.path.realpath(os.path.join(root_path, request_path))
+        if os.path.commonpath((root_path, target_path)) != root_path:
+            return None
+        target = Path(target_path)
+        if not os.path.exists(target_path):
+            return None
     except (OSError, RuntimeError, ValueError):
         return None
     if not target.is_file():
