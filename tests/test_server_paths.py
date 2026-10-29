@@ -29,10 +29,26 @@ def test_resolve_video_path_rejects_traversal_to_an_existing_file(tmp_path):
     assert exc_info.value.status_code == 400
 
 
-def test_resolve_video_path_accepts_a_legitimate_video(tmp_path):
+def test_resolve_video_path_accepts_a_legitimate_video(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
     video = tmp_path / "episode.mp4"
     video.write_bytes(b"x")
     assert resolve_video_path(str(video)) == video.resolve()
+
+
+def test_resolve_video_path_rejects_files_outside_user_media_roots(
+    tmp_path, monkeypatch
+):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    outside = tmp_path / "system" / "private.mp4"
+    outside.parent.mkdir()
+    outside.write_bytes(b"x")
+
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_video_path(str(outside))
+    assert exc_info.value.status_code == 400
 
 
 def test_resolve_video_path_rejects_missing_and_non_video_files(tmp_path):
