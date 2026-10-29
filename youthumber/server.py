@@ -66,17 +66,30 @@ def resolve_video_path(raw_path: str) -> Path:
     if not raw_path or has_traversal_segments(raw_path) or "\x00" in raw_path:
         raise HTTPException(status_code=400, detail="Video file not found")
     try:
-        path = Path(raw_path).resolve(strict=True)
-        allowed_roots = [Path.home(), Path("/Volumes")]
-        if not any(
-            os.path.commonpath((str(root.resolve()), str(path))) == str(root.resolve())
-            for root in allowed_roots
-            if root.exists()
-        ):
+        # Normalize the raw string with os.path.realpath (follows symlinks,
+        # collapses "..") and check the normalized string itself with a single
+        # startswith() guard before any filesystem sink sees it. This is the
+        # normalize-then-check-the-same-string shape CodeQL's py/path-injection
+        # query recognizes; the previous commonpath()/resolve() guards were
+        # equivalent in behaviour but invisible to that analysis, which is why
+        # the alerts stayed open.
+        resolved = os.path.realpath(raw_path)
+        home_root = os.path.realpath(str(Path.home()))
+        volumes_root = os.path.realpath("/Volumes")
+        # The candidate root is picked first so one startswith() on the exact
+        # string that reaches the filesystem decides. Equality with a root
+        # means the target is the root directory itself, which fails the
+        # regular-file requirement below either way.
+        root = home_root if resolved.startswith(home_root + os.sep) else volumes_root
+        if not resolved.startswith(root + os.sep):
             raise ValueError("video path outside allowed roots")
+        path = Path(resolved)
+        if not path.exists():
+            raise ValueError("video file does not exist")
     except (OSError, RuntimeError, ValueError) as err:
-        # ValueError: embedded null byte or a path outside an allowed root. Fail
-        # closed with the same "not found" response so no input detail leaks.
+        # ValueError: embedded null byte, a path outside an allowed root or a
+        # missing file. Fail closed with the same "not found" response so no
+        # input detail leaks.
         raise HTTPException(status_code=400, detail="Video file not found") from err
     if not path.is_file() or path.suffix.lower() not in VIDEO_SUFFIXES:
         raise HTTPException(status_code=400, detail="Unsupported video file")
@@ -100,9 +113,15 @@ def resolve_dist_file(root: Path, request_path: str) -> Path | None:
     ):
         return None
     try:
-        root_path = root.resolve(strict=True)
-        target = (root_path / request_path).resolve(strict=True)
-        target.relative_to(root_path)
+        # Same recognized shape as resolve_video_path: realpath() normalizes
+        # (following a symlink that points outside the root lands the string
+        # outside it) and the startswith() guard runs on the very string the
+        # Path below is built from.
+        root_str = os.path.realpath(str(root))
+        target_str = os.path.realpath(os.path.join(root_str, request_path))
+        if not target_str.startswith(root_str + os.sep):
+            return None
+        target = Path(target_str)
     except (OSError, RuntimeError, ValueError):
         return None
     if not target.is_file():

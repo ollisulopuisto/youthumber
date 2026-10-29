@@ -141,3 +141,72 @@ def test_resolve_dist_file_rejects_embedded_null_byte(tmp_path):
     (root / "inner.json").write_text("{}")
     evil = "inner" + "\x00" + ".json"
     assert resolve_dist_file(root, evil) is None
+
+
+def test_resolve_video_path_rejects_sibling_prefix(tmp_path, monkeypatch):
+    """A directory whose name merely starts with the home dir's name is outside.
+
+    A startswith check without the path separator boundary would accept
+    ``home2`` because its string starts with ``home``.
+    """
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    sibling = tmp_path / "home2"
+    sibling.mkdir()
+    evil = sibling / "secret.mp4"
+    evil.write_bytes(b"x")
+    assert str(evil).startswith(str(home))  # bare string prefix would be fooled
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_video_path(str(evil))
+    assert exc_info.value.status_code == 400
+
+
+def test_resolve_video_path_rejects_symlink_escape(tmp_path, monkeypatch):
+    """A symlink inside home that points outside must not be served."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    outside = tmp_path / "outside.mp4"
+    outside.write_bytes(b"x")
+    link = home / "link.mp4"
+    link.symlink_to(outside)
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_video_path(str(link))
+    assert exc_info.value.status_code == 400
+
+
+def test_resolve_video_path_rejects_the_media_root_itself(tmp_path, monkeypatch):
+    """The root directory is not a video file even though it is a root."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    with pytest.raises(HTTPException):
+        resolve_video_path(str(home))
+
+
+def test_resolve_video_path_accepts_symlink_within_root(tmp_path, monkeypatch):
+    """A symlink whose target stays inside the root remains servable."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    real = home / "real.mp4"
+    real.write_bytes(b"x")
+    link = home / "link.mp4"
+    link.symlink_to(real)
+    assert resolve_video_path(str(link)) == real.resolve()
+
+
+def test_resolve_dist_file_rejects_sibling_prefix_symlink(tmp_path):
+    """A symlink to a sibling dir sharing the root's name prefix is refused.
+
+    Guards the separator boundary of the prefix check: ``build2`` starts with
+    ``build`` as a bare string but is outside the root.
+    """
+    root = tmp_path / "build"
+    root.mkdir()
+    sibling = tmp_path / "build2"
+    sibling.mkdir()
+    (sibling / "secret.json").write_text("{}")
+    (root / "link.json").symlink_to(sibling / "secret.json")
+    assert resolve_dist_file(root, "link.json") is None
