@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.30.1] - 2026-10-30
+
+### Fixed
+- Strengthen canonical path checks for video inputs and static assets so CodeQL recognizes the containment guards (PR #55).
+
+### Packaging
+- Build a new Apple Silicon DMG from the latest merged master state.
+
 ## [26.10.29.2] - 2026-10-29
 
 ### Fixed
