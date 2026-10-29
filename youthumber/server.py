@@ -53,17 +53,20 @@ def has_traversal_segments(raw_path: str) -> bool:
 def resolve_video_path(raw_path: str) -> Path:
     """Resolve a selected video and reject paths that are not supported video files.
 
-    Traversal segments are rejected in the raw string before the path is resolved,
-    so a video scan or frame grab can never reach a file through a ".." detour.
+    Traversal segments and embedded null bytes are rejected in the raw string
+    before any path object is built from it, so a video scan or frame grab can
+    never reach a file through a ".." detour or a null-byte truncation.
+
+    The path is strictly resolved (symlinks followed, file must exist) and then
+    checked to live inside a user-owned media root (the home directory or a
+    volume under /Volumes), so a forged request cannot probe arbitrary system
+    files just because they happen to carry a video extension. The target must be
+    a regular file with a video suffix.
     """
     if not raw_path or has_traversal_segments(raw_path) or "\x00" in raw_path:
         raise HTTPException(status_code=400, detail="Video file not found")
     try:
-        # Video paths are intentionally supplied by the native file picker, but
-        # the HTTP API is also reachable from the local network stack. Keep the
-        # accepted locations inside user-owned media roots so a forged request
-        # cannot probe arbitrary system files with a video extension.
-        path = Path(os.path.realpath(raw_path))
+        path = Path(raw_path).resolve(strict=True)
         allowed_roots = [Path.home(), Path("/Volumes")]
         if not any(
             os.path.commonpath((str(root.resolve()), str(path))) == str(root.resolve())
@@ -71,10 +74,9 @@ def resolve_video_path(raw_path: str) -> Path:
             if root.exists()
         ):
             raise ValueError("video path outside allowed roots")
-        path = path.resolve(strict=True)
     except (OSError, RuntimeError, ValueError) as err:
-        # ValueError: embedded null byte in the user-supplied path. Fail closed
-        # with the same "not found" response so no input detail leaks out.
+        # ValueError: embedded null byte or a path outside an allowed root. Fail
+        # closed with the same "not found" response so no input detail leaks.
         raise HTTPException(status_code=400, detail="Video file not found") from err
     if not path.is_file() or path.suffix.lower() not in VIDEO_SUFFIXES:
         raise HTTPException(status_code=400, detail="Unsupported video file")
@@ -84,9 +86,11 @@ def resolve_video_path(raw_path: str) -> Path:
 def resolve_dist_file(root: Path, request_path: str) -> Path | None:
     """Return a requested static file only when it resolves inside the build root.
 
-    Traversal segments and absolute paths are rejected in the raw request string
-    before any path is built from it; the resolved target must still stay inside
-    the build root and be a regular file.
+    Traversal segments, absolute paths and embedded null bytes are rejected in
+    the raw request string before any path is built from it. The target is then
+    resolved (symlinks followed) and must stay inside the build root —
+    ``relative_to`` raises when a symlink inside the root points outside — and be
+    a regular file.
     """
     if (
         not request_path
@@ -96,13 +100,9 @@ def resolve_dist_file(root: Path, request_path: str) -> Path | None:
     ):
         return None
     try:
-        root_path = os.path.realpath(root)
-        target_path = os.path.realpath(os.path.join(root_path, request_path))
-        if os.path.commonpath((root_path, target_path)) != root_path:
-            return None
-        target = Path(target_path)
-        if not os.path.exists(target_path):
-            return None
+        root_path = root.resolve(strict=True)
+        target = (root_path / request_path).resolve(strict=True)
+        target.relative_to(root_path)
     except (OSError, RuntimeError, ValueError):
         return None
     if not target.is_file():
