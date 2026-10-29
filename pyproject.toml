@@ -1,6 +1,6 @@
 [project]
 name = "youthumber"
-version = "26.10.28.1"
+version = "26.10.29.1"
 description = "Local-first YouTube thumbnail editor with Apple Silicon background removal"
 readme = "README.md"
 requires-python = ">=3.13"
