@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.10.29.2] - 2026-10-29
+
+### Fixed
+- Include the merged path-injection hardening for video and static-file paths (PR #52).
+
+### Packaging
+- Prepare a new Apple Silicon release without replacing the published 26.10.29.1 DMG. The existing desktop build passed on the security-fix source; this new version still needs its own tag build, download verification and native acceptance.
+
 ## [26.10.28.1] - 2026-10-28
 
 ### Added
