@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .appnap import hold as appnap_hold
 from .matting import BACKEND, MATTER, MODEL, warm_up
 from .paths import get_dist_dir
 from .segmentation import (
@@ -304,16 +305,21 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         try:
             image_bytes = decode_base64_image(req.image)
             objects, matted = None, False
-            if HAS_VISION and MODEL.state()["status"] == "ready":
-                try:
-                    cutout, mask, objects = segment_with_matting(image_bytes, MATTER)
-                    model_id, matted = "birefnet-general+apple-vision", True
-                except Exception:
-                    # A broken model install (the first packaged build couldn't load
-                    # it) shouldn't cost the cutout: Vision's still works.
-                    logger.exception("BiRefNet failed; using Vision's cutout")
-            if not matted:
-                cutout, mask, model_id = segment_image(image_bytes, model=req.model)
+            with appnap_hold("Removing background"):
+                if HAS_VISION and MODEL.state()["status"] == "ready":
+                    try:
+                        cutout, mask, objects = segment_with_matting(
+                            image_bytes, MATTER
+                        )
+                        model_id, matted = "birefnet-general+apple-vision", True
+                    except Exception:
+                        # A broken model install (the first packaged build couldn't
+                        # load it) shouldn't cost the cutout: Vision's still works.
+                        logger.exception("BiRefNet failed; using Vision's cutout")
+                if not matted:
+                    cutout, mask, model_id = segment_image(
+                        image_bytes, model=req.model
+                    )
 
             elapsed_ms = int((time.time() - start_time) * 1000)
             return JSONResponse(
@@ -390,13 +396,14 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             job["progress"] = round(min(max(fraction, 0.0), 1.0), 3)
 
         try:
-            job["people"] = scan_video_for_speakers(
-                req.path,
-                req.intervalSeconds,
-                req.numPeople,
-                req.framesPerPerson,
-                progress=report,
-            )
+            with appnap_hold("Scanning video for speakers"):
+                job["people"] = scan_video_for_speakers(
+                    req.path,
+                    req.intervalSeconds,
+                    req.numPeople,
+                    req.framesPerPerson,
+                    progress=report,
+                )
             job["progress"] = 1.0
             job["status"] = "done"
         except Exception as err:

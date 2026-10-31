@@ -158,7 +158,13 @@ class ModelDownload:
             if self._status in ("ready", "downloading"):
                 return
             self._status, self._progress, self._error = "downloading", 0.0, None
-            threading.Thread(target=self.run, daemon=True).start()
+            threading.Thread(target=self._run_with_nap_hold, daemon=True).start()
+
+    def _run_with_nap_hold(self) -> None:
+        from .appnap import hold as appnap_hold
+
+        with appnap_hold("Downloading matting model"):
+            self.run()
 
     def _fetch(self, file: ModelFile, done_before: int, total: int) -> None:
         path = self.directory / file.name
