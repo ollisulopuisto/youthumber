@@ -10,10 +10,12 @@ const ProjectGalleryModal = lazy(() => import('./components/ThumbnailEditor/Proj
 const ShowPresetModal = lazy(() => import('./components/ThumbnailEditor/ShowPresetModal'))
 const ElementPickerModal = lazy(() => import('./components/ThumbnailEditor/ElementPickerModal'))
 const ShortcutsModal = lazy(() => import('./components/ThumbnailEditor/ShortcutsModal'))
+const WhatsNewModal = lazy(() => import('./components/ThumbnailEditor/WhatsNewModal'))
 import { findElement } from './data/elements'
 import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail/elementFit'
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
 import { createExportFilename } from './modules/thumbnail/exportFilename'
+import { SEEN_KEY, currentVersion, shippedEntries, unseenEntries } from './modules/whatsnew/whatsnew'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
 import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
 import CommandPalette from './components/ThumbnailEditor/CommandPalette'
@@ -138,6 +140,7 @@ function Editor({ initialProject }) {
   const [showShowsModal, setShowShowsModal] = useState(false)
   const [showElementPicker, setShowElementPicker] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [whatsNew, setWhatsNew] = useState(null) // { version, entries } while the sheet is open
   const [showPalette, setShowPalette] = useState(false)
   const closePalette = useCallback(() => setShowPalette(false), [])
   const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'hd' })
@@ -595,7 +598,7 @@ function Editor({ initialProject }) {
 
   // Commands (modules/commands) are what the keys, the selection bar, the right-click menu
   // and the command palette run; the keys themselves live in modules/shortcuts.
-  const anyModalOpen = showProjectsModal || showShowsModal || showElementPicker || showShortcuts
+  const anyModalOpen = showProjectsModal || showShowsModal || showElementPicker || showShortcuts || whatsNew !== null
 
   const handleDeleteSelected = (layerId) => {
     if (isExtraTextLayer(layerId)) handleRemoveText(layerId)
@@ -608,6 +611,41 @@ function Editor({ initialProject }) {
     else if (isBugLayer(layerId)) handleDuplicateBug(layerId)
     else if (isStickerLayer(layerId)) handleDuplicateSticker(layerId)
   }
+
+  // After an upgrade, once: what's new since the version last shown. No stored
+  // version means this feature's first run - show the current version's notes,
+  // not the whole history. The seen marker moves only once the sheet is shown.
+  useEffect(() => {
+    try {
+      const entries = shippedEntries()
+      const current = currentVersion(entries)
+      if (!current) return
+      const seen = localStorage.getItem(SEEN_KEY) || ''
+      const toShow = seen ? unseenEntries(entries, seen) : entries.slice(0, 1)
+      if (toShow.length) setWhatsNew({ version: current, entries: toShow })
+    } catch {
+      /* no changelog shipped: nothing to tell */
+    }
+  }, [])
+
+  const openWhatsNew = useCallback(() => {
+    const entries = shippedEntries()
+    const current = currentVersion(entries)
+    if (current) setWhatsNew({ version: current, entries })
+  }, [])
+
+  const closeWhatsNew = useCallback(() => {
+    setWhatsNew((open) => {
+      if (open) {
+        try {
+          localStorage.setItem(SEEN_KEY, open.version)
+        } catch {
+          /* storage full or blocked: showing again next launch is harmless */
+        }
+      }
+      return null
+    })
+  }, [])
 
   const closeShortcuts = useCallback(() => setShowShortcuts(false), [])
 
@@ -690,6 +728,7 @@ function Editor({ initialProject }) {
         exportSettings={exportSettings}
         onChangeExportSettings={(changes) => setExportSettings((prev) => ({ ...prev, ...changes }))}
         onOpenShortcuts={() => setShowShortcuts(true)}
+        onOpenWhatsNew={openWhatsNew}
         onOpenPalette={() => setShowPalette(true)}
         onSetSpeakerCount={handleSetSpeakerCount}
       />
@@ -812,6 +851,9 @@ function Editor({ initialProject }) {
       )}
 
       {showShortcuts && <ShortcutsModal onClose={closeShortcuts} />}
+      {whatsNew && (
+        <WhatsNewModal version={whatsNew.version} entries={whatsNew.entries} onClose={closeWhatsNew} />
+      )}
 
       {/* Show Preset Preferences Modal */}
       {showShowsModal && (
