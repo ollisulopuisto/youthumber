@@ -12,9 +12,38 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        if: github.event_name == 'push'
+        with:
+          fetch-depth: 0
+
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          base: ${{ github.ref_name }}
+          filters: .github/filters.yml
+
   frontend:
     name: Frontend (Node.js 24)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -43,6 +72,8 @@ jobs:
 
   backend:
     name: Backend (Python + uv)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -71,9 +102,10 @@ jobs:
 
   backend-macos:
     # Vision, AVFoundation and Core Image only exist on macOS; on Ubuntu those tests
-    # skip. Runs on pushes to main only, where nobody is waiting on it.
+    # skip. Run on main pushes when backend files changed; PRs use the fast Linux suite.
     name: Backend (macOS frameworks)
-    if: github.event_name == 'push'
+    needs: changes
+    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
     runs-on: macos-latest
     env:
       YOUTHUMBER_REQUIRE_MACOS: "1"
@@ -95,3 +127,24 @@ jobs:
 
       - name: Run Backend Tests
         run: uv run pytest -rs
+
+  required:
+    name: CI required
+    if: always()
+    needs: [changes, frontend, backend, backend-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required CI results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          BACKEND_MACOS_RESULT: ${{ needs.backend-macos.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" || \
+                ( "$FRONTEND_RESULT" != "success" && "$FRONTEND_RESULT" != "skipped" ) || \
+                ( "$BACKEND_RESULT" != "success" && "$BACKEND_RESULT" != "skipped" ) || \
+                ( "$BACKEND_MACOS_RESULT" != "success" && "$BACKEND_MACOS_RESULT" != "skipped" ) ]]; then
+            echo "::error::One or more required CI jobs failed or were cancelled."
+            exit 1
+          fi

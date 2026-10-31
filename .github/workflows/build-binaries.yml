@@ -1,8 +1,7 @@
 name: Build Desktop Binaries
 
-# Every push to master builds and tests the app, so a packaging break shows up with the
-# commit that caused it (the Sept 12 build went unbuilt for 18 versions and broke
-# silently). A `v*` tag also publishes it as a GitHub Release.
+# Packaging changes on master/main build and test the app. A `v*` tag always builds and
+# publishes a GitHub Release; workflow_dispatch can be used to force a build.
 on:
   push:
     branches: [master, main]
@@ -16,9 +15,40 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+concurrency:
+  group: binaries-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Detect packaging changes
+    if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      packaging: ${{ steps.filter.outputs.packaging }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          base: ${{ github.ref_name }}
+          filters: .github/filters.yml
+
   build-macos:
     name: Build macOS Standalone App (Apple Silicon)
+    needs: changes
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_dispatch' ||
+       startsWith(github.ref, 'refs/tags/v') ||
+       needs.changes.outputs.packaging == 'true')
     runs-on: macos-15
     steps:
       - name: Checkout repository
