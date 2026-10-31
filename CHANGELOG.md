@@ -2,10 +2,13 @@
 
 All notable changes to YouThumber will be documented in this file.
 
-## [Unreleased]
+## [26.10.31.1] - 2026-10-31
 
-### Added
-- **App Nap awareness on macOS.** Video speaker scans, background removal and the matting-model download hold a background-power assertion while they run, so hiding the window no longer lets App Nap throttle them. Idle states stay nappable; display and system sleep are unaffected.
+### Fixed
+- Correctly classify video scans, background removal and the matting-model download as user-initiated App Nap activities while still allowing normal system and display sleep.
+
+### Packaging
+- Build a new Apple Silicon DMG with the App Nap behavior fix.
 
 ## [26.10.30.1] - 2026-10-30
 

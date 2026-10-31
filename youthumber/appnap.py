@@ -7,11 +7,11 @@ timers coalesce and scheduling priority drops — and a multi-minute video
 scan crawls ([Apple App Nap
 guide](https://developer.apple.com/library/archive/documentation/Performance/Conceptual/power_efficiency_guidelines_osx/AppNap.html)).
 
-``hold(reason)`` brackets the work with an ``NSProcessInfo`` activity. The
-option is ``NSActivityBackground`` on purpose: it only makes the app
-ineligible for App Nap. The user-initiated option would also keep the
-*display* awake for the whole scan, which is the opposite of saving power;
-the machine must still sleep on its normal schedule.
+``hold(reason)`` brackets the work with an ``NSProcessInfo`` activity. These
+operations are user-initiated, so the activity uses
+``NSActivityUserInitiatedAllowingIdleSystemSleep``: macOS won't App Nap or defer
+the work, while the display and system remain free to sleep on their normal
+schedule.
 
 Off macOS, without PyObjC, or if the assertion itself fails, ``hold`` is a
 no-op: the job still runs, the OS simply keeps its default heuristics.
@@ -27,10 +27,11 @@ from collections.abc import Iterator
 
 logger = logging.getLogger("youthumber.appnap")
 
-# NSActivityBackground from NSProcessInfo.h: makes the app ineligible for
-# App Nap only — no display-sleep or system-sleep effect. (The
-# UserInitiated options include IdleDisplaySleepDisabled = 1 << 40.)
-NS_ACTIVITY_BACKGROUND = 0x00000000000000FF
+# NSActivityUserInitiatedAllowingIdleSystemSleep from NSProcessInfo.h. It marks
+# lengthy work as user-requested but omits IdleSystemSleepDisabled (1 << 20).
+# IdleDisplaySleepDisabled (1 << 40) is also absent, so neither normal system
+# sleep nor display sleep is prevented.
+NS_ACTIVITY_USER_INITIATED_ALLOWING_IDLE_SYSTEM_SLEEP = 0x00EFFFFF
 
 
 def _process_info():
@@ -51,14 +52,16 @@ def _process_info():
 
 @contextlib.contextmanager
 def hold(reason: str, process_info=None) -> Iterator[None]:
-    """Hold the app out of App Nap until the block exits."""
+    """Keep user-requested work out of App Nap until the block exits."""
     info = _process_info() if process_info is None else process_info
     if info is None:
         yield
         return
     activity = None
     try:
-        activity = info.beginActivityWithOptions_reason_(NS_ACTIVITY_BACKGROUND, reason)
+        activity = info.beginActivityWithOptions_reason_(
+            NS_ACTIVITY_USER_INITIATED_ALLOWING_IDLE_SYSTEM_SLEEP, reason
+        )
     except Exception as exc:  # noqa: BLE001 - any Cocoa failure must not kill the job
         logger.warning("could not begin App Nap assertion: %s", exc)
     try:
