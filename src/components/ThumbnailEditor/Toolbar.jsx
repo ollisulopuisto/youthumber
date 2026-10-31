@@ -25,6 +25,7 @@ function Toolbar({
   exportSettings,
   onChangeExportSettings,
   onOpenShortcuts,
+  onOpenWhatsNew,
   onOpenPalette,
   onSetSpeakerCount,
 }) {
@@ -338,6 +339,14 @@ function Toolbar({
           aria-keyshortcuts={ariaKeyShortcuts('palette')}
         >
           Commands
+        </button>
+
+        <button
+          onClick={onOpenWhatsNew}
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
+          title="What changed in this version"
+        >
+          What&apos;s new
         </button>
 
         <button
