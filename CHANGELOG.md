@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.1.2] - 2026-11-01
+
+### Packaging
+- Rebuild the Apple Silicon DMG from the complete post-App-Nap-fix master state, including the App Nap documentation.
+
 ## [26.11.1.1] - 2026-11-01
 
 ### Documentation
