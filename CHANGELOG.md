@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.1.1] - 2026-11-01
+
+### Documentation
+- Document App Nap behavior, covered operations, and fallback behavior in `docs/app-nap.md`.
+
+### Packaging
+- Build a new Apple Silicon DMG with the documented App Nap behavior.
+
 ## [26.10.31.1] - 2026-10-31
 
 ### Fixed
