@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { elementsByCategory } from '../../data/elements'
 import ElementPreview from './ElementPreview'
 
@@ -12,6 +13,24 @@ const FIT_HINTS = {
 
 /** The element library, by category. Picking one adds it, fitted to the headline where it can be. */
 function ElementPickerModal({ onPick, onClose }) {
+  const closeRef = useRef(null)
+
+  useEffect(() => {
+    const opener = document.activeElement
+    closeRef.current?.focus()
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      if (opener instanceof HTMLElement) opener.focus()
+    }
+  }, [onClose])
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
@@ -26,7 +45,12 @@ function ElementPickerModal({ onPick, onClose }) {
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <h2 className="text-sm font-bold text-gray-100">Add element</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-sm" aria-label="Close">
+          <button
+            ref={closeRef}
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-sm rounded px-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+            aria-label="Close"
+          >
             ✕
           </button>
         </div>
