@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.1.3] - 2026-11-01
+
+### Added
+- Make Layers panel rows keyboard-operable with focus, selection semantics, and Enter/Space activation (PR #59).
+
+### Packaging
+- Build an Apple Silicon DMG from the latest `main` state.
+
 ## [26.11.1.2] - 2026-11-01
 
 ### Packaging
