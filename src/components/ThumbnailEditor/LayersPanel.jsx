@@ -110,7 +110,7 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5 overflow-y-auto">
+      <div role="listbox" aria-label="Layers" className="flex flex-col gap-1.5 overflow-y-auto">
         {displayOrder.map((layerId) => {
           const info = layerLabels[layerId] || { name: layerId, icon: '•', color: 'text-gray-300' }
           const isSelected = selectedLayer === layerId
@@ -122,8 +122,17 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
           return (
             <div
               key={layerId}
+              role="option"
+              aria-selected={isSelected}
+              tabIndex={0}
               onClick={() => onSelectLayer(layerId)}
-              className={`flex items-center justify-between px-2.5 py-2 rounded-lg text-xs cursor-pointer border transition-all select-none ${
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectLayer(layerId)
+                }
+              }}
+              className={`flex items-center justify-between px-2.5 py-2 rounded-lg text-xs cursor-pointer border transition-all select-none focus-visible:outline-2 focus-visible:outline-amber-300 ${
                 isSelected
                   ? 'bg-amber-500/15 border-amber-500/50 text-white shadow-xs'
                   : 'bg-gray-800/60 hover:bg-gray-850 border-gray-700/60 text-gray-300'
