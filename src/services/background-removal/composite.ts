@@ -18,32 +18,39 @@ export function applyMaskToImageData(
 ): Uint8ClampedArray<ArrayBuffer> {
   const { opacity = 1, threshold, invert = false } = options
   const totalPixels = width * height
-  const output = new Uint8ClampedArray(sourceRgba.length)
 
-  // Copy RGB directly from source
+  // Optimization: Clone source pixel data in a single native bulk memory copy
+  // (new Uint8ClampedArray(sourceRgba)). This avoids 3 manual byte reads and
+  // 3 manual byte writes (R, G, B channels) across millions of iterations in JS.
+  const output = new Uint8ClampedArray(sourceRgba)
+  const isGrayscale = maskData.length === totalPixels
+  const hasThreshold = threshold !== undefined
+  const threshVal = hasThreshold ? threshold : 0
+  const fullOpacity = opacity === 1
+
+  // Only update the alpha channel per pixel.
   for (let i = 0; i < totalPixels; i++) {
     const idx = i * 4
-    output[idx] = sourceRgba[idx]         // R
-    output[idx + 1] = sourceRgba[idx + 1] // G
-    output[idx + 2] = sourceRgba[idx + 2] // B
 
-    // Determine mask value: mask can be grayscale (1 byte/pixel or R=G=B in RGBA)
-    // If maskData is RGBA (length == totalPixels * 4), use R or A
-    let maskVal = maskData.length === totalPixels ? maskData[i] : maskData[idx]
+    // Determine mask value: mask can be grayscale (1 byte/pixel) or RGBA (R=G=B)
+    let maskVal = isGrayscale ? maskData[i] : maskData[idx]
 
     if (invert) {
       maskVal = 255 - maskVal
     }
 
-    if (threshold !== undefined) {
-      maskVal = maskVal < threshold ? 0 : maskVal
+    if (hasThreshold && maskVal < threshVal) {
+      maskVal = 0
     }
 
-    // Modulate with opacity and existing source alpha
-    const sourceAlpha = sourceRgba[idx + 3] / 255
-    const computedAlpha = Math.round(maskVal * opacity * sourceAlpha)
+    const alphaIdx = idx + 3
+    const sourceAlpha = sourceRgba[alphaIdx]
 
-    output[idx + 3] = Math.max(0, Math.min(255, computedAlpha))
+    // Fast path: for fully opaque source pixels and opacity=1, avoid float div/mul/round.
+    output[alphaIdx] =
+      fullOpacity && sourceAlpha === 255
+        ? maskVal
+        : Math.round(maskVal * opacity * (sourceAlpha / 255))
   }
 
   return output
