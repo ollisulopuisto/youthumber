@@ -58,7 +58,14 @@ function rgbPaletteAt(rgb, t) {
   const x = Math.min(Math.max(t, 0), 1) * (rgb.length - 1)
   const i = Math.min(Math.floor(x), rgb.length - 2)
   const f = x - i
-  return rgb[i].map((c, k) => Math.round(c + (rgb[i + 1][k] - c) * f))
+  const c0 = rgb[i]
+  const c1 = rgb[i + 1]
+  // Optimization: direct component indexing avoids creating an array and closure per call.
+  return [
+    Math.round(c0[0] + (c1[0] - c0[0]) * f),
+    Math.round(c0[1] + (c1[1] - c0[1]) * f),
+    Math.round(c0[2] + (c1[2] - c0[2]) * f),
+  ]
 }
 
 const css = ([r, g, b], a = 1) => `rgba(${r},${g},${b},${a})`
@@ -102,7 +109,12 @@ function pixelPass(ctx, w, h, makeCanvas, maxSide, shade) {
   small.width = small.height = 0
 }
 
-const mix = (a, b, t) => a.map((c, k) => Math.round(c + (b[k] - c) * t))
+// Optimization: direct component indexing avoids Array.prototype.map and closure overhead in loops.
+const mix = (a, b, t) => [
+  Math.round(a[0] + (b[0] - a[0]) * t),
+  Math.round(a[1] + (b[1] - a[1]) * t),
+  Math.round(a[2] + (b[2] - a[2]) * t),
+]
 
 const GENERATORS = {
   /** Soft overlapping colour blobs: the YouTube-gradient look. */
