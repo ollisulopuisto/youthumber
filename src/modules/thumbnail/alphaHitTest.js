@@ -23,7 +23,11 @@ export function alphaMapFor(element) {
   ctx.drawImage(element, 0, 0, width, height)
   const pixels = ctx.getImageData(0, 0, width, height).data
   const alpha = new Uint8Array(width * height)
-  for (let i = 0; i < alpha.length; i++) alpha[i] = pixels[i * 4 + 3]
+  // Optimization: direct pointer progression (idx += 4) avoids performing 262k
+  // multiplications (i * 4 + 3) across the downscaled pixel buffer in JS.
+  for (let i = 0, idx = 3; i < alpha.length; i++, idx += 4) {
+    alpha[i] = pixels[idx]
+  }
   const map = { width, height, scale, alpha }
   maps.set(element, map)
   return map
@@ -34,9 +38,18 @@ export function isMapTransparent(map, x, y, radius) {
   const r = Math.max(0, Math.ceil(radius))
   const cx = Math.floor(x)
   const cy = Math.floor(y)
-  for (let py = Math.max(0, cy - r); py <= Math.min(map.height - 1, cy + r); py++) {
-    for (let px = Math.max(0, cx - r); px <= Math.min(map.width - 1, cx + r); px++) {
-      if (map.alpha[py * map.width + px] > 0) return false
+  const yStart = Math.max(0, cy - r)
+  const yEnd = Math.min(map.height - 1, cy + r)
+  const xStart = Math.max(0, cx - r)
+  const xEnd = Math.min(map.width - 1, cx + r)
+  if (xStart > xEnd || yStart > yEnd) return true
+  // Optimization: hoisting py * map.width out of the inner loop avoids recalculating
+  // row multiplication on every column pixel tested during cursor hit testing.
+  const { width, alpha } = map
+  for (let py = yStart; py <= yEnd; py++) {
+    const rowOffset = py * width
+    for (let px = xStart; px <= xEnd; px++) {
+      if (alpha[rowOffset + px] > 0) return false
     }
   }
   return true
