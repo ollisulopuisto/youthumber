@@ -26,6 +26,22 @@ def test_health_check(client: TestClient) -> None:
     assert "supportedModels" in data
 
 
+def test_cors_allows_local_origins(client: TestClient) -> None:
+    # Requests from local dev server or loopback should be allowed CORS access
+    for origin in ("http://localhost:5173", "http://127.0.0.1:8731"):
+        res = client.get("/health", headers={"Origin": origin})
+        assert res.status_code == 200
+        assert res.headers.get("access-control-allow-origin") == origin
+
+
+def test_cors_rejects_untrusted_origins(client: TestClient) -> None:
+    # Requests from arbitrary websites or spoofed localhost domains must not receive CORS headers
+    for evil in ("https://evil.com", "http://localhost.evil.com"):
+        res = client.get("/health", headers={"Origin": evil})
+        assert res.status_code == 200
+        assert res.headers.get("access-control-allow-origin") is None
+
+
 def test_remove_background_endpoint(client: TestClient) -> None:
     # Create small test image
     img = Image.new("RGB", (64, 64), color=(200, 50, 50))

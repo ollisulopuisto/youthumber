@@ -237,9 +237,11 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         version="26.10.25.126",
     )
 
+    # Security: Restrict CORS to local development / loopback origins only to
+    # prevent unauthorized websites from executing requests against the local server.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
