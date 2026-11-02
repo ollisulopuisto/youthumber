@@ -25,6 +25,13 @@ describe('isMapTransparent', () => {
     expect(isMapTransparent(m, -20, -20, 1)).toBe(true)
     expect(isMapTransparent(m, 30, 2, 0)).toBe(true)
   })
+
+  it('correctly handles non-square maps and boundaries', () => {
+    const m = map(20, 10, [[19, 9], [0, 9]])
+    expect(isMapTransparent(m, 19, 9, 0)).toBe(false)
+    expect(isMapTransparent(m, 0, 9, 0)).toBe(false)
+    expect(isMapTransparent(m, 10, 5, 2)).toBe(true)
+  })
 })
 
 describe('installAlphaHitTest', () => {
