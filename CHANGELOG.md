@@ -2,6 +2,11 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.2.1] - 2026-11-02
+
+### Fixed
+- Fix the backend formatting gate: one `ruff format` regression in `youthumber/server.py` (call reflow) that the main-branch format check rejected.
+
 ## [26.11.1.3] - 2026-11-01
 
 ### Added

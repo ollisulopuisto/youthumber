@@ -317,9 +317,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                         # load it) shouldn't cost the cutout: Vision's still works.
                         logger.exception("BiRefNet failed; using Vision's cutout")
                 if not matted:
-                    cutout, mask, model_id = segment_image(
-                        image_bytes, model=req.model
-                    )
+                    cutout, mask, model_id = segment_image(image_bytes, model=req.model)
 
             elapsed_ms = int((time.time() - start_time) * 1000)
             return JSONResponse(
