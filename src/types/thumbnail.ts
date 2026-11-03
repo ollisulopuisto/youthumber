@@ -67,6 +67,8 @@ export interface TextLayerState {
   text: string
   fontFamily: string
   fontSize: number
+  /** Line spacing multiplier used by Fabric text objects (1.16 is Fabric's default). */
+  lineHeight?: number
   fontWeight: string | number
   fontStyle?: 'normal' | 'italic'
   textAlign: 'left' | 'center' | 'right'

@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.3.1] - 2026-11-03
+
+### Added
+- Add adjustable line spacing for headline and additional text layers.
+
+### Packaging
+- Build an Apple Silicon DMG from the latest `main` state.
+
 ## [26.11.2.1] - 2026-11-02
 
 ### Fixed

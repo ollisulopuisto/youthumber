@@ -250,6 +250,23 @@ function PropertiesPanel({
           </div>
         </div>
 
+        {/* Line spacing */}
+        <div>
+          <label className="block text-[10px] font-medium text-gray-400 mb-1">
+            Line spacing ({Math.round((textState.lineHeight ?? 1.16) * 100)}%)
+          </label>
+          <input
+            type="range"
+            min={0.6}
+            max={2}
+            step={0.05}
+            value={textState.lineHeight ?? 1.16}
+            onChange={(e) => onUpdateText({ lineHeight: Number(e.target.value) })}
+            className="w-full accent-amber-500"
+            aria-label="Line spacing"
+          />
+        </div>
+
         {/* Text Alignment */}
         <div>
           <label className="block text-[10px] font-medium text-gray-400 mb-1">Alignment</label>
