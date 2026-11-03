@@ -2,6 +2,17 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.4.1] - 2026-11-04
+
+### Added
+- Make the project gallery modal keyboard-operable, with focus management and focus return (PR #71).
+
+### Performance
+- Optimize voronoi procedural background generation (PR #70).
+
+### Packaging
+- Build an Apple Silicon DMG from the latest `main` state.
+
 ## [26.11.3.1] - 2026-11-03
 
 ### Added
