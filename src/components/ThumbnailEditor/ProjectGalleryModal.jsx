@@ -10,6 +10,7 @@ import {
 function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
   const [projects, setProjects] = useState([])
   const fileInputRef = useRef(null)
+  const closeRef = useRef(null)
 
   const refreshList = async () => {
     setProjects(await listStoredProjects())
@@ -17,9 +18,22 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
 
   useEffect(() => {
     let active = true
+    const opener = document.activeElement
+    closeRef.current?.focus()
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
     listStoredProjects().then((items) => { if (active) setProjects(items) })
-    return () => { active = false }
-  }, [])
+    return () => {
+      active = false
+      window.removeEventListener('keydown', onKey)
+      if (opener instanceof HTMLElement) opener.focus()
+    }
+  }, [onClose])
 
   const handleSelect = async (id) => {
     const proj = await loadProjectFromStorage(id)
@@ -74,11 +88,15 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Saved projects"
     >
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl p-5 shadow-2xl flex flex-col gap-4 text-white">
+      <div
+        className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-xl p-5 shadow-2xl flex flex-col gap-4 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <h2 className="text-base font-bold text-gray-100 flex items-center gap-2">
             <span>📁</span>
@@ -92,8 +110,10 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
               Import JSON
             </button>
             <button
+              ref={closeRef}
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-gray-800"
+              className="text-gray-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+              aria-label="Close"
             >
               ✕
             </button>
