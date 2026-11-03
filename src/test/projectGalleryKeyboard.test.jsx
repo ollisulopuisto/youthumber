@@ -4,6 +4,14 @@ import { act, createElement as h } from 'react'
 import { vi, describe, it, expect, afterEach } from 'vitest'
 import ProjectGalleryModal from '../components/ThumbnailEditor/ProjectGalleryModal'
 
+vi.mock('../modules/thumbnail/thumbnailStorage', () => ({
+  listStoredProjects: vi.fn().mockResolvedValue([]),
+  loadProjectFromStorage: vi.fn().mockResolvedValue(null),
+  deleteStoredProject: vi.fn().mockResolvedValue(undefined),
+  exportProjectToJSON: vi.fn().mockReturnValue('{}'),
+  importProjectFromJSON: vi.fn().mockReturnValue({}),
+}))
+
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 let container, root
@@ -25,7 +33,7 @@ async function setup() {
   opener.focus()
 
   const props = {
-    currentProjectId: 'test-id',
+    currentProjectId: 'test-1',
     onLoadProject: vi.fn(),
     onClose: vi.fn(),
   }
