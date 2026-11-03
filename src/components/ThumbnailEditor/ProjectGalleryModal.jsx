@@ -10,6 +10,7 @@ import {
 function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
   const [projects, setProjects] = useState([])
   const fileInputRef = useRef(null)
+  const closeRef = useRef(null)
 
   const refreshList = async () => {
     setProjects(await listStoredProjects())
@@ -17,9 +18,22 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
 
   useEffect(() => {
     let active = true
+    const opener = document.activeElement
+    closeRef.current?.focus()
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
     listStoredProjects().then((items) => { if (active) setProjects(items) })
-    return () => { active = false }
-  }, [])
+    return () => {
+      active = false
+      window.removeEventListener('keydown', onKey)
+      if (opener instanceof HTMLElement) opener.focus()
+    }
+  }, [onClose])
 
   const handleSelect = async (id) => {
     const proj = await loadProjectFromStorage(id)
@@ -92,8 +106,10 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
               Import JSON
             </button>
             <button
+              ref={closeRef}
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-gray-800"
+              aria-label="Close"
+              className="text-gray-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
             >
               ✕
             </button>
