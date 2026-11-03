@@ -111,4 +111,31 @@ describe('PROCGEN_STYLES', () => {
   it('rejects an unknown style', () => {
     expect(() => render('nope', 1)).toThrow(/unknown/i)
   })
+
+  it('voronoi generates deterministic output across various aspect ratios', () => {
+    const wide1 = render('voronoi', 42, ['#111827', '#3B82F6', '#F59E0B'])
+    const wide2 = render('voronoi', 42, ['#111827', '#3B82F6', '#F59E0B'])
+    expect(wide1).toBe(wide2)
+
+    // Verify portrait dimensions also execute deterministically
+    const log: string[] = []
+    const makeCanvas = (w: number, h: number) => fakeCanvas(w, h, log)
+    const portrait1 = renderProcgen('voronoi', {
+      colors: ['#111827', '#3B82F6', '#F59E0B'],
+      seed: 42,
+      width: 108,
+      height: 192,
+      makeCanvas: makeCanvas as never,
+    })
+    log.length = 0
+    const portrait2 = renderProcgen('voronoi', {
+      colors: ['#111827', '#3B82F6', '#F59E0B'],
+      seed: 42,
+      width: 108,
+      height: 192,
+      makeCanvas: makeCanvas as never,
+    })
+    expect(portrait1).toBe(portrait2)
+    expect(portrait1).not.toBe(wide1)
+  })
 })

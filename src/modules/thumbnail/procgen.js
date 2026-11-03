@@ -329,31 +329,38 @@ const GENERATORS = {
   /** Voronoi cells: flat stained-glass facets with dark seams. */
   voronoi(ctx, w, h, colors, rand, { makeCanvas }) {
     const n = 28 + Math.floor(rand() * 20)
-    const sites = Array.from({ length: n }, () => ({
-      x: rand(),
-      y: rand(),
-      t: rand(),
-    }))
+    const aspect = w / h
+    // Optimization: pre-scale site x coordinates by aspect and unpack sites into contiguous
+    // Float64Arrays. This avoids performing millions of aspect multiplications ((s.x - u) * aspect)
+    // and object property lookups inside the hot per-pixel site search loop.
+    const siteSx = new Float64Array(n)
+    const siteY = new Float64Array(n)
+    const siteT = new Float64Array(n)
+    for (let i = 0; i < n; i++) {
+      siteSx[i] = rand() * aspect
+      siteY[i] = rand()
+      siteT[i] = rand()
+    }
     const dark = hexToRgb(colors[0])
     // Parsed once: this runs per pixel, and re-parsing the hex palette dominated the time.
     const pal = [colors[0], accentAt(colors, 0), colors[2] ?? colors[1]].map(hexToRgb)
-    const aspect = w / h
     pixelPass(ctx, w, h, makeCanvas, 640, (u, v) => {
+      const uAspect = u * aspect
       // Squared distances; the square root is only needed for the two nearest.
       let best = Infinity
       let second = Infinity
-      let owner = sites[0]
-      for (const s of sites) {
-        const dx = (s.x - u) * aspect
-        const dy = s.y - v
+      let ownerIdx = 0
+      for (let i = 0; i < n; i++) {
+        const dx = siteSx[i] - uAspect
+        const dy = siteY[i] - v
         const d = dx * dx + dy * dy
         if (d < best) {
           second = best
           best = d
-          owner = s
+          ownerIdx = i
         } else if (d < second) second = d
       }
-      const cell = rgbPaletteAt(pal, owner.t * owner.t * 0.9 + 0.1 * (1 - v))
+      const cell = rgbPaletteAt(pal, siteT[ownerIdx] * siteT[ownerIdx] * 0.9 + 0.1 * (1 - v))
       return mix(dark, cell, Math.min(1, (Math.sqrt(second) - Math.sqrt(best)) * 70))
     })
   },
