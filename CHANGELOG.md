@@ -2,6 +2,21 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.4.2] - 2026-11-04
+
+### Added
+- Add a documented programmatic actions API, OpenAI/Anthropic tool schemas, and CLI support for listing and executing actions (PR #75).
+
+### Changed
+- Keep the thumbnail preview visible while editing in a scrollable side panel; remove nested scrolling from the editor controls.
+- Make the Manage Shows modal keyboard-operable (PR #74).
+
+### Performance
+- Hoist the scanline y-distance calculation in the Voronoi shader (PR #73).
+
+### Packaging
+- Build an Apple Silicon DMG from the latest `main` state.
+
 ## [26.11.4.1] - 2026-11-04
 
 ### Added

@@ -260,7 +260,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         lifespan=lifespan,
         title="YouThumber",
         description="Local-first YouTube thumbnail editor API & Web Studio",
-        version="26.10.25.126",
+        version="26.11.4.2",
     )
 
     # Security: Attach standard defense-in-depth headers on all HTTP responses to
