@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   loadShowPresetsPersistent,
   saveShowPresetPersistent,
@@ -12,6 +12,7 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
+  const closeRef = useRef(null)
 
   const refreshList = async () => {
     try {
@@ -23,11 +24,24 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
 
   useEffect(() => {
     let active = true
+    const opener = document.activeElement
+    closeRef.current?.focus()
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey)
     loadShowPresetsPersistent()
       .then((items) => { if (active) setPresets(items) })
       .catch((err) => { if (active) setSaveError(`Could not load show presets: ${err.message}`) })
-    return () => { active = false }
-  }, [])
+    return () => {
+      active = false
+      window.removeEventListener('keydown', onKey)
+      if (opener instanceof HTMLElement) opener.focus()
+    }
+  }, [onClose])
 
   const handleApply = (preset) => {
     onApplyShow(preset)
@@ -83,11 +97,15 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
   return (
     <div
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Show preferences"
     >
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl flex flex-col gap-4 text-white">
+      <div
+        className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg p-5 shadow-2xl flex flex-col gap-4 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-gray-800 pb-3">
           <div className="flex items-center gap-2">
             <span className="text-xl">📺</span>
@@ -99,8 +117,10 @@ function ShowPresetModal({ currentProject, onApplyShow, onClose }) {
             </div>
           </div>
           <button
+            ref={closeRef}
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-gray-800"
+            className="text-gray-400 hover:text-white text-sm font-bold w-6 h-6 flex items-center justify-center rounded hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+            aria-label="Close"
           >
             ✕
           </button>
