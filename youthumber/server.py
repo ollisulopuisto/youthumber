@@ -17,6 +17,13 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .actions import (
+    execute_action,
+    execute_batch,
+    get_anthropic_tools,
+    get_openai_tools,
+    list_actions,
+)
 from .appnap import hold as appnap_hold
 from .matting import BACKEND, MATTER, MODEL, warm_up
 from .paths import get_dist_dir
@@ -161,6 +168,25 @@ class ShowPresetRequest(BaseModel):
     preset: dict[str, Any]
 
 
+class ActionExecuteRequest(BaseModel):
+    action: str = Field(..., description="Action name to execute")
+    parameters: dict[str, Any] = Field(
+        default_factory=dict, description="Action parameters"
+    )
+    project: dict[str, Any] | None = Field(
+        None, description="Optional current project state"
+    )
+
+
+class BatchActionsRequest(BaseModel):
+    actions: list[dict[str, Any]] = Field(
+        ..., description="List of actions to execute sequentially"
+    )
+    project: dict[str, Any] | None = Field(
+        None, description="Optional initial project state"
+    )
+
+
 def show_presets_path() -> Path:
     """Return a writable, per-user location for presets in the CLI/desktop app."""
     if os.name == "nt":
@@ -255,6 +281,64 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.get("/api/actions")
+    def get_actions(format: str | None = None) -> dict[str, Any]:
+        """Returns available actions and their schemas, optionally formatted as LLM tool definitions."""
+        if format == "openai":
+            return {"tools": get_openai_tools()}
+        if format == "anthropic":
+            return {"tools": get_anthropic_tools()}
+        return {
+            "actions": list_actions(),
+            "tools": {
+                "openai": get_openai_tools(),
+                "anthropic": get_anthropic_tools(),
+            },
+        }
+
+    @app.post("/api/actions/execute")
+    def post_action_execute(req: ActionExecuteRequest) -> dict[str, Any]:
+        """Executes a single action against a project state and returns the updated project."""
+        try:
+            updated_project = execute_action(
+                action_name=req.action,
+                params=req.parameters,
+                project=req.project,
+            )
+            return {
+                "success": True,
+                "action": req.action,
+                "project": updated_project,
+            }
+        except ValueError as err:
+            raise HTTPException(status_code=400, detail=str(err)) from err
+        except Exception as err:
+            logger.exception("Failed to execute action %s", req.action)
+            raise HTTPException(
+                status_code=500, detail=f"Action execution failed: {err}"
+            ) from err
+
+    @app.post("/api/actions/batch")
+    def post_actions_batch(req: BatchActionsRequest) -> dict[str, Any]:
+        """Executes a batch of actions sequentially."""
+        try:
+            final_project = execute_batch(
+                actions=req.actions,
+                initial_project=req.project,
+            )
+            return {
+                "success": True,
+                "count": len(req.actions),
+                "project": final_project,
+            }
+        except ValueError as err:
+            raise HTTPException(status_code=400, detail=str(err)) from err
+        except Exception as err:
+            logger.exception("Failed to execute actions batch")
+            raise HTTPException(
+                status_code=500, detail=f"Batch execution failed: {err}"
+            ) from err
 
     @app.get("/show-presets")
     def get_show_presets() -> dict[str, Any]:
