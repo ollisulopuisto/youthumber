@@ -146,6 +146,64 @@ def test_matting_model_status_and_download(monkeypatch) -> None:
     assert started.status_code == 202 and model.started
 
 
+def test_actions_api_endpoints(client: TestClient) -> None:
+    # 1. GET /api/actions
+    res = client.get("/api/actions")
+    assert res.status_code == 200
+    data = res.json()
+    assert "actions" in data
+    assert "tools" in data
+    assert "openai" in data["tools"]
+    assert "anthropic" in data["tools"]
+
+    # Test format query param
+    oa_res = client.get("/api/actions?format=openai")
+    assert oa_res.status_code == 200
+    assert "tools" in oa_res.json()
+
+    ant_res = client.get("/api/actions?format=anthropic")
+    assert ant_res.status_code == 200
+    assert "tools" in ant_res.json()
+
+    # 2. POST /api/actions/execute
+    exec_res = client.post(
+        "/api/actions/execute",
+        json={
+            "action": "create_project",
+            "parameters": {"name": "API Project", "speaker_count": 2},
+        },
+    )
+    assert exec_res.status_code == 200
+    exec_data = exec_res.json()
+    assert exec_data["success"] is True
+    assert exec_data["action"] == "create_project"
+    project = exec_data["project"]
+    assert project["name"] == "API Project"
+
+    # Test validation / error
+    bad_res = client.post(
+        "/api/actions/execute",
+        json={"action": "unknown_action", "parameters": {}},
+    )
+    assert bad_res.status_code == 400
+
+    # 3. POST /api/actions/batch
+    batch_res = client.post(
+        "/api/actions/batch",
+        json={
+            "actions": [
+                {"action": "create_project", "parameters": {"name": "Batch API"}},
+                {"action": "set_headline", "parameters": {"text": "HEADLINE FROM API"}},
+            ]
+        },
+    )
+    assert batch_res.status_code == 200
+    batch_data = batch_res.json()
+    assert batch_data["success"] is True
+    assert batch_data["count"] == 2
+    assert batch_data["project"]["text"]["text"] == "HEADLINE FROM API"
+
+
 def test_remove_falls_back_to_vision_when_birefnet_fails(monkeypatch) -> None:
     # The first packaged build couldn't run the model ("torchvision::nms does not
     # exist", 2026-09-23) and every cutout returned 500. Vision's cutout still works.

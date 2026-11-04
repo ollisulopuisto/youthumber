@@ -65,8 +65,60 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Check this install has everything it needs, then exit (1 on problems)",
     )
+    parser.add_argument(
+        "--list-actions",
+        action="store_true",
+        help="Print available thumbnail manipulation actions and LLM tools as JSON, then exit",
+    )
+    parser.add_argument(
+        "--run-actions",
+        metavar="JSON_FILE_OR_STRING",
+        help="Execute a batch of actions from a JSON file path or inline JSON string and print the resulting project",
+    )
 
     args = parser.parse_args(argv)
+    if args.list_actions:
+        import json
+
+        from youthumber.actions import (
+            get_anthropic_tools,
+            get_openai_tools,
+            list_actions,
+        )
+
+        print(
+            json.dumps(
+                {
+                    "actions": list_actions(),
+                    "tools": {
+                        "openai": get_openai_tools(),
+                        "anthropic": get_anthropic_tools(),
+                    },
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    if args.run_actions:
+        import json
+        from pathlib import Path
+
+        from youthumber.actions import execute_batch
+
+        raw = args.run_actions.strip()
+        data = None
+        target_path = Path(raw)
+        if target_path.is_file():
+            data = json.loads(target_path.read_text(encoding="utf-8"))
+        else:
+            data = json.loads(raw)
+
+        actions_list = data if isinstance(data, list) else data.get("actions", [])
+        initial_proj = data.get("project") if isinstance(data, dict) else None
+        res = execute_batch(actions_list, initial_project=initial_proj)
+        print(json.dumps(res, indent=2))
+        return 0
     if args.self_test:
         from youthumber.selftest import main as self_test
 
