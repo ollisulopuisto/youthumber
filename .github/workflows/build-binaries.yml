@@ -78,6 +78,28 @@ jobs:
       - name: Install Python dependencies
         run: uv sync --all-groups
 
+      - name: Import Developer ID certificate
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$BUILD_CERTIFICATE_BASE64"
+          test -n "$P12_PASSWORD"
+          test -n "$KEYCHAIN_PASSWORD"
+          KEYCHAIN_PATH="$RUNNER_TEMP/youthumber-signing.keychain-db"
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 -D -o "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -T /usr/bin/codesign -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          rm -f "$CERTIFICATE_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F 'Developer ID Application: Olli Sulopuisto (LWSR8T5392)'
+
       - name: Read version
         id: version
         run: |
@@ -94,6 +116,8 @@ jobs:
           fi
 
       - name: Package macOS Standalone App Bundle
+        env:
+          APPLE_SIGNING_IDENTITY: "Developer ID Application: Olli Sulopuisto (LWSR8T5392)"
         run: uv run python scripts/build_binaries.py --skip-frontend
 
       # The packaged app, not the source tree: catches modules PyInstaller missed.
@@ -116,13 +140,28 @@ jobs:
           kill "$pid" || true
           if [ "$status" != 0 ]; then cat server.log; exit 1; fi
 
+      - name: Verify Developer ID app signature
+        run: codesign --verify --deep --strict --verbose=2 release/YouThumber.app
+
       - name: Create DMG
         run: |
           staging=$(mktemp -d)
-          cp -R release/YouThumber.app "$staging/"
+          ditto release/YouThumber.app "$staging/YouThumber.app"
           ln -s /Applications "$staging/Applications"
           hdiutil create -volname YouThumber -srcfolder "$staging" -ov -format UDZO \
             "release/YouThumber-macOS-arm64.dmg"
+
+      - name: Sign and verify DMG
+        env:
+          APPLE_SIGNING_IDENTITY: "Developer ID Application: Olli Sulopuisto (LWSR8T5392)"
+        run: |
+          DMG_PATH="release/YouThumber-macOS-arm64.dmg"
+          codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$DMG_PATH"
+          codesign --verify --verbose=2 "$DMG_PATH"
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/youthumber-signing.keychain-db" || true
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v7

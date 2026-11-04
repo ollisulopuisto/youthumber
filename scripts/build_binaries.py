@@ -7,6 +7,7 @@ executables / application bundles using PyInstaller.
 from __future__ import annotations
 
 import argparse
+import os
 import platform
 import plistlib
 import shutil
@@ -53,14 +54,31 @@ def project_version() -> str:
 
 
 def stamp_version(app: Path) -> None:
-    """Puts the CalVer version in Info.plist (PyInstaller leaves 0.0.0) and re-signs,
-    since editing the plist invalidates PyInstaller's ad-hoc signature."""
+    """Puts the CalVer version in Info.plist and restores the app signature."""
     plist_path = app / "Contents" / "Info.plist"
     info = plistlib.loads(plist_path.read_bytes())
     info["CFBundleShortVersionString"] = project_version()
     info["CFBundleVersion"] = project_version()
     plist_path.write_bytes(plistlib.dumps(info))
-    subprocess.run(["codesign", "--force", "--deep", "-s", "-", str(app)], check=True)
+    identity = os.environ.get("APPLE_SIGNING_IDENTITY")
+    if identity:
+        # The collected binaries were signed by PyInstaller with this identity.
+        # Only the app bundle's outer signature needs to be refreshed here.
+        subprocess.run(
+            [
+                "codesign",
+                "--force",
+                "--options",
+                "runtime",
+                "--timestamp",
+                "--sign",
+                identity,
+                str(app),
+            ],
+            check=True,
+        )
+    else:
+        subprocess.run(["codesign", "--force", "--deep", "-s", "-", str(app)], check=True)
 
 
 def run_pyinstaller() -> None:
@@ -140,6 +158,9 @@ def run_pyinstaller() -> None:
         # "No module named 'kornia'" (2026-09-23). `--self-test` checks for them.
         for package in MODEL_PACKAGES:
             cmd.extend(["--collect-all", package])
+        identity = os.environ.get("APPLE_SIGNING_IDENTITY")
+        if identity:
+            cmd.extend(["--codesign-identity", identity])
     elif sys.platform == "win32":
         cmd.extend(
             [
