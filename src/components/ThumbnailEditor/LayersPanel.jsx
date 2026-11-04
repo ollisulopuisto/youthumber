@@ -110,7 +110,7 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
         </div>
       </div>
 
-      <div role="listbox" aria-label="Layers" className="flex flex-col gap-1.5 overflow-y-auto">
+      <div role="listbox" aria-label="Layers" className="flex flex-col gap-1.5">
         {displayOrder.map((layerId) => {
           const info = layerLabels[layerId] || { name: layerId, icon: '•', color: 'text-gray-300' }
           const isSelected = selectedLayer === layerId

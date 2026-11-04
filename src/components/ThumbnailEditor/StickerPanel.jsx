@@ -60,7 +60,7 @@ function StickerPanel({ project, sticker, onUpdate, onRemove, onDuplicate, onFit
   const update = (changes) => onUpdate(sticker.id, changes)
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-2.5 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-2.5 shadow-lg text-xs text-gray-200">
       <div className="flex items-center justify-between border-b border-gray-800 pb-1.5 gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 shrink-0">

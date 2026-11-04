@@ -23,7 +23,7 @@ const FontPicker = memo(function FontPicker({ fontFamily, fontWeight, onChange }
   return (
     <div className="flex flex-col gap-2">
       <div
-        className="max-h-44 overflow-y-auto rounded border border-gray-700 bg-gray-950/60"
+        className="rounded border border-gray-700 bg-gray-950/60"
         role="listbox"
         aria-label="Font"
       >

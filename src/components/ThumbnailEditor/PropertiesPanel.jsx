@@ -183,7 +183,7 @@ function PropertiesPanel({
     const textState = extraText ?? project.text
     const onUpdateText = extraText ? updateSelectedText : updateAnyText
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200">
         <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <h3 className="font-bold uppercase tracking-wider text-amber-400 text-[11px]">
             Text Properties
@@ -518,7 +518,7 @@ function PropertiesPanel({
     const transform = speaker.transform
 
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200">
         <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <h3 className="font-bold uppercase tracking-wider text-sky-400 text-[11px]">
             {speakerLabel(project, speaker.id)}
@@ -738,7 +738,7 @@ function PropertiesPanel({
     const speakersWithPhotos = project.speakers.filter((s) => s.sourceImageUrl)
 
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200">
         <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <h3 className="font-bold uppercase tracking-wider text-emerald-400 text-[11px]">
             Background Properties

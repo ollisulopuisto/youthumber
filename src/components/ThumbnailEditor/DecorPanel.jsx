@@ -12,7 +12,7 @@ function DecorPanel({ decor, onUpdateDecor }) {
   const setElement = (id, changes) => onUpdateDecor({ elements: { [id]: changes } })
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200 overflow-y-auto max-h-[380px]">
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-3.5 flex flex-col gap-3 shadow-lg text-xs text-gray-200">
       <div className="flex items-center justify-between border-b border-gray-800 pb-1.5">
         <h3 className="font-bold uppercase tracking-wider text-pink-400 text-[11px]">Graphics</h3>
         <div className="flex gap-1.5">

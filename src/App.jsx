@@ -582,7 +582,7 @@ function Editor({ initialProject }) {
     handleUpdateSpeakerMaskOptions(slotId, { feather: 0, threshold: 0, opacity: 1, invert: false })
   }
 
-  // "More…" and "Edit text" bring the properties panel below the canvas into view.
+  // "More…" and "Edit text" bring the properties panel into view.
   const propertiesRef = useRef(null)
   const showProperties = (layerId, focusText = false) => {
     setSelectedLayer(layerId)
@@ -734,12 +734,10 @@ function Editor({ initialProject }) {
       />
 
       {/* Main Workspace Area */}
-      {/* The canvas always gets at least half the window height; the panels below scroll
-          rather than squeezing it (with 4 speaker cards it shrank to a sliver). */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {/* 2. Top / Canvas Area (Center 1280x720 Canvas) */}
-        <div ref={canvasAreaRef} className="flex-1 flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden">
-          <div className="w-full max-w-5xl h-full flex items-center justify-center">
+      <div className="flex-1 min-h-0 overflow-y-auto xl:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(440px,0.8fr)] xl:grid-rows-1 xl:overflow-hidden">
+        {/* Keep the canvas in view while the editing controls scroll independently. */}
+        <div ref={canvasAreaRef} className="relative flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden xl:min-h-0 xl:h-full">
+          <div className="w-full max-w-5xl h-full min-h-0 flex items-center justify-center">
             <ThumbnailStudioCanvas
               ref={canvasRef}
               project={project}
@@ -786,8 +784,8 @@ function Editor({ initialProject }) {
           )}
         </div>
 
-        {/* 3. Middle Section: Layers and Properties */}
-        <div className="min-h-44 sm:min-h-52 bg-gray-950 px-4 py-2 border-t border-gray-800 grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0 items-start">
+        {/* Editing controls share one scroll area; individual panels grow to fit their content. */}
+        <div className="min-w-0 bg-gray-950 px-4 py-3 border-t border-gray-800 flex flex-col gap-4 items-stretch xl:min-h-0 xl:overflow-y-auto xl:border-t-0 xl:border-l">
           {/* Layers Panel */}
           <LayersPanel
             project={project}
@@ -825,8 +823,8 @@ function Editor({ initialProject }) {
           </div>
         </div>
 
-        {/* 4. Bottom Dock: one card per speaker + background */}
-        <div className="shrink-0">
+        {/* Speaker and background controls continue in the same scroll area. */}
+        <div>
           <SpeakerSlotsPanel
             project={project}
             {...speakerCardHandlers}
