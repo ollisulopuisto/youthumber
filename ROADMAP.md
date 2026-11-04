@@ -2,6 +2,13 @@
 
 Planned work, not yet scheduled to a specific day unless noted.
 
+## Agent and CLI automation
+
+- Planned: expose the editor's supported actions through a documented, stable command/API surface so an LLM or local agent can operate it without driving the UI. Cover project state and editing actions (layers, text, images, layout), save, and export; keep the command catalog and API capabilities in sync.
+- Define machine-readable request and response schemas (for example, OpenAPI/JSON Schema), including validation errors and exported-file metadata. Long-running work such as background removal and video scans should return a job ID with queryable progress, terminal status, and results.
+- Provide a headless CLI that invokes the same API and can exchange JSON over stdin/stdout for scripts and agents. Document examples and capability discovery.
+- Keep the service loopback-only by default; require authentication before supporting non-loopback binding.
+
 ## Backgrounds and default styles
 
 - Done (v26.10.10.85): 8 seeded procedural backgrounds (`src/modules/thumbnail/procgen.js`), in the Texture picker. Checked visually in headless Chrome with two palettes; not yet tried inside the editor UI or exported from it.
