@@ -246,3 +246,65 @@ def test_remove_falls_back_to_vision_when_birefnet_fails(monkeypatch) -> None:
     assert res.status_code == 200
     assert "birefnet" not in res.json()["metadata"]["modelId"]
     assert res.json()["objectsMask"] is None
+
+
+def test_show_preset_input_validation(
+    client: TestClient, tmp_path, monkeypatch
+) -> None:
+    # Use isolated test directory for presets storage
+    preset_file = tmp_path / "show-presets.json"
+    monkeypatch.setattr("youthumber.server.show_presets_path", lambda: preset_file)
+
+    # 1. Reject non-string id or name
+    res = client.post("/show-presets", json={"preset": {"id": 123, "name": "Valid"}})
+    assert res.status_code == 400
+    assert "Preset id and name must be strings" in res.json()["detail"]
+
+    res = client.post("/show-presets", json={"preset": {"id": "valid_id", "name": 456}})
+    assert res.status_code == 400
+    assert "Preset id and name must be strings" in res.json()["detail"]
+
+    # 2. Reject whitespace-only id or name
+    res = client.post("/show-presets", json={"preset": {"id": "   ", "name": "Valid"}})
+    assert res.status_code == 400
+    assert "Preset id and name cannot be empty" in res.json()["detail"]
+
+    res = client.post(
+        "/show-presets", json={"preset": {"id": "valid_id", "name": "   "}}
+    )
+    assert res.status_code == 400
+    assert "Preset id and name cannot be empty" in res.json()["detail"]
+
+    # 3. Reject oversized id or name
+    res = client.post(
+        "/show-presets", json={"preset": {"id": "x" * 65, "name": "Valid"}}
+    )
+    assert res.status_code == 400
+    assert "exceeds maximum length" in res.json()["detail"]
+
+    res = client.post(
+        "/show-presets", json={"preset": {"id": "valid_id", "name": "y" * 101}}
+    )
+    assert res.status_code == 400
+    assert "exceeds maximum length" in res.json()["detail"]
+
+    # 4. Reject invalid delete preset_id
+    res = client.delete("/show-presets/%20%20%20")
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Invalid preset id"
+
+    res = client.delete(f"/show-presets/{'x' * 65}")
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Invalid preset id"
+
+    # 5. Accept valid preset creation and deletion
+    res = client.post(
+        "/show-presets", json={"preset": {"id": "custom-1", "name": "My Preset"}}
+    )
+    assert res.status_code == 200
+    presets = res.json()["presets"]
+    assert any(p["id"] == "custom-1" and p["name"] == "My Preset" for p in presets)
+
+    del_res = client.delete("/show-presets/custom-1")
+    assert del_res.status_code == 200
+    assert not any(p["id"] == "custom-1" for p in del_res.json()["presets"])
