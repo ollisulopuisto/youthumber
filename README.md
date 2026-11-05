@@ -78,8 +78,8 @@ Download the latest macOS release from the
 [releases page](https://github.com/ollisulopuisto/youthumber/releases/latest) (Apple Silicon Macs)
 and move `YouThumber.app` to Applications.
 
-**The app isn't signed with an Apple Developer ID, so macOS blocks it the first time**
-("Apple could not verify YouThumber is free of malware"). To open it anyway:
+**The app and DMG are signed with Developer ID but are not notarised.** The first
+launch may still show a Gatekeeper warning. To open it:
 
 - **macOS 15 Sequoia and later:** try to open it once and dismiss the warning. Then go
   to System Settings → Privacy & Security, scroll down to the message about YouThumber,
