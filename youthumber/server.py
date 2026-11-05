@@ -168,7 +168,9 @@ class VideoSpeakerScanRequest(BaseModel):
 
 
 class ShowPresetRequest(BaseModel):
-    preset: dict[str, Any]
+    preset: dict[str, Any] = Field(
+        ..., description="Show preset payload containing id and name"
+    )
 
 
 class ActionExecuteRequest(BaseModel):
@@ -350,13 +352,28 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     @app.post("/show-presets")
     def put_show_preset(req: ShowPresetRequest) -> dict[str, Any]:
         preset = req.preset
-        if not preset.get("id") or not preset.get("name"):
+        preset_id = preset.get("id")
+        name = preset.get("name")
+        # Security: Enforce strict input validation, types, and length bounds on user-supplied
+        # presets to prevent malformed object storage and unbounded resource bloat (DoS).
+        if not isinstance(preset_id, str) or not isinstance(name, str):
             raise HTTPException(
-                status_code=400, detail="Preset id and name are required"
+                status_code=400, detail="Preset id and name must be strings"
             )
+        preset_id = preset_id.strip()
+        name = name.strip()
+        if not preset_id or not name:
+            raise HTTPException(
+                status_code=400, detail="Preset id and name cannot be empty"
+            )
+        if len(preset_id) > 64 or len(name) > 100:
+            raise HTTPException(
+                status_code=400, detail="Preset id or name exceeds maximum length"
+            )
+        sanitized_preset = {**preset, "id": preset_id, "name": name}
         path = show_presets_path()
-        presets = [p for p in read_show_presets(path) if p.get("id") != preset["id"]]
-        presets.insert(0, preset)
+        presets = [p for p in read_show_presets(path) if p.get("id") != preset_id]
+        presets.insert(0, sanitized_preset)
         try:
             write_show_presets(path, presets)
         except OSError as err:
@@ -368,6 +385,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
 
     @app.delete("/show-presets/{preset_id}")
     def remove_show_preset(preset_id: str) -> dict[str, Any]:
+        preset_id = preset_id.strip()
+        if not preset_id or len(preset_id) > 64:
+            raise HTTPException(status_code=400, detail="Invalid preset id")
         path = show_presets_path()
         presets = [p for p in read_show_presets(path) if p.get("id") != preset_id]
         try:
