@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   pickVideoFile,
   scanVideoForSpeakers,
@@ -41,6 +41,7 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   const [assigned, setAssigned] = useState({}) // speakerId -> timestampSeconds
   const [sortMode, setSortMode] = useState('quality')
   const [progress, setProgress] = useState(0)
+  const closeRef = useRef(null)
 
   const people = scan?.people ?? []
 
@@ -92,10 +93,23 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   const viewedFrame = viewing ? viewedFrames[viewing.frameIndex] : null
 
   useEffect(() => {
-    if (!viewing) return
+    const opener = document.activeElement
+    closeRef.current?.focus()
+    return () => {
+      if (opener instanceof HTMLElement) opener.focus()
+    }
+  }, [])
+
+  useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') setViewing(null)
-      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (viewing) {
+          setViewing(null)
+        } else {
+          onClose()
+        }
+      } else if (viewing && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
         const delta = e.key === 'ArrowRight' ? 1 : -1
         setViewing((v) => ({
           ...v,
@@ -105,7 +119,7 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [viewing, viewedFrames.length])
+  }, [onClose, viewing, viewedFrames.length])
 
   // Target speaker first, so "use for this slot" is the obvious button.
   const speakersInOrder = [...project.speakers].sort(
@@ -144,11 +158,15 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   return (
     <div
       className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Pick speaker frames from a video"
     >
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-5 shadow-2xl flex flex-col gap-4 text-white">
+      <div
+        className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-5 shadow-2xl flex flex-col gap-4 text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-bold text-gray-200">🎬 Pick speaker frames from a video</h2>
           <div className="flex items-center gap-3">
@@ -160,7 +178,12 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
                 Scan another video
               </button>
             )}
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-300 text-xs font-medium">
+            <button
+              ref={closeRef}
+              onClick={onClose}
+              className="text-gray-400 hover:text-white text-xs font-medium rounded px-1.5 py-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+              aria-label="Close"
+            >
               ✕ Close
             </button>
           </div>
