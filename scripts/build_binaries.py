@@ -78,7 +78,9 @@ def stamp_version(app: Path) -> None:
             check=True,
         )
     else:
-        subprocess.run(["codesign", "--force", "--deep", "-s", "-", str(app)], check=True)
+        subprocess.run(
+            ["codesign", "--force", "--deep", "-s", "-", str(app)], check=True
+        )
 
 
 def run_pyinstaller() -> None:
