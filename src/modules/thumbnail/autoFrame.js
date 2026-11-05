@@ -45,14 +45,45 @@ export async function computeCutoutBBox(cutoutUrl) {
   let maxX = -1
   let maxY = -1
 
-  for (let y = 0; y < sampleH; y++) {
-    for (let x = 0; x < sampleW; x++) {
-      const alpha = data[(y * sampleW + x) * 4 + 3]
-      if (alpha > ALPHA_THRESHOLD) {
-        if (x < minX) minX = x
-        if (x > maxX) maxX = x
-        if (y < minY) minY = y
-        if (y > maxY) maxY = y
+  // Optimization: Scan rows from the top with direct pointer progression to find minY,
+  // returning early if the entire frame is transparent.
+  topScan: for (let y = 0; y < sampleH; y++) {
+    let idx = y * sampleW * 4 + 3
+    for (let x = 0; x < sampleW; x++, idx += 4) {
+      if (data[idx] > ALPHA_THRESHOLD) {
+        minY = y
+        break topScan
+      }
+    }
+  }
+
+  if (minY === sampleH) return null
+
+  // Optimization: Scan rows from the bottom to find maxY, stopping at minY.
+  bottomScan: for (let y = sampleH - 1; y >= minY; y--) {
+    let idx = y * sampleW * 4 + 3
+    for (let x = 0; x < sampleW; x++, idx += 4) {
+      if (data[idx] > ALPHA_THRESHOLD) {
+        maxY = y
+        break bottomScan
+      }
+    }
+  }
+
+  // Optimization: Restrict column scans to active rows [minY, maxY], hoist rowBase,
+  // and shrink inner horizontal search intervals via early break.
+  for (let y = minY; y <= maxY; y++) {
+    const rowBase = y * sampleW * 4 + 3
+    for (let x = 0; x < minX; x++) {
+      if (data[rowBase + x * 4] > ALPHA_THRESHOLD) {
+        minX = x
+        break
+      }
+    }
+    for (let x = sampleW - 1; x > maxX; x--) {
+      if (data[rowBase + x * 4] > ALPHA_THRESHOLD) {
+        maxX = x
+        break
       }
     }
   }
