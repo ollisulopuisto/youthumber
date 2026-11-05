@@ -83,6 +83,14 @@ def test_remove_background_rejects_malformed_base64(client: TestClient) -> None:
     assert res.json()["detail"] == "Invalid image data"
 
 
+def test_remove_background_rejects_invalid_base64_suffix(client: TestClient) -> None:
+    # The default permissive base64 decoder ignores invalid trailing characters.
+    image = _png_data_url() + "!!!"
+    res = client.post("/remove", json={"image": image})
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Invalid image data"
+
+
 def test_remove_background_rejects_corrupt_non_image_payload(
     client: TestClient,
 ) -> None:

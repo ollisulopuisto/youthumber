@@ -32,7 +32,7 @@ def decode_base64_image(image_str: str) -> bytes:
         _, encoded = image_str.split(",", 1)
     else:
         encoded = image_str
-    return base64.b64decode(encoded)
+    return base64.b64decode(encoded, validate=True)
 
 
 def image_to_data_url(image: Image.Image, format: str = "PNG") -> str:

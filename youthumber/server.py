@@ -406,7 +406,13 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             image_bytes = decode_base64_image(req.image)
             with Image.open(io.BytesIO(image_bytes)) as img:
                 img.verify()
-        except (binascii.Error, ValueError, UnidentifiedImageError, OSError) as err:
+        except (
+            binascii.Error,
+            ValueError,
+            Image.DecompressionBombError,
+            UnidentifiedImageError,
+            OSError,
+        ) as err:
             raise HTTPException(status_code=400, detail="Invalid image data") from err
 
         try:
