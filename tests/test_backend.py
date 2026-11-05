@@ -76,6 +76,23 @@ def test_remove_background_validation_error(client: TestClient) -> None:
     assert res.status_code == 422  # Missing required field 'image'
 
 
+def test_remove_background_rejects_malformed_base64(client: TestClient) -> None:
+    # Malformed base64 must fail closed with 400 Bad Request
+    res = client.post("/remove", json={"image": "data:image/png;base64,invalid!@#$"})
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Invalid image data"
+
+
+def test_remove_background_rejects_corrupt_non_image_payload(
+    client: TestClient,
+) -> None:
+    # Valid base64 that is not a valid image must fail closed with 400 Bad Request
+    fake_b64 = "data:image/png;base64," + base64.b64encode(b"not-an-image").decode()
+    res = client.post("/remove", json={"image": fake_b64})
+    assert res.status_code == 400
+    assert res.json()["detail"] == "Invalid image data"
+
+
 def test_index_serving(client: TestClient) -> None:
     res = client.get("/")
     assert res.status_code == 200
