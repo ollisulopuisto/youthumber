@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.5.1] - 2026-11-05
+
+### Fixed
+- Reject malformed base64 and invalid image payloads in the background-removal API (PR #77).
+
+### Packaging
+- Sign and notarize the Apple Silicon DMG, then staple and verify its notarization ticket.
+
 ## [26.11.4.2] - 2026-11-04
 
 ### Added
