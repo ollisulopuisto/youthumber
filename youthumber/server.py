@@ -1,5 +1,7 @@
 """FastAPI application serving YouThumber web UI and Core ML segmentation APIs."""
 
+import binascii
+import io
 import json
 import logging
 import os
@@ -15,6 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from .actions import (
@@ -397,8 +400,22 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         if not req.image:
             raise HTTPException(status_code=400, detail="Missing 'image' in payload")
 
+        # Security: Validate and decode image input. Malformed base64 strings or corrupt/non-image
+        # bytes fail closed with HTTP 400 Bad Request to prevent unhandled 500 internal errors.
         try:
             image_bytes = decode_base64_image(req.image)
+            with Image.open(io.BytesIO(image_bytes)) as img:
+                img.verify()
+        except (
+            binascii.Error,
+            ValueError,
+            Image.DecompressionBombError,
+            UnidentifiedImageError,
+            OSError,
+        ) as err:
+            raise HTTPException(status_code=400, detail="Invalid image data") from err
+
+        try:
             objects, matted = None, False
             with appnap_hold("Removing background"):
                 if HAS_VISION and MODEL.state()["status"] == "ready":
