@@ -47,10 +47,18 @@ function WhatsNewModal({ version, entries, onClose }) {
         className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 pt-4 pb-3 border-b border-gray-800">
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-800">
           <h2 id="whatsnew-title" className="text-base font-semibold text-gray-100">
             What&apos;s new in YouThumber {version}
           </h2>
+          <button
+            ref={closeRef}
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-sm rounded px-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+            aria-label="Close"
+          >
+            ✕
+          </button>
         </div>
         <div className="px-5 py-3 overflow-y-auto flex-1 min-h-0">
           {entries.map((entry) => (
@@ -71,9 +79,8 @@ function WhatsNewModal({ version, entries, onClose }) {
         </div>
         <div className="px-5 py-3 border-t border-gray-800 flex justify-end">
           <button
-            ref={closeRef}
             onClick={onClose}
-            className="px-3 py-1.5 text-sm font-medium rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+            className="px-3 py-1.5 text-sm font-medium rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           >
             Close
           </button>
