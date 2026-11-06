@@ -269,12 +269,16 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     )
 
     # Security: Attach standard defense-in-depth headers on all HTTP responses to
-    # prevent clickjacking (X-Frame-Options) and MIME-type sniffing (X-Content-Type-Options).
+    # prevent clickjacking, MIME-type sniffing, referrer leakage, and unauthorized browser API access.
     @app.middleware("http")
     async def add_security_headers(request, call_next):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=()"
+        )
         return response
 
     # Security: Restrict CORS to local development / loopback origins only to
