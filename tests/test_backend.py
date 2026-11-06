@@ -32,6 +32,11 @@ def test_security_headers_present(client: TestClient) -> None:
         res = client.get(path)
         assert res.headers.get("x-content-type-options") == "nosniff"
         assert res.headers.get("x-frame-options") == "DENY"
+        assert res.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+        assert (
+            res.headers.get("permissions-policy")
+            == "camera=(), microphone=(), geolocation=()"
+        )
 
 
 def test_cors_allows_local_origins(client: TestClient) -> None:
