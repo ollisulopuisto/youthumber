@@ -79,6 +79,28 @@ describe('decorShapes', () => {
     expect(at('left')).toBeLessThan(at('center'))
     expect(at('center')).toBeLessThan(at('right'))
   })
+
+  it('generates halftone circles within reach and valid radius/alpha bounds', () => {
+    for (const position of ['left', 'center', 'right'] as const) {
+      const decor = { visible: true, seed: 42, elements: { halftone: { on: true, position, color: '#FF1F6B', opacity: 0.8 } } }
+      const shapes = decorShapes(decor, 1280, 720)
+      expect(shapes.length).toBeGreaterThan(100)
+      const cornerX = position === 'left' ? 0 : position === 'center' ? 640 : 1280
+      const cornerY = position === 'center' ? 720 : 0
+      const reach = 720 * 0.8
+      for (const shape of shapes) {
+        expect(shape.kind).toBe('circle')
+        if (shape.kind === 'circle') {
+          const dist = Math.hypot(shape.x - cornerX, shape.y - cornerY)
+          expect(dist).toBeLessThanOrEqual(reach + 1e-9)
+          expect(shape.r).toBeGreaterThanOrEqual(0.8)
+          expect(shape.r).toBeLessThanOrEqual(11 * 0.9 + 1e-9)
+          expect(shape.alpha).toBeGreaterThanOrEqual(0.8 * 0.35 - 1e-9)
+          expect(shape.alpha).toBeLessThanOrEqual(0.8 + 1e-9)
+        }
+      }
+    }
+  })
 })
 
 describe('arrowHead', () => {

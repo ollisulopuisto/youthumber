@@ -351,16 +351,29 @@ function halftone(el, rand, width, height) {
   const cornerY = el.position === 'center' ? height : 0
   const spacing = 22
   const reach = height * 0.8
+  // Optimization: hoist dy, squared distance checks, and row offset out of the inner x loop.
+  // Testing dx^2 + dy^2 > reach^2 skips expensive Math.hypot calls for out-of-bounds dots.
+  const reach2 = reach * reach
+  const invReach = 1 / reach
+  const maxR = (spacing / 2) * 0.9
+  const baseAlpha = el.opacity * 0.35
+  const scaleAlpha = el.opacity * 0.65
   const shapes = []
   for (let y = spacing / 2; y < height; y += spacing) {
+    const dy = y - cornerY
+    const dy2 = dy * dy
+    if (dy2 > reach2) continue
+    const offset = (Math.round(y / spacing) % 2) * (spacing / 2)
     for (let x = spacing / 2; x < width; x += spacing) {
-      const offset = (Math.round(y / spacing) % 2) * (spacing / 2)
-      const d = Math.hypot(x + offset - cornerX, y - cornerY)
-      if (d > reach) continue
-      const t = 1 - d / reach
-      const r = (spacing / 2) * t * 0.9
+      const px = x + offset
+      const dx = px - cornerX
+      const d2 = dx * dx + dy2
+      if (d2 > reach2) continue
+      const d = Math.sqrt(d2)
+      const t = 1 - d * invReach
+      const r = maxR * t
       if (r < 0.8) continue
-      shapes.push({ kind: 'circle', x: x + offset, y, r, fill: el.color, alpha: el.opacity * (0.35 + t * 0.65) })
+      shapes.push({ kind: 'circle', x: px, y, r, fill: el.color, alpha: baseAlpha + scaleAlpha * t })
     }
   }
   return shapes
