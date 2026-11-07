@@ -117,3 +117,36 @@ def test_choke_edge_never_erodes_more_than_1px_on_small_images() -> None:
     out = choke_edge(mask)
 
     assert out.getpixel((103, 200)) == 255
+
+
+def test_keep_largest_region_concave_union_and_multiple_keep_points() -> None:
+    # Verifies that a concave/U-shaped component whose branches merge in lower scanlines
+    # is correctly unified as the largest region, while a stray detached blob is dropped
+    # and a separate kept component (e.g. hand) is preserved.
+    mask = Image.new("L", (500, 400), 0)
+    draw = ImageDraw.Draw(mask)
+    # Left pillar of U-shape
+    draw.rectangle([50, 50, 120, 350], fill=255)
+    # Right pillar of U-shape
+    draw.rectangle([200, 50, 270, 350], fill=255)
+    # Bottom connector linking both pillars
+    draw.rectangle([50, 300, 270, 350], fill=255)
+
+    # Detached stray noise blob
+    draw.rectangle([350, 50, 390, 90], fill=255)
+
+    # Detached hand blob
+    draw.rectangle([350, 200, 420, 270], fill=255)
+
+    cleaned = keep_largest_region(mask, keep_points=[(385, 235)])
+
+    # Both pillars and connector of the U-shape must be preserved
+    assert cleaned.getpixel((85, 100)) == 255
+    assert cleaned.getpixel((235, 100)) == 255
+    assert cleaned.getpixel((160, 325)) == 255
+
+    # Hand blob must be preserved because of keep_points
+    assert cleaned.getpixel((385, 235)) == 255
+
+    # Stray noise blob must be dropped
+    assert cleaned.getpixel((370, 70)) == 0
