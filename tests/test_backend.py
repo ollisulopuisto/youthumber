@@ -233,6 +233,17 @@ def test_actions_api_endpoints(client: TestClient) -> None:
     assert batch_data["count"] == 2
     assert batch_data["project"]["text"]["text"] == "HEADLINE FROM API"
 
+    # Reject empty batch of actions (min_length=1)
+    empty_batch = client.post("/api/actions/batch", json={"actions": []})
+    assert empty_batch.status_code == 422
+
+    # Reject oversized batch of actions (max_length=100) to mitigate DoS / resource exhaustion
+    oversized_batch = client.post(
+        "/api/actions/batch",
+        json={"actions": [{"action": "create_project"}] * 101},
+    )
+    assert oversized_batch.status_code == 422
+
 
 def test_remove_falls_back_to_vision_when_birefnet_fails(monkeypatch) -> None:
     # The first packaged build couldn't run the model ("torchvision::nms does not

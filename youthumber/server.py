@@ -184,8 +184,13 @@ class ActionExecuteRequest(BaseModel):
 
 
 class BatchActionsRequest(BaseModel):
+    # Security: Enforce batch size limits (min 1, max 100) to mitigate unbounded resource
+    # consumption and DoS attacks through maliciously oversized batch payloads.
     actions: list[dict[str, Any]] = Field(
-        ..., description="List of actions to execute sequentially"
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of actions to execute sequentially (1 to 100 items)",
     )
     project: dict[str, Any] | None = Field(
         None, description="Optional initial project state"
