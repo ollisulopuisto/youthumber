@@ -70,8 +70,6 @@ def keep_largest_region(
     front of the host came out as a floating grey blob (2026-09-23). Anything not
     connected to the main body is dropped; soft edges of the kept region are preserved.
     """
-    from collections import deque
-
     import numpy as np
 
     full = np.asarray(mask.convert("L"))
@@ -85,30 +83,55 @@ def keep_largest_region(
     if not solid.any():
         return mask.convert("L")
 
-    labels = np.zeros(solid.shape, dtype=np.int32)
-    sizes = [0]
-    for start in zip(*np.nonzero(solid)):
-        if labels[start]:
+    # Optimization: Two-pass raster scan with disjoint-set (Union-Find) labeling avoids
+    # hundreds of thousands of tuple allocations and per-pixel Python queue BFS iterations.
+    parent = [0]
+
+    def find(i: int) -> int:
+        root = i
+        while parent[root] != root:
+            root = parent[root]
+        curr = i
+        while curr != root:
+            parent[curr], curr = root, parent[curr]
+        return root
+
+    labels_uf = np.zeros((work_h, work_w), dtype=np.int32)
+    next_label = 1
+    for y in range(work_h):
+        row_solid = solid[y]
+        if not row_solid.any():
             continue
-        label = len(sizes)
-        labels[start] = label
-        queue, size = deque([start]), 0
-        while queue:
-            y, x = queue.popleft()
-            size += 1
-            for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
-                if (
-                    0 <= ny < work_h
-                    and 0 <= nx < work_w
-                    and solid[ny, nx]
-                    and not labels[ny, nx]
-                ):
-                    labels[ny, nx] = label
-                    queue.append((ny, nx))
-        sizes.append(size)
+        for x in range(work_w):
+            if not row_solid[x]:
+                continue
+            left = labels_uf[y, x - 1] if x > 0 else 0
+            up = labels_uf[y - 1, x] if y > 0 else 0
+            if left and up:
+                if left == up:
+                    labels_uf[y, x] = left
+                else:
+                    ri, rj = find(left), find(up)
+                    if ri != rj:
+                        parent[rj] = ri
+                    labels_uf[y, x] = ri
+            elif left:
+                labels_uf[y, x] = left
+            elif up:
+                labels_uf[y, x] = up
+            else:
+                labels_uf[y, x] = next_label
+                parent.append(next_label)
+                next_label += 1
+
+    lut = np.zeros(next_label, dtype=np.int32)
+    for i in range(1, next_label):
+        lut[i] = find(i)
+    labels = lut[labels_uf]
+    sizes = np.bincount(labels.ravel())
 
     # Grow past the body so its soft (below-threshold) edge survives, plus a ring to fade in.
-    kept = {int(np.argmax(sizes))}
+    kept = {int(np.argmax(sizes[1:])) + 1 if len(sizes) > 1 else 0}
     for x, y in keep_points or []:
         wx = min(work_w - 1, max(0, int(x * scale)))
         wy = min(work_h - 1, max(0, int(y * scale)))
