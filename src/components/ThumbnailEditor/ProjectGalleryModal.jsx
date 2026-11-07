@@ -162,8 +162,9 @@ function ProjectGalleryModal({ currentProjectId, onLoadProject, onClose }) {
                   </button>
                   <button
                     onClick={(e) => handleDelete(e, item.id)}
-                    className="w-7 h-7 flex items-center justify-center text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
+                    className="w-7 h-7 flex items-center justify-center text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
                     title="Delete Project"
+                    aria-label={`Delete ${item.name}`}
                   >
                     🗑
                   </button>
