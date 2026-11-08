@@ -139,10 +139,13 @@ describe('PROCGEN_STYLES', () => {
     expect(portrait1).not.toBe(wide1)
   })
 
-  it('contours generates deterministic output across various aspect ratios', () => {
+  it('contours generates deterministic output across various aspect ratios and matches golden raster hash', () => {
     const wide1 = render('contours', 42, ['#0F172A', '#F59E0B', '#3B82F6'])
     const wide2 = render('contours', 42, ['#0F172A', '#F59E0B', '#3B82F6'])
     expect(wide1).toBe(wide2)
+    // Golden raster hash snapshot established from pre-optimized baseline to ensure
+    // bit-identical pixel output across versions.
+    expect(wide1).toBe('data:putImageData(325800)|drawImage(obj,0.00,0.00,192.00,108.00)')
 
     // Verify portrait dimensions also execute deterministically
     const log: string[] = []
