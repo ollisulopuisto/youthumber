@@ -204,10 +204,29 @@ const GENERATORS = {
       if (!bands) {
         stride = lw + 2
         bands = new Int16Array(stride * (lh + 2))
+        // Optimization: Precompute the 3 fbm octave x-coordinates across all columns into
+        // contiguous Float64Arrays, and hoist the row-level y-coordinates and row-offset
+        // calculations out of the inner x loop. This eliminates over 1.5M redundant floating-point
+        // multiplications and coordinate scalings per 960x540 pass.
+        const xs1 = new Float64Array(stride)
+        const xs2 = new Float64Array(stride)
+        const xs3 = new Float64Array(stride)
+        const stepX = (scale * (w / h)) / lw
+        for (let x = 0; x < stride; x++) {
+          const x1 = ox + x * stepX
+          xs1[x] = x1
+          xs2[x] = x1 * 2.1 + 5.2
+          xs3[x] = x1 * 4.3 + 9.1
+        }
+        const stepY = scale / lh
         for (let y = 0; y < lh + 2; y++) {
+          const y1 = oy + y * stepY
+          const y2 = y1 * 2.1 + 1.3
+          const y3 = y1 * 4.3 + 7.7
+          const rowOffset = y * stride
           for (let x = 0; x < stride; x++) {
-            bands[y * stride + x] = Math.floor(
-              fbm(noise, ox + (x / lw) * scale * (w / h), oy + (y / lh) * scale) * levels
+            bands[rowOffset + x] = Math.floor(
+              ((noise(xs1[x], y1) * 4 + noise(xs2[x], y2) * 2 + noise(xs3[x], y3)) / 7) * levels
             )
           }
         }
