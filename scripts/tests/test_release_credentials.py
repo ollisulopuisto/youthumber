@@ -34,13 +34,16 @@ class CredentialTests(unittest.TestCase):
         self.assertIn('\\"quotes\\"', run.call_args.kwargs["input"])
 
     def test_interactive_status_failure_is_rejected(self):
-        with patch.object(
-            HELPER.subprocess,
-            "run",
-            return_value=subprocess.CompletedProcess(
-                [], 0, "", "unlock-keychain: returned -25291"
+        with (
+            patch.object(
+                HELPER.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess(
+                    [], 0, "", "unlock-keychain: returned -25291"
+                ),
             ),
-        ), self.assertRaisesRegex(RuntimeError, "output withheld"):
+            self.assertRaisesRegex(RuntimeError, "output withheld"),
+        ):
             HELPER.security("unlock-keychain", "-p", "dummy", "missing")
 
     def test_keychain_list_preserves_literal_quotes_and_backslashes(self):
