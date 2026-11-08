@@ -138,4 +138,31 @@ describe('PROCGEN_STYLES', () => {
     expect(portrait1).toBe(portrait2)
     expect(portrait1).not.toBe(wide1)
   })
+
+  it('contours generates deterministic output across various aspect ratios', () => {
+    const wide1 = render('contours', 42, ['#0F172A', '#F59E0B', '#3B82F6'])
+    const wide2 = render('contours', 42, ['#0F172A', '#F59E0B', '#3B82F6'])
+    expect(wide1).toBe(wide2)
+
+    // Verify portrait dimensions also execute deterministically
+    const log: string[] = []
+    const makeCanvas = (w: number, h: number) => fakeCanvas(w, h, log)
+    const portrait1 = renderProcgen('contours', {
+      colors: ['#0F172A', '#F59E0B', '#3B82F6'],
+      seed: 42,
+      width: 108,
+      height: 192,
+      makeCanvas: makeCanvas as never,
+    })
+    log.length = 0
+    const portrait2 = renderProcgen('contours', {
+      colors: ['#0F172A', '#F59E0B', '#3B82F6'],
+      seed: 42,
+      width: 108,
+      height: 192,
+      makeCanvas: makeCanvas as never,
+    })
+    expect(portrait1).toBe(portrait2)
+    expect(portrait1).not.toBe(wide1)
+  })
 })
