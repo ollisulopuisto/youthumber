@@ -33,17 +33,20 @@ class ScopeTests(unittest.TestCase):
         self.assertTrue(SCOPE.needs_package([]))
 
     def test_missing_force_push_base_builds(self):
-        with patch.dict(
-            os.environ,
-            {
-                "GITHUB_EVENT_NAME": "push",
-                "GITHUB_REF": "refs/heads/main",
-                "BEFORE": "old-tip",
-            },
-        ), patch.object(
-            SCOPE.subprocess,
-            "check_output",
-            side_effect=subprocess.CalledProcessError(128, "git"),
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "GITHUB_EVENT_NAME": "push",
+                    "GITHUB_REF": "refs/heads/main",
+                    "BEFORE": "old-tip",
+                },
+            ),
+            patch.object(
+                SCOPE.subprocess,
+                "check_output",
+                side_effect=subprocess.CalledProcessError(128, "git"),
+            ),
         ):
             self.assertTrue(SCOPE.select_package())
 
