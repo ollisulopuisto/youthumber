@@ -2,6 +2,7 @@
 
 import base64
 import io
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -324,3 +325,80 @@ def test_show_preset_input_validation(
     del_res = client.delete("/show-presets/custom-1")
     assert del_res.status_code == 200
     assert not any(p["id"] == "custom-1" for p in del_res.json()["presets"])
+
+
+def test_internal_server_errors_do_not_leak_exception_details(
+    client: TestClient, monkeypatch
+) -> None:
+    # Security: Internal 500 errors must return generic error messages and never leak
+    # internal exception details, stack traces, or server file paths to the caller.
+    secret_leak = "/Users/victim/.secret_token"
+
+    # 1. Action execute endpoint
+    def fake_execute_fail(*args, **kwargs):
+        raise RuntimeError(secret_leak)
+
+    monkeypatch.setattr("youthumber.server.execute_action", fake_execute_fail)
+    res = client.post(
+        "/api/actions/execute",
+        json={"action": "create_project", "parameters": {}},
+    )
+    assert res.status_code == 500
+    assert res.json()["detail"] == "Action execution failed"
+    assert secret_leak not in res.text
+
+    # 2. Action batch endpoint
+    def fake_batch_fail(*args, **kwargs):
+        raise RuntimeError(secret_leak)
+
+    monkeypatch.setattr("youthumber.server.execute_batch", fake_batch_fail)
+    res = client.post(
+        "/api/actions/batch",
+        json={"actions": [{"action": "create_project"}]},
+    )
+    assert res.status_code == 500
+    assert res.json()["detail"] == "Batch execution failed"
+    assert secret_leak not in res.text
+
+    # 3. Background removal endpoint
+    def fake_segment_fail(*args, **kwargs):
+        raise RuntimeError(secret_leak)
+
+    monkeypatch.setattr("youthumber.server.segment_image", fake_segment_fail)
+    res = client.post("/remove", json={"image": _png_data_url()})
+    assert res.status_code == 500
+    assert res.json()["detail"] == "Segmentation failed"
+    assert secret_leak not in res.text
+
+    # 4. Texture render endpoint (generic unexpected exception triggers 500)
+    class UnexpectedInternalError(Exception):
+        pass
+
+    def fake_texture_fail(*args, **kwargs):
+        raise UnexpectedInternalError(secret_leak)
+
+    monkeypatch.setattr("youthumber.server.render_texture", fake_texture_fail)
+    res = client.post(
+        "/texture",
+        json={"preset": "grain", "colors": ["#112233", "#445566"]},
+    )
+    assert res.status_code == 500
+    assert res.json()["detail"] == "Texture failed"
+    assert secret_leak not in res.text
+
+    # 5. Grab frame endpoint
+    def fake_grab_fail(*args, **kwargs):
+        raise RuntimeError(secret_leak)
+
+    monkeypatch.setattr("youthumber.server.HAS_AVFOUNDATION", True)
+    monkeypatch.setattr(
+        "youthumber.server.resolve_video_path", lambda p: Path("/tmp/fake.mp4")
+    )
+    monkeypatch.setattr("youthumber.server.grab_frame_at_time", fake_grab_fail)
+    res = client.post(
+        "/grab-frame",
+        json={"path": "/tmp/fake.mp4", "timestampSeconds": 0},
+    )
+    assert res.status_code == 500
+    assert res.json()["detail"] == "Frame grab failed"
+    assert secret_leak not in res.text

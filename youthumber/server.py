@@ -329,8 +329,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(err)) from err
         except Exception as err:
             logger.exception("Failed to execute action %s", req.action)
+            # Security: Generic 500 error detail prevents leaking internal error messages or file paths
             raise HTTPException(
-                status_code=500, detail=f"Action execution failed: {err}"
+                status_code=500, detail="Action execution failed"
             ) from err
 
     @app.post("/api/actions/batch")
@@ -350,8 +351,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(err)) from err
         except Exception as err:
             logger.exception("Failed to execute actions batch")
+            # Security: Generic 500 error detail prevents leaking internal error messages or file paths
             raise HTTPException(
-                status_code=500, detail=f"Batch execution failed: {err}"
+                status_code=500, detail="Batch execution failed"
             ) from err
 
     @app.get("/show-presets")
@@ -477,9 +479,8 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             )
         except Exception as err:
             logger.exception("Removal request failed")
-            raise HTTPException(
-                status_code=500, detail=f"Segmentation failed: {err}"
-            ) from err
+            # Security: Generic 500 error detail prevents leaking internal error messages or file paths
+            raise HTTPException(status_code=500, detail="Segmentation failed") from err
 
     @app.get("/matting-model")
     def matting_model() -> dict[str, Any]:
@@ -508,9 +509,8 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             # An unhandled error skips the CORS headers, so the page only saw
             # "Failed to fetch"; report it as a normal error response instead.
             logger.exception("Texture render failed")
-            raise HTTPException(
-                status_code=500, detail=f"Texture failed: {err}"
-            ) from err
+            # Security: Generic 500 error detail prevents leaking internal error messages or file paths
+            raise HTTPException(status_code=500, detail="Texture failed") from err
         return JSONResponse({"image": image_to_data_url(image, format="JPEG")})
 
     # A scan takes minutes, but the desktop window's WebKit drops any request after
@@ -598,9 +598,8 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             return JSONResponse({"image": data_url})
         except Exception as err:
             logger.exception("Frame grab failed")
-            raise HTTPException(
-                status_code=500, detail=f"Frame grab failed: {err}"
-            ) from err
+            # Security: Generic 500 error detail prevents leaking internal error messages or file paths
+            raise HTTPException(status_code=500, detail="Frame grab failed") from err
 
     # Serve static assets and SPA
     if dist_dir and dist_dir.is_dir():
