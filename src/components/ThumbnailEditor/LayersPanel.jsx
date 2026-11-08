@@ -152,7 +152,8 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
                 {layerId !== 'background' && (
                   <button
                     onClick={() => onToggleVisibility(layerId)}
-                    className={`w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-gray-700 transition-colors ${
+                    aria-label={visible ? `Hide ${info.name}` : `Show ${info.name}`}
+                    className={`w-6 h-6 rounded flex items-center justify-center text-xs hover:bg-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400 ${
                       visible ? 'text-gray-300' : 'text-gray-600'
                     }`}
                     title={visible ? 'Hide layer' : 'Show layer'}
@@ -165,7 +166,8 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
                 <button
                   onClick={() => moveLayer(layerId, 'up')}
                   disabled={!canMoveUp}
-                  className="w-5 h-5 rounded flex items-center justify-center text-[10px] bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 text-gray-300 transition-colors"
+                  aria-label={`Move ${info.name} up`}
+                  className="w-5 h-5 rounded flex items-center justify-center text-[10px] bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 text-gray-300 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
                   title="Move layer up"
                 >
                   ▲
@@ -175,7 +177,8 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
                 <button
                   onClick={() => moveLayer(layerId, 'down')}
                   disabled={!canMoveDown}
-                  className="w-5 h-5 rounded flex items-center justify-center text-[10px] bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 text-gray-300 transition-colors"
+                  aria-label={`Move ${info.name} down`}
+                  className="w-5 h-5 rounded flex items-center justify-center text-[10px] bg-gray-800 hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-gray-800 text-gray-300 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
                   title="Move layer down"
                 >
                   ▼

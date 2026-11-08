@@ -66,4 +66,22 @@ describe('LayersPanel layer row keyboard operability', () => {
     act(() => { btn.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
     expect(props.onAddText).toHaveBeenCalled() // PASSES now: harness sanity
   })
+  it('layer action buttons have accessible names and focus-visible styling', async () => {
+    const { row } = await setup()
+    const visibilityBtn = row.querySelector('button[title="Hide layer"]')
+    const moveUpBtn = row.querySelector('button[title="Move layer up"]')
+    const moveDownBtn = row.querySelector('button[title="Move layer down"]')
+
+    expect(visibilityBtn).toBeTruthy()
+    expect(visibilityBtn.getAttribute('aria-label')).toBe('Hide Headline Text')
+    expect(visibilityBtn.className).toContain('focus-visible:outline')
+
+    expect(moveUpBtn).toBeTruthy()
+    expect(moveUpBtn.getAttribute('aria-label')).toBe('Move Headline Text up')
+    expect(moveUpBtn.className).toContain('focus-visible:outline')
+
+    expect(moveDownBtn).toBeTruthy()
+    expect(moveDownBtn.getAttribute('aria-label')).toBe('Move Headline Text down')
+    expect(moveDownBtn.className).toContain('focus-visible:outline')
+  })
 })
