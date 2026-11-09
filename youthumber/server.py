@@ -274,7 +274,8 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     )
 
     # Security: Attach standard defense-in-depth headers on all HTTP responses to
-    # prevent clickjacking, MIME-type sniffing, referrer leakage, and unauthorized browser API access.
+    # prevent clickjacking, MIME-type sniffing, referrer leakage, unauthorized browser API access,
+    # and restrict resource loading (CSP) against XSS and data exfiltration.
     @app.middleware("http")
     async def add_security_headers(request, call_next):
         response = await call_next(request)
@@ -283,6 +284,19 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=()"
+        )
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "img-src 'self' data: blob:; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' data: https://fonts.gstatic.com; "
+            "script-src 'self' 'wasm-unsafe-eval'; "
+            "connect-src 'self' data: blob: https://huggingface.co https://*.huggingface.co https://github.com https://*.githubusercontent.com; "
+            "media-src 'self' data: blob:; "
+            "worker-src 'self' blob:; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self';"
         )
         return response
 
