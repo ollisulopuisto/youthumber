@@ -198,45 +198,67 @@ const GENERATORS = {
     const fills = Array.from({ length: levels + 1 }, (_, band) => mix(dark, glow, (band / levels) * 1.4))
     // Each pixel is compared with the ones 2px right and below, so work out every pixel's
     // band once up front instead of three noise lookups per pixel.
-    let bands = null
-    let stride = 0
-    pixelPass(ctx, w, h, makeCanvas, 960, (u, v, lw, lh) => {
-      if (!bands) {
-        stride = lw + 2
-        bands = new Int16Array(stride * (lh + 2))
-        // Optimization: Precompute the 3 fbm octave x-coordinates across all columns into
-        // contiguous Float64Arrays, and hoist the row-level y-coordinates and row-offset
-        // calculations out of the inner x loop. This eliminates over 1.5M redundant floating-point
-        // multiplications and coordinate scalings per 960x540 pass.
-        const xs1 = new Float64Array(stride)
-        const xs2 = new Float64Array(stride)
-        const xs3 = new Float64Array(stride)
-        const stepX = (scale * (w / h)) / lw
-        for (let x = 0; x < stride; x++) {
-          const x1 = ox + x * stepX
-          xs1[x] = x1
-          xs2[x] = x1 * 2.1 + 5.2
-          xs3[x] = x1 * 4.3 + 9.1
-        }
-        const stepY = scale / lh
-        for (let y = 0; y < lh + 2; y++) {
-          const y1 = oy + y * stepY
-          const y2 = y1 * 2.1 + 1.3
-          const y3 = y1 * 4.3 + 7.7
-          const rowOffset = y * stride
-          for (let x = 0; x < stride; x++) {
-            bands[rowOffset + x] = Math.floor(
-              ((noise(xs1[x], y1) * 4 + noise(xs2[x], y2) * 2 + noise(xs3[x], y3)) / 7) * levels
-            )
-          }
-        }
+    const s = Math.min(1, 960 / Math.max(w, h))
+    const lw = Math.max(1, Math.round(w * s))
+    const lh = Math.max(1, Math.round(h * s))
+    const small = makeCanvas(lw, lh)
+    const sctx = small.getContext('2d')
+    const img = sctx.createImageData(lw, lh)
+    const d = img.data
+
+    const stride = lw + 2
+    const bands = new Int16Array(stride * (lh + 2))
+    // Optimization: Precompute the 3 fbm octave x-coordinates across all columns into
+    // contiguous Float64Arrays, and hoist the row-level y-coordinates and row-offset
+    // calculations out of the inner x loop. This eliminates over 1.5M redundant floating-point
+    // multiplications and coordinate scalings per 960x540 pass.
+    const xs1 = new Float64Array(stride)
+    const xs2 = new Float64Array(stride)
+    const xs3 = new Float64Array(stride)
+    const stepX = (scale * (w / h)) / lw
+    for (let x = 0; x < stride; x++) {
+      const x1 = ox + x * stepX
+      xs1[x] = x1
+      xs2[x] = x1 * 2.1 + 5.2
+      xs3[x] = x1 * 4.3 + 9.1
+    }
+    const stepY = scale / lh
+    for (let y = 0; y < lh + 2; y++) {
+      const y1 = oy + y * stepY
+      const y2 = y1 * 2.1 + 1.3
+      const y3 = y1 * 4.3 + 7.7
+      const rowOffset = y * stride
+      for (let x = 0; x < stride; x++) {
+        bands[rowOffset + x] = Math.floor(
+          ((noise(xs1[x], y1) * 4 + noise(xs2[x], y2) * 2 + noise(xs3[x], y3)) / 7) * levels
+        )
       }
-      const x = Math.round(u * lw)
-      const y = Math.round(v * lh)
-      const band = bands[y * stride + x]
-      const edge = band !== bands[y * stride + x + 2] || band !== bands[(y + 2) * stride + x]
-      return edge ? (band % 4 === 0 ? majorLine : minorLine) : fills[band]
-    })
+    }
+
+    // Optimization: Direct scanline rasterization into the ImageData buffer with hoisted
+    // row offsets (rowOffset, rowOffsetDown2) and linear pointer progression (o += 4) eliminates
+    // 518,400 per-pixel closure calls, coordinate roundtrips (x / lw, y / lh, Math.round),
+    // and array indexing calculations.
+    let o = 0
+    for (let y = 0; y < lh; y++) {
+      const rowOffset = y * stride
+      const rowOffsetDown2 = (y + 2) * stride
+      for (let x = 0; x < lw; x++) {
+        const idx = rowOffset + x
+        const band = bands[idx]
+        const edge = band !== bands[idx + 2] || band !== bands[rowOffsetDown2 + x]
+        const rgb = edge ? (band % 4 === 0 ? majorLine : minorLine) : fills[band]
+        d[o] = rgb[0]
+        d[o + 1] = rgb[1]
+        d[o + 2] = rgb[2]
+        d[o + 3] = 255
+        o += 4
+      }
+    }
+    sctx.putImageData(img, 0, 0)
+    if ('imageSmoothingEnabled' in ctx || ctx.imageSmoothingEnabled === undefined) ctx.imageSmoothingEnabled = true
+    ctx.drawImage(small, 0, 0, w, h)
+    small.width = small.height = 0
   },
 
   /** Flow field: thousands of fine curved strokes. */
