@@ -38,6 +38,10 @@ def test_security_headers_present(client: TestClient) -> None:
             res.headers.get("permissions-policy")
             == "camera=(), microphone=(), geolocation=()"
         )
+        csp = res.headers.get("content-security-policy")
+        assert csp is not None
+        assert "default-src 'self'" in csp
+        assert "frame-ancestors 'none'" in csp
 
 
 def test_cors_allows_local_origins(client: TestClient) -> None:
