@@ -64,7 +64,7 @@ function ElementPickerModal({ onPick, onClose }) {
                     key={element.id}
                     onClick={() => onPick(element.id)}
                     title={element.fit ? `${element.name}: ${FIT_HINTS[element.fit.mode]}` : element.name}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg bg-gray-800/70 hover:bg-gray-700 border border-gray-700/60 hover:border-pink-500/60 transition-colors"
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg bg-gray-800/70 hover:bg-gray-700 border border-gray-700/60 hover:border-pink-500/60 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
                   >
                     <div
                       className="w-full h-14 flex items-center justify-center rounded"

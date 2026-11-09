@@ -60,4 +60,15 @@ describe('ElementPickerModal keyboard accessibility', () => {
     expect(document.activeElement).toBe(opener)
     opener.remove()
   })
+
+  it('renders element selection buttons with focus-visible styles', async () => {
+    const { container } = await setup()
+    const elementButtons = container.querySelectorAll('section button')
+    expect(elementButtons.length).toBeGreaterThan(0)
+    for (const btn of elementButtons) {
+      expect(btn.className).toContain('focus-visible:outline')
+      expect(btn.className).toContain('focus-visible:outline-2')
+      expect(btn.className).toContain('focus-visible:outline-amber-500')
+    }
+  })
 })
