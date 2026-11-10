@@ -1568,7 +1568,7 @@ wheels = [
 
 [[package]]
 name = "youthumber"
-version = "26.11.10.1"
+version = "26.11.10.2"
 source = { editable = "." }
 dependencies = [
     { name = "einops", marker = "sys_platform == 'darwin'" },

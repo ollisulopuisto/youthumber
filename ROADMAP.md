@@ -2,6 +2,11 @@
 
 Planned work, not yet scheduled to a specific day unless noted.
 
+## Editor workspace and export defaults - Done (2026-11-10)
+
+- v26.11.10.2: Layers and Text Properties remain separate cards in one full-height, shared-scroll desktop column beside the canvas and speaker controls. Narrow layouts keep their stacked flow.
+- Default export is 1080p; manual 720p choices and saved canvas dimensions remain unchanged. App regression tests cover the layout contract, both resolutions, and a restored portrait project; desktop and narrow layouts checked in Chrome.
+
 ## Agent and CLI automation
 
 - Planned: expose the editor's supported actions through a documented, stable command/API surface so an LLM or local agent can operate it without driving the UI. Cover project state and editing actions (layers, text, images, layout), save, and export; keep the command catalog and API capabilities in sync.
