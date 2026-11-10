@@ -84,31 +84,6 @@ function base(ctx, w, h, colors) {
   ctx.fillRect(0, 0, w, h)
 }
 
-/** Per-pixel styles compute at reduced size, then scale up smoothly. */
-function pixelPass(ctx, w, h, makeCanvas, maxSide, shade) {
-  const s = Math.min(1, maxSide / Math.max(w, h))
-  const lw = Math.max(1, Math.round(w * s))
-  const lh = Math.max(1, Math.round(h * s))
-  const small = makeCanvas(lw, lh)
-  const sctx = small.getContext('2d')
-  const img = sctx.createImageData(lw, lh)
-  const d = img.data
-  for (let y = 0; y < lh; y++) {
-    for (let x = 0; x < lw; x++) {
-      const [r, g, b] = shade(x / lw, y / lh, lw, lh)
-      const o = (y * lw + x) * 4
-      d[o] = r
-      d[o + 1] = g
-      d[o + 2] = b
-      d[o + 3] = 255
-    }
-  }
-  sctx.putImageData(img, 0, 0)
-  if ('imageSmoothingEnabled' in ctx || ctx.imageSmoothingEnabled === undefined) ctx.imageSmoothingEnabled = true
-  ctx.drawImage(small, 0, 0, w, h)
-  small.width = small.height = 0
-}
-
 // Optimization: direct component indexing avoids Array.prototype.map and closure overhead in loops.
 const mix = (a, b, t) => [
   Math.round(a[0] + (b[0] - a[0]) * t),
@@ -385,36 +360,74 @@ const GENERATORS = {
     const dark = hexToRgb(colors[0])
     // Parsed once: this runs per pixel, and re-parsing the hex palette dominated the time.
     const pal = [colors[0], accentAt(colors, 0), colors[2] ?? colors[1]].map(hexToRgb)
-    // Optimization: hoist squared y-distance calculations out of the inner x loop.
-    // Because v is constant across an entire scanline, computing dy2[i] = (siteY[i] - v)^2
-    // once per row saves over 8.7 million subtractions and multiplications per pass.
-    let lastV = -1
+    const s = Math.min(1, 640 / Math.max(w, h))
+    const lw = Math.max(1, Math.round(w * s))
+    const lh = Math.max(1, Math.round(h * s))
+    const small = makeCanvas(lw, lh)
+    const sctx = small.getContext('2d')
+    const img = sctx.createImageData(lw, lh)
+    const d = img.data
+
+    // Optimization: Precompute uAspect across columns into a Float64Array and rasterize
+    // directly into ImageData.data with hoisted row squared y-distances (dy2) and linear pointer
+    // progression (o += 4). This eliminates 230,400 closure calls, coordinate roundtrips,
+    // and temporary color array allocations per 640x360 pass.
+    const uAspect = new Float64Array(lw)
+    const stepX = aspect / lw
+    for (let x = 0; x < lw; x++) uAspect[x] = x * stepX
+
     const dy2 = new Float64Array(n)
-    pixelPass(ctx, w, h, makeCanvas, 640, (u, v) => {
-      if (v !== lastV) {
-        lastV = v
-        for (let i = 0; i < n; i++) {
-          const dy = siteY[i] - v
-          dy2[i] = dy * dy
-        }
-      }
-      const uAspect = u * aspect
-      // Squared distances; the square root is only needed for the two nearest.
-      let best = Infinity
-      let second = Infinity
-      let ownerIdx = 0
+    const stepY = 1 / lh
+    const palLen = pal.length
+    let o = 0
+    for (let y = 0; y < lh; y++) {
+      const v = y * stepY
       for (let i = 0; i < n; i++) {
-        const dx = siteSx[i] - uAspect
-        const d = dx * dx + dy2[i]
-        if (d < best) {
-          second = best
-          best = d
-          ownerIdx = i
-        } else if (d < second) second = d
+        const dy = siteY[i] - v
+        dy2[i] = dy * dy
       }
-      const cell = rgbPaletteAt(pal, siteT[ownerIdx] * siteT[ownerIdx] * 0.9 + 0.1 * (1 - v))
-      return mix(dark, cell, Math.min(1, (Math.sqrt(second) - Math.sqrt(best)) * 70))
-    })
+      for (let x = 0; x < lw; x++) {
+        const ua = uAspect[x]
+        let best = Infinity
+        let second = Infinity
+        let ownerIdx = 0
+        for (let i = 0; i < n; i++) {
+          const dx = siteSx[i] - ua
+          const dist = dx * dx + dy2[i]
+          if (dist < best) {
+            second = best
+            best = dist
+            ownerIdx = i
+          } else if (dist < second) second = dist
+        }
+        const t = siteT[ownerIdx] * siteT[ownerIdx] * 0.9 + 0.1 * (1 - v)
+        let rCell, gCell, bCell
+        if (palLen === 1) {
+          rCell = pal[0][0]
+          gCell = pal[0][1]
+          bCell = pal[0][2]
+        } else {
+          const val = Math.min(Math.max(t, 0), 1) * (palLen - 1)
+          const pIdx = Math.min(Math.floor(val), palLen - 2)
+          const f = val - pIdx
+          const c0 = pal[pIdx]
+          const c1 = pal[pIdx + 1]
+          rCell = Math.round(c0[0] + (c1[0] - c0[0]) * f)
+          gCell = Math.round(c0[1] + (c1[1] - c0[1]) * f)
+          bCell = Math.round(c0[2] + (c1[2] - c0[2]) * f)
+        }
+        const factor = Math.min(1, (Math.sqrt(second) - Math.sqrt(best)) * 70)
+        d[o] = Math.round(dark[0] + (rCell - dark[0]) * factor)
+        d[o + 1] = Math.round(dark[1] + (gCell - dark[1]) * factor)
+        d[o + 2] = Math.round(dark[2] + (bCell - dark[2]) * factor)
+        d[o + 3] = 255
+        o += 4
+      }
+    }
+    sctx.putImageData(img, 0, 0)
+    if ('imageSmoothingEnabled' in ctx || ctx.imageSmoothingEnabled === undefined) ctx.imageSmoothingEnabled = true
+    ctx.drawImage(small, 0, 0, w, h)
+    small.width = small.height = 0
   },
 }
 
