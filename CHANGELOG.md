@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.10.1] - 2026-11-10
+
+### Added
+- Keyboard-operable preset handling with validated show-preset endpoints and Escape dismissal with focus management (PRs #79, #80).
+
+### Performance
+- Faster cutout bounding-box scanning in auto-frame (PR #78).
+
 ## [26.11.5.1] - 2026-11-05
 
 ### Fixed
