@@ -2,6 +2,14 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.10.2] - 2026-11-10
+
+### Fixed
+- Let the Layers and Text Properties column use the full window height beside both the thumbnail and the speaker/background controls. Keep the two cards separate and their shared scrolling, so the font list is no longer cut off halfway down the window.
+
+### Changed
+- Default exports to 1920×1080 (1080×1920 for portrait projects). Manual 720p selections and saved project dimensions are unchanged.
+
 ## [26.11.10.1] - 2026-11-10
 
 ### Added

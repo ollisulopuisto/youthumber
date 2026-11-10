@@ -143,7 +143,7 @@ function Editor({ initialProject }) {
   const [whatsNew, setWhatsNew] = useState(null) // { version, entries } while the sheet is open
   const [showPalette, setShowPalette] = useState(false)
   const closePalette = useCallback(() => setShowPalette(false), [])
-  const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'hd' })
+  const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'fullhd' })
   const canvasRef = useRef(null)
   const canvasAreaRef = useRef(null)
   const [selectionRect, setSelectionRect] = useState(null)
@@ -734,7 +734,7 @@ function Editor({ initialProject }) {
       />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto xl:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(440px,0.8fr)] xl:grid-rows-1 xl:overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto xl:grid xl:grid-cols-[minmax(0,1.2fr)_minmax(440px,0.8fr)] xl:grid-rows-[minmax(0,1fr)_auto] xl:overflow-hidden">
         {/* Keep the canvas in view while the editing controls scroll independently. */}
         <div ref={canvasAreaRef} className="relative flex items-center justify-center p-3 sm:p-4 min-h-[50vh] bg-gray-900/60 overflow-hidden xl:min-h-0 xl:h-full">
           <div className="w-full max-w-5xl h-full min-h-0 flex items-center justify-center">
@@ -785,7 +785,7 @@ function Editor({ initialProject }) {
         </div>
 
         {/* Editing controls share one scroll area; individual panels grow to fit their content. */}
-        <div className="min-w-0 bg-gray-950 px-4 py-3 border-t border-gray-800 flex flex-col gap-4 items-stretch xl:min-h-0 xl:overflow-y-auto xl:border-t-0 xl:border-l">
+        <div className="min-w-0 bg-gray-950 px-4 py-3 border-t border-gray-800 flex flex-col gap-4 items-stretch xl:min-h-0 xl:row-span-2 xl:col-start-2 xl:row-start-1 xl:overflow-y-auto xl:border-t-0 xl:border-l">
           {/* Layers Panel */}
           <LayersPanel
             project={project}
@@ -823,8 +823,8 @@ function Editor({ initialProject }) {
           </div>
         </div>
 
-        {/* Speaker and background controls continue in the same scroll area. */}
-        <div>
+        {/* Speaker controls stay below the canvas; the editor spans both rows. */}
+        <div className="xl:col-start-1 xl:row-start-2">
           <SpeakerSlotsPanel
             project={project}
             {...speakerCardHandlers}
