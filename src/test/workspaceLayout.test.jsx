@@ -45,6 +45,10 @@ describe('workspace and export defaults', () => {
     expect(sidebar.className).toContain('xl:row-start-1')
     expect(sidebar.className).toContain('xl:overflow-y-auto')
     expect(sidebar.parentElement.className).toContain('xl:grid-rows-[minmax(0,1fr)_auto]')
+    const speakers = sidebar.parentElement.lastElementChild
+    expect(speakers.className).toContain('xl:max-h-[40vh]')
+    expect(speakers.className).toContain('xl:min-h-0')
+    expect(speakers.className).toContain('xl:overflow-y-auto')
   })
 
   it('exports 1080p initially and honors later 720p choices', async () => {

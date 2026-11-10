@@ -824,7 +824,7 @@ function Editor({ initialProject }) {
         </div>
 
         {/* Speaker controls stay below the canvas; the editor spans both rows. */}
-        <div className="xl:col-start-1 xl:row-start-2">
+        <div className="xl:col-start-1 xl:row-start-2 xl:min-h-0 xl:max-h-[40vh] xl:overflow-y-auto">
           <SpeakerSlotsPanel
             project={project}
             {...speakerCardHandlers}
