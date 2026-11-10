@@ -406,3 +406,26 @@ def test_internal_server_errors_do_not_leak_exception_details(
     assert res.status_code == 500
     assert res.json()["detail"] == "Frame grab failed"
     assert secret_leak not in res.text
+
+    # 6. Video speaker scan job endpoint
+    def fake_scan_fail(*args, **kwargs):
+        raise RuntimeError(secret_leak)
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", fake_scan_fail)
+    scan_res = client.post(
+        "/scan-video-speakers",
+        json={"path": "/tmp/fake.mp4"},
+    )
+    assert scan_res.status_code == 202
+    job_id = scan_res.json()["jobId"]
+    # Poll job until status changes from running
+    for _ in range(50):
+        poll_res = client.get(f"/scan-video-speakers/{job_id}").json()
+        if poll_res["status"] != "running":
+            break
+        import time
+
+        time.sleep(0.01)
+    assert poll_res["status"] == "error"
+    assert poll_res["error"] == "Video scan failed"
+    assert secret_leak not in str(poll_res)

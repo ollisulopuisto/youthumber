@@ -302,7 +302,8 @@ def test_scan_job_reports_a_failed_scan(
 
     body = _poll(mac_client, job_id)
     assert body["status"] == "error"
-    assert "Could not read video duration" in body["error"]
+    # Security: Job error must be generic and not leak internal exception details
+    assert body["error"] == "Video scan failed"
 
 
 def test_scan_job_unknown_id_is_404(mac_client: TestClient) -> None:

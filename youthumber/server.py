@@ -559,9 +559,10 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 )
             job["progress"] = 1.0
             job["status"] = "done"
-        except Exception as err:
+        except Exception:
             logger.exception("Multi-speaker video scan failed")
-            job["error"] = f"Video scan failed: {err}"
+            # Security: Generic error detail prevents leaking internal error messages or file paths
+            job["error"] = "Video scan failed"
             job["status"] = "error"
         finally:
             if job_id in scan_jobs:
