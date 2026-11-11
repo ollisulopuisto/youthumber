@@ -23,6 +23,11 @@ backend:
   - '.github/workflows/**'
   - '.github/filters.yml'
 
+dmg:
+  - 'packaging/dmg/**'
+  - '.github/workflows/**'
+  - '.github/filters.yml'
+
 packaging:
   - 'src/**'
   - 'public/**'

@@ -24,6 +24,7 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
+      dmg: ${{ steps.filter.outputs.dmg }}
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
     steps:
@@ -37,6 +38,16 @@ jobs:
         id: filter
         with:
           filters: .github/filters.yml
+
+  dmg-layout:
+    name: DMG window contract tests
+    needs: changes
+    if: needs.changes.outputs.dmg == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - run: python3 packaging/dmg/test_layout.py
 
   frontend:
     name: Frontend (Node.js 24)
