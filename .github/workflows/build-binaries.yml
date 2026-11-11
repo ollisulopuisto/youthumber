@@ -164,6 +164,8 @@ jobs:
           hdiutil create -volname YouThumber -srcfolder "$staging" -ov -format UDZO \
             "release/YouThumber-macOS-arm64.dmg"
 
+          python3 packaging/dmg/restyle.py release/YouThumber-macOS-arm64.dmg "YouThumber.app" packaging/dmg/welcome-youthumber.png
+
       - name: Sign and verify DMG
         env:
           APPLE_SIGNING_IDENTITY: "Developer ID Application: Olli Sulopuisto (LWSR8T5392)"
