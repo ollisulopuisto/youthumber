@@ -145,3 +145,29 @@ def test_model_dir_can_be_overridden(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("YOUTHUMBER_MODEL_DIR", str(tmp_path))
 
     assert matting.models_dir() == tmp_path
+
+
+def test_box_blur_dilation_matches_max_filter_equivalence() -> None:
+    # Verifies that on a binary mask, BoxBlur(reach).point(>0 -> 255) produces
+    # identical results to MaxFilter(2*reach+1) across multiple shapes and reaches.
+    from PIL import ImageFilter
+
+    rng = np.random.RandomState(42)
+    for w, h in [(50, 40), (120, 80), (250, 140)]:
+        for reach in [1, 2, 4, 8]:
+            arr = (rng.rand(h, w) > 0.85).astype(np.uint8) * 255
+            # Add a known contiguous block
+            arr[h // 4 : h // 2, w // 4 : w // 2] = 255
+            img = Image.fromarray(arr, mode="L")
+
+            mf = img.filter(ImageFilter.MaxFilter(2 * reach + 1))
+            bb = img.filter(ImageFilter.BoxBlur(reach)).point(
+                lambda v: 255 if v > 0 else 0
+            )
+
+            diff = np.max(
+                np.abs(np.asarray(mf, dtype=np.int16) - np.asarray(bb, dtype=np.int16))
+            )
+            assert diff == 0, (
+                f"Mismatch at ({w}, {h}) with reach={reach}: max diff={diff}"
+            )
