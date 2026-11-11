@@ -12,3 +12,7 @@
 ## 2026-11-07 - Accessible names and focus outlines for destructive modal list actions
 **Learning:** Icon-only destructive buttons (e.g. `🗑` delete actions) rendered inside modal item lists lack discernible names for screen reader users when only `title` is set without `aria-label`, and lose visibility during keyboard navigation when `focus-visible` styling is missing (WCAG 4.1.2, WCAG 2.4.7).
 **Action:** Always provide explicit contextual `aria-label`s (e.g. `aria-label={`Delete ${item.name}`}`) and standard `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` rings on icon-only action buttons across list modals like `ProjectGalleryModal` and `ShowPresetModal`.
+
+## 2026-11-10 - Focus indicators for FontPicker option and weight buttons
+**Learning:** Custom listbox options and segmented button groups within property panels can easily be navigated via keyboard tabs, but without `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` the current focus position is completely invisible against dark container backgrounds (WCAG 2.4.7).
+**Action:** Consistently equip all listbox item buttons and segmented weight/mode button groups with `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` so keyboard navigation preserves clear visual indicators without adding distracting focus outlines on mouse clicks.

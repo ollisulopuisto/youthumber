@@ -40,7 +40,7 @@ const FontPicker = memo(function FontPicker({ fontFamily, fontWeight, onChange }
                   role="option"
                   aria-selected={selected}
                   onClick={() => pickFont(font)}
-                  className={`w-full text-left px-2 py-1 text-sm truncate transition-colors ${
+                  className={`w-full text-left px-2 py-1 text-sm truncate transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 ${
                     selected ? 'bg-amber-500/20 text-amber-200' : 'text-gray-200 hover:bg-gray-800'
                   }`}
                   style={{
@@ -66,7 +66,7 @@ const FontPicker = memo(function FontPicker({ fontFamily, fontWeight, onChange }
               disabled={!available}
               aria-pressed={currentWeight === weight}
               title={available ? undefined : `${fontFamily} has no ${label.toLowerCase()} weight`}
-              className={`py-1 rounded text-[11px] transition-colors disabled:opacity-30 ${
+              className={`py-1 rounded text-[11px] transition-colors disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 ${
                 currentWeight === weight
                   ? 'bg-amber-500 text-gray-950 font-bold'
                   : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
