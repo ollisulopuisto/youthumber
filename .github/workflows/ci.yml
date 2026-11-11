@@ -24,6 +24,7 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
+      dmg: ${{ steps.filter.outputs.dmg }}
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
     steps:
@@ -37,6 +38,16 @@ jobs:
         id: filter
         with:
           filters: .github/filters.yml
+
+  dmg-layout:
+    name: DMG window contract tests
+    needs: changes
+    if: needs.changes.outputs.dmg == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - run: python3 packaging/dmg/test_layout.py
 
   frontend:
     name: Frontend (Node.js 24)
@@ -129,17 +140,19 @@ jobs:
   required:
     name: CI required
     if: always()
-    needs: [changes, frontend, backend, backend-macos]
+    needs: [changes, dmg-layout, frontend, backend, backend-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Check required CI results
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
+          DMG_LAYOUT_RESULT: ${{ needs.dmg-layout.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           BACKEND_MACOS_RESULT: ${{ needs.backend-macos.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" || \
+                ( "$DMG_LAYOUT_RESULT" != "success" && "$DMG_LAYOUT_RESULT" != "skipped" ) || \
                 ( "$FRONTEND_RESULT" != "success" && "$FRONTEND_RESULT" != "skipped" ) || \
                 ( "$BACKEND_RESULT" != "success" && "$BACKEND_RESULT" != "skipped" ) || \
                 ( "$BACKEND_MACOS_RESULT" != "success" && "$BACKEND_MACOS_RESULT" != "skipped" ) ]]; then
