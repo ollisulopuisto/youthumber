@@ -50,6 +50,7 @@ from .videoscan import (
 logger = logging.getLogger(__name__)
 
 SCAN_JOB_TTL_SECONDS = 600  # how long an unfetched finished scan is kept
+MAX_ACTIVE_SCAN_JOBS = 3  # maximum concurrent background video scan worker threads
 VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
 
 
@@ -578,6 +579,15 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             )
 
         prune_scan_jobs()
+        # Security: Enforce concurrency limit on background scan jobs to prevent
+        # thread exhaustion, unbounded memory allocation, and CPU/GPU starvation (DoS).
+        active_jobs = sum(1 for j in scan_jobs.values() if j.get("status") == "running")
+        if active_jobs >= MAX_ACTIVE_SCAN_JOBS:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many concurrent scan jobs in progress",
+            )
+
         job_id = uuid.uuid4().hex
         job: dict[str, Any] = {"status": "running", "progress": 0.0}
         scan_jobs[job_id] = job

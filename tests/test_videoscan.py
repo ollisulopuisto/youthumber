@@ -338,3 +338,33 @@ def test_finished_scan_nobody_fetched_is_dropped_after_a_while(
     assert finished.wait(2)
 
     assert mac_client.get(f"/scan-video-speakers/{job_id}").status_code == 404
+
+
+def test_scan_video_speakers_enforces_concurrency_limit(
+    mac_client: TestClient, monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+    hold_scan = threading.Event()
+
+    def hanging_scan(*args, **kwargs):
+        hold_scan.wait(5)
+        return []
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", hanging_scan)
+
+    try:
+        # Starting 3 concurrent jobs should succeed (HTTP 202)
+        job_ids = []
+        for _ in range(3):
+            res = mac_client.post("/scan-video-speakers", json={"path": str(video)})
+            assert res.status_code == 202
+            job_ids.append(res.json()["jobId"])
+
+        # 4th concurrent job must be rejected with HTTP 429 Too Many Requests
+        rejected = mac_client.post("/scan-video-speakers", json={"path": str(video)})
+        assert rejected.status_code == 429
+        assert rejected.json()["detail"] == "Too many concurrent scan jobs in progress"
+    finally:
+        hold_scan.set()
