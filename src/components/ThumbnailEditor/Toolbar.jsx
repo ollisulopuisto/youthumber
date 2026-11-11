@@ -130,7 +130,7 @@ function Toolbar({
               onClick={() => onSetSpeakerCount(n)}
               aria-pressed={n === speakerCount}
               title={`${n} speaker${n === 1 ? '' : 's'}`}
-              className={`px-2 py-0.5 font-medium transition-colors ${
+              className={`px-2 py-0.5 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 ${
                 n === speakerCount
                   ? 'bg-amber-600 text-white'
                   : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
@@ -172,7 +172,7 @@ function Toolbar({
 
           <button
             onClick={onOpenShows}
-            className="px-2 py-1 text-[11px] font-bold rounded bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-600/40 transition-colors"
+            className="px-2 py-1 text-[11px] font-bold rounded bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-600/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
             title="Manage saved show preferences"
           >
             Manage Shows
@@ -253,7 +253,7 @@ function Toolbar({
         <button
           onClick={onUndo}
           disabled={!canUndo}
-          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title={shortcutTitle('undo')}
           aria-label="Undo"
           aria-keyshortcuts={ariaKeyShortcuts('undo')}
@@ -263,7 +263,7 @@ function Toolbar({
         <button
           onClick={onRedo}
           disabled={!canRedo}
-          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title={shortcutTitle('redo')}
           aria-label="Redo"
           aria-keyshortcuts={ariaKeyShortcuts('redo')}
@@ -283,7 +283,7 @@ function Toolbar({
 
         <button
           onClick={onOpenProjects}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title={shortcutTitle('projects', 'Open Project Manager')}
           aria-keyshortcuts={ariaKeyShortcuts('projects')}
         >
@@ -292,7 +292,7 @@ function Toolbar({
 
         <button
           onClick={onSaveProject}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title={shortcutTitle('save', 'Save to local storage')}
           aria-keyshortcuts={ariaKeyShortcuts('save')}
         >
@@ -327,14 +327,14 @@ function Toolbar({
           onClick={onExport}
           title={shortcutTitle('export')}
           aria-keyshortcuts={ariaKeyShortcuts('export')}
-          className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+          className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
         >
           <span>Export {exportSettings.resolution === 'fullhd' ? fullHdDimensions : hdDimensions}</span>
         </button>
 
         <button
           onClick={onOpenPalette}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title={shortcutTitle('palette', 'Find a command')}
           aria-keyshortcuts={ariaKeyShortcuts('palette')}
         >
@@ -343,7 +343,7 @@ function Toolbar({
 
         <button
           onClick={onOpenWhatsNew}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors"
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title="What changed in this version"
         >
           What&apos;s new
@@ -351,7 +351,7 @@ function Toolbar({
 
         <button
           onClick={onOpenShortcuts}
-          className="w-7 h-7 text-sm font-bold rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+          className="w-7 h-7 text-sm font-bold rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title={shortcutTitle('help', 'Keyboard shortcuts')}
           aria-label="Keyboard shortcuts"
           aria-keyshortcuts={ariaKeyShortcuts('help')}
