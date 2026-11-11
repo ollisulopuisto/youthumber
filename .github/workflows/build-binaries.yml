@@ -137,7 +137,8 @@ jobs:
         \nexport KEYCHAIN_PATH=\"$RUNNER_TEMP/youthumber-signing.keychain-db\"\nexport APPLE_TEAM_ID=\"${APPLE_TEAM_ID:-LWSR8T5392}\"\
         \npython3 \"$GITHUB_WORKSPACE/scripts/macos_ci_credentials.py\" store-notary-credentials\nxcrun notarytool submit\
         \ \"$DMG_PATH\" \\\n  --keychain-profile ci-notary --keychain \"$KEYCHAIN_PATH\" \\\n  --wait\nxcrun stapler staple\
-        \ \"$DMG_PATH\"\nxcrun stapler validate \"$DMG_PATH\"\n"
+        \ \"$DMG_PATH\"\nfor attempt in 1 2 3; do\n  if xcrun stapler validate \"$DMG_PATH\"; then break; fi\n  if [ \"$attempt\"\
+        \ -eq 3 ]; then exit 1; fi\n  sleep \"$((attempt * 15))\"\ndone\n"
     - name: Remove signing keychain
       if: always()
       run: security delete-keychain "$RUNNER_TEMP/youthumber-signing.keychain-db" || true
