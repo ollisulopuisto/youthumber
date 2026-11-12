@@ -16,3 +16,7 @@
 ## 2026-11-10 - Focus indicators for FontPicker option and weight buttons
 **Learning:** Custom listbox options and segmented button groups within property panels can easily be navigated via keyboard tabs, but without `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` the current focus position is completely invisible against dark container backgrounds (WCAG 2.4.7).
 **Action:** Consistently equip all listbox item buttons and segmented weight/mode button groups with `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` so keyboard navigation preserves clear visual indicators without adding distracting focus outlines on mouse clicks.
+
+## 2026-11-12 - Top-level toolbar button keyboard focus indicators
+**Learning:** High-frequency top-level action buttons (speaker count, undo/redo, save/export, shortcuts) across dark header toolbars lose visual focus indication during keyboard tabbing unless explicitly styled with `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` (WCAG 2.4.7).
+**Action:** Always verify that top-level header and toolbar button controls receive standard `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` outlines so keyboard navigation across primary workflow actions remains clearly trackable.
