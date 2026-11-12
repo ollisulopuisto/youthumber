@@ -308,6 +308,25 @@ def warm_up(matter) -> None:
     threading.Thread(target=load, daemon=True).start()
 
 
+# BoxBlur(reach) rounds a lone white pixel's share to 255 / (2*reach+1)^2, which
+# stays at 1 or more only up to reach 10 (255 / 441 = 0.58) and rounds to 0 from
+# reach 11 (255 / 529 = 0.48). Past that the box-blur shortcut stops matching a
+# true max filter and silently drops thin or isolated mask pixels.
+_BOX_DILATION_MAX_REACH = 10
+
+
+def _dilate_binary(mask: Image.Image, reach: int) -> Image.Image:
+    """Dilates a binary (0/255) mask by ``reach`` pixels in every direction.
+
+    Up to ``_BOX_DILATION_MAX_REACH`` a separable BoxBlur followed by ">0 -> 255"
+    equals ``MaxFilter(2*reach+1)`` on a binary mask (~167 ms down to ~1.3 ms at
+    reach 10). Wider reaches fall back to the exact MaxFilter.
+    """
+    if reach > _BOX_DILATION_MAX_REACH:
+        return mask.filter(ImageFilter.MaxFilter(2 * reach + 1))
+    return mask.filter(ImageFilter.BoxBlur(reach)).point(lambda v: 255 if v > 0 else 0)
+
+
 def combine_masks(
     matte: Image.Image,
     person: Image.Image,
@@ -331,8 +350,7 @@ def combine_masks(
     )
     reach = max(1, round(small.width * PERSON_REACH_FRACTION))
     near = (
-        small.point(lambda v: 255 if v > PERSON_THRESHOLD else 0)
-        .filter(ImageFilter.MaxFilter(2 * reach + 1))
+        _dilate_binary(small.point(lambda v: 255 if v > PERSON_THRESHOLD else 0), reach)
         .resize(matte.size, Image.Resampling.BILINEAR)
         .filter(ImageFilter.GaussianBlur(1.0))
     )
