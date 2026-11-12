@@ -130,7 +130,7 @@ function Toolbar({
               onClick={() => onSetSpeakerCount(n)}
               aria-pressed={n === speakerCount}
               title={`${n} speaker${n === 1 ? '' : 's'}`}
-              className={`px-2 py-0.5 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 ${
+              className={`px-2 py-0.5 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-amber-500 ${
                 n === speakerCount
                   ? 'bg-amber-600 text-white'
                   : 'bg-gray-800 hover:bg-gray-700 text-gray-300'

@@ -67,4 +67,55 @@ describe('Toolbar keyboard accessibility', () => {
       expect(btn.className).toContain('focus-visible:outline-amber-500')
     }
   })
+
+  it('focus outlines are inset for buttons inside an overflow-hidden group, so they are not clipped', async () => {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    const project = createDefaultProject('Test project')
+
+    await act(async () => {
+      root.render(
+        h(Toolbar, {
+          project,
+          onUpdateProjectName: () => {},
+          onSelectLayout: () => {},
+          onApplyShowPreset: () => {},
+          onOpenShows: () => {},
+          onSaveProject: () => {},
+          onUndo: () => {},
+          onRedo: () => {},
+          canUndo: true,
+          canRedo: true,
+          historyHead: 'root',
+          historyTips: [{ id: 'root', label: 'Initial' }],
+          onGotoHistory: () => {},
+          onOpenProjects: () => {},
+          onExport: () => {},
+          exportSettings: { format: 'jpeg', resolution: 'hd' },
+          onChangeExportSettings: () => {},
+          onOpenShortcuts: () => {},
+          onOpenWhatsNew: () => {},
+          onOpenPalette: () => {},
+          onSetSpeakerCount: () => {},
+        })
+      )
+    })
+
+    const buttons = Array.from(container.querySelectorAll('button'))
+    const clippedBy = (btn) => {
+      for (let el = btn.parentElement; el && el !== container; el = el.parentElement) {
+        if (el.className.split(/\s+/).includes('overflow-hidden')) return el
+      }
+      return null
+    }
+    const clipped = buttons.filter(clippedBy)
+    expect(clipped.length).toBeGreaterThan(0) // the speaker-count group
+    for (const btn of clipped) {
+      expect(
+        btn.className,
+        `Button "${btn.textContent}" sits in an overflow-hidden group; its outline is clipped unless inset`
+      ).toContain('focus-visible:-outline-offset-2')
+    }
+  })
 })
