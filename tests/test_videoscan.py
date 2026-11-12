@@ -349,7 +349,8 @@ def test_scan_video_speakers_enforces_concurrency_limit(
     hold_scan = threading.Event()
 
     def hanging_scan(*args, **kwargs):
-        hold_scan.wait(5)
+        # Released by the finally block below; no timing dependence.
+        hold_scan.wait()
         return []
 
     monkeypatch.setattr("youthumber.server.scan_video_for_speakers", hanging_scan)
@@ -366,5 +367,52 @@ def test_scan_video_speakers_enforces_concurrency_limit(
         rejected = mac_client.post("/scan-video-speakers", json={"path": str(video)})
         assert rejected.status_code == 429
         assert rejected.json()["detail"] == "Too many concurrent scan jobs in progress"
+    finally:
+        hold_scan.set()
+
+
+def test_scan_video_speakers_limit_holds_under_a_parallel_burst(
+    mac_client: TestClient, monkeypatch, tmp_path
+) -> None:
+    import uuid as uuid_module
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+    hold_scan = threading.Event()
+    started = []
+
+    def hanging_scan(*args, **kwargs):
+        started.append(1)
+        hold_scan.wait()
+        return []
+
+    real_uuid4 = uuid_module.uuid4
+
+    def slow_uuid4():
+        # Widen the window between the limit check and job registration.
+        time.sleep(0.05)
+        return real_uuid4()
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", hanging_scan)
+    monkeypatch.setattr("youthumber.server.uuid.uuid4", slow_uuid4)
+
+    codes: list[int] = []
+
+    def post() -> None:
+        codes.append(
+            mac_client.post(
+                "/scan-video-speakers", json={"path": str(video)}
+            ).status_code
+        )
+
+    try:
+        threads = [threading.Thread(target=post) for _ in range(12)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert sorted(codes).count(202) == 3
+        assert codes.count(429) == 9
     finally:
         hold_scan.set()
