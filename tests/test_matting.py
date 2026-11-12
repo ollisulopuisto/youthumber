@@ -171,3 +171,42 @@ def test_box_blur_dilation_matches_max_filter_equivalence() -> None:
             assert diff == 0, (
                 f"Mismatch at ({w}, {h}) with reach={reach}: max diff={diff}"
             )
+
+
+def _lone_pixel(size: int = 80) -> Image.Image:
+    arr = np.zeros((size, size), np.uint8)
+    arr[size // 2, size // 2] = 255
+    return Image.fromarray(arr, mode="L")
+
+
+def test_dilate_binary_equals_max_filter_for_a_lone_pixel_at_every_reach() -> None:
+    """An isolated pixel is the case a box blur loses first: it must survive
+    at every reach, including ones past the box-blur cap."""
+    from PIL import ImageFilter
+
+    for reach in range(1, 16):
+        img = _lone_pixel()
+        expected = np.asarray(img.filter(ImageFilter.MaxFilter(2 * reach + 1)))
+        got = np.asarray(matting._dilate_binary(img, reach))
+        assert np.array_equal(got, expected), f"reach {reach}"
+
+
+def test_box_blur_alone_loses_a_lone_pixel_from_reach_11() -> None:
+    """Pins the reason for the cap: the shortcut is exact at 10 and wrong at 11."""
+    from PIL import ImageFilter
+
+    def boxed(reach: int) -> int:
+        out = _lone_pixel().filter(ImageFilter.BoxBlur(reach)).point(
+            lambda v: 255 if v > 0 else 0
+        )
+        return int(np.count_nonzero(np.asarray(out)))
+
+    assert boxed(10) == 21 * 21
+    assert boxed(11) == 0
+    assert matting._BOX_DILATION_MAX_REACH == 10
+
+
+def test_production_reach_never_exceeds_the_box_blur_cap() -> None:
+    widest = round(matting.REACH_WORK_WIDTH * matting.PERSON_REACH_FRACTION)
+    assert widest <= matting._BOX_DILATION_MAX_REACH
+
