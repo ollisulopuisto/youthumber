@@ -324,9 +324,7 @@ def _dilate_binary(mask: Image.Image, reach: int) -> Image.Image:
     """
     if reach > _BOX_DILATION_MAX_REACH:
         return mask.filter(ImageFilter.MaxFilter(2 * reach + 1))
-    return mask.filter(ImageFilter.BoxBlur(reach)).point(
-        lambda v: 255 if v > 0 else 0
-    )
+    return mask.filter(ImageFilter.BoxBlur(reach)).point(lambda v: 255 if v > 0 else 0)
 
 
 def combine_masks(

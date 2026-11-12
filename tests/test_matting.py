@@ -196,8 +196,10 @@ def test_box_blur_alone_loses_a_lone_pixel_from_reach_11() -> None:
     from PIL import ImageFilter
 
     def boxed(reach: int) -> int:
-        out = _lone_pixel().filter(ImageFilter.BoxBlur(reach)).point(
-            lambda v: 255 if v > 0 else 0
+        out = (
+            _lone_pixel()
+            .filter(ImageFilter.BoxBlur(reach))
+            .point(lambda v: 255 if v > 0 else 0)
         )
         return int(np.count_nonzero(np.asarray(out)))
 
@@ -209,4 +211,3 @@ def test_box_blur_alone_loses_a_lone_pixel_from_reach_11() -> None:
 def test_production_reach_never_exceeds_the_box_blur_cap() -> None:
     widest = round(matting.REACH_WORK_WIDTH * matting.PERSON_REACH_FRACTION)
     assert widest <= matting._BOX_DILATION_MAX_REACH
-
