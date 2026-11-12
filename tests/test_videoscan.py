@@ -338,3 +338,84 @@ def test_finished_scan_nobody_fetched_is_dropped_after_a_while(
     assert finished.wait(2)
 
     assert mac_client.get(f"/scan-video-speakers/{job_id}").status_code == 404
+
+
+def test_scan_video_speakers_enforces_concurrency_limit(
+    mac_client: TestClient, monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+    hold_scan = threading.Event()
+
+    def hanging_scan(*args, **kwargs):
+        # Released by the finally block below; no timing dependence.
+        hold_scan.wait()
+        return []
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", hanging_scan)
+
+    try:
+        # Starting 3 concurrent jobs should succeed (HTTP 202)
+        job_ids = []
+        for _ in range(3):
+            res = mac_client.post("/scan-video-speakers", json={"path": str(video)})
+            assert res.status_code == 202
+            job_ids.append(res.json()["jobId"])
+
+        # 4th concurrent job must be rejected with HTTP 429 Too Many Requests
+        rejected = mac_client.post("/scan-video-speakers", json={"path": str(video)})
+        assert rejected.status_code == 429
+        assert rejected.json()["detail"] == "Too many concurrent scan jobs in progress"
+    finally:
+        hold_scan.set()
+
+
+def test_scan_video_speakers_limit_holds_under_a_parallel_burst(
+    mac_client: TestClient, monkeypatch, tmp_path
+) -> None:
+    import uuid as uuid_module
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    video = tmp_path / "episode.mp4"
+    video.write_bytes(b"x")
+    hold_scan = threading.Event()
+    started = []
+
+    def hanging_scan(*args, **kwargs):
+        started.append(1)
+        hold_scan.wait()
+        return []
+
+    real_uuid4 = uuid_module.uuid4
+
+    def slow_uuid4():
+        # Widen the window between the limit check and job registration.
+        time.sleep(0.05)
+        return real_uuid4()
+
+    monkeypatch.setattr("youthumber.server.scan_video_for_speakers", hanging_scan)
+    monkeypatch.setattr("youthumber.server.uuid.uuid4", slow_uuid4)
+
+    codes: list[int] = []
+
+    def post() -> None:
+        codes.append(
+            mac_client.post(
+                "/scan-video-speakers", json={"path": str(video)}
+            ).status_code
+        )
+
+    try:
+        threads = [threading.Thread(target=post) for _ in range(12)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            # Bounded: a request that blocks on its scan worker must fail the
+            # test, not hang it. hold_scan is released in the finally below.
+            t.join(timeout=10)
+        assert not any(t.is_alive() for t in threads), "a scan request blocked"
+        assert sorted(codes).count(202) == 3
+        assert codes.count(429) == 9
+    finally:
+        hold_scan.set()

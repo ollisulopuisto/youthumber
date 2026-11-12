@@ -50,6 +50,7 @@ from .videoscan import (
 logger = logging.getLogger(__name__)
 
 SCAN_JOB_TTL_SECONDS = 600  # how long an unfetched finished scan is kept
+MAX_ACTIVE_SCAN_JOBS = 3  # maximum concurrent background video scan worker threads
 VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v"}
 
 
@@ -531,6 +532,9 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
     # 60 s ("Load failed") while the scan carries on unseen. So POST starts a job in a
     # thread and returns at once; the page polls GET for progress and the result.
     scan_jobs: dict[str, dict[str, Any]] = {}
+    # Tarkistus ja rekisteröinti tehdään yhdessä lukon alla, jotta rinnakkaiset
+    # pyynnöt eivät ohita jobirajaa.
+    scan_jobs_lock = threading.Lock()
     scan_finished_at: dict[str, float] = {}
 
     def prune_scan_jobs() -> None:
@@ -577,10 +581,24 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
                 detail="Video scanning requires macOS AVFoundation/Vision",
             )
 
-        prune_scan_jobs()
-        job_id = uuid.uuid4().hex
-        job: dict[str, Any] = {"status": "running", "progress": 0.0}
-        scan_jobs[job_id] = job
+        # Security: Enforce concurrency limit on background scan jobs to prevent
+        # thread exhaustion, unbounded memory allocation, and CPU/GPU starvation (DoS).
+        # Check and register are atomic: parallel requests cannot all pass the check
+        # before one of them has registered its job.
+        with scan_jobs_lock:
+            prune_scan_jobs()
+            active_jobs = sum(
+                1 for j in scan_jobs.values() if j.get("status") == "running"
+            )
+            if active_jobs >= MAX_ACTIVE_SCAN_JOBS:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Too many concurrent scan jobs in progress",
+                )
+
+            job_id = uuid.uuid4().hex
+            job: dict[str, Any] = {"status": "running", "progress": 0.0}
+            scan_jobs[job_id] = job
         threading.Thread(
             target=run_scan_job,
             args=(job_id, job, req.model_copy(update={"path": str(video_path)})),
