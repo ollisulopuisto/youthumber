@@ -411,7 +411,10 @@ def test_scan_video_speakers_limit_holds_under_a_parallel_burst(
         for t in threads:
             t.start()
         for t in threads:
-            t.join()
+            # Bounded: a request that blocks on its scan worker must fail the
+            # test, not hang it. hold_scan is released in the finally below.
+            t.join(timeout=10)
+        assert not any(t.is_alive() for t in threads), "a scan request blocked"
         assert sorted(codes).count(202) == 3
         assert codes.count(429) == 9
     finally:
