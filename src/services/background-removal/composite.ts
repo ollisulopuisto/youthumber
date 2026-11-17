@@ -20,12 +20,14 @@ export function applyMaskToImageData(
   const totalPixels = width * height
   const output = new Uint8ClampedArray(sourceRgba.length)
 
-  // Copy RGB directly from source
+  // Bulk-copy the source pixels (RGB plus existing alpha) in one operation. The
+  // per-pixel loop below only rewrites the alpha channel, so this drops three
+  // channel reads and three writes per pixel from the hot loop. RGB is unchanged
+  // by the mask, so copying it verbatim is safe.
+  output.set(sourceRgba)
+
   for (let i = 0; i < totalPixels; i++) {
     const idx = i * 4
-    output[idx] = sourceRgba[idx]         // R
-    output[idx + 1] = sourceRgba[idx + 1] // G
-    output[idx + 2] = sourceRgba[idx + 2] // B
 
     // Determine mask value: mask can be grayscale (1 byte/pixel or R=G=B in RGBA)
     // If maskData is RGBA (length == totalPixels * 4), use R or A
