@@ -149,6 +149,7 @@ function Editor({ initialProject }) {
   const [selectionRect, setSelectionRect] = useState(null)
   const [contextMenu, setContextMenu] = useState(null)
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
+  const [saveStatus, setSaveStatus] = useState('idle') // idle | saving | saved
 
   // Auto-save project changes to local storage
   useEffect(() => {
@@ -165,6 +166,13 @@ function Editor({ initialProject }) {
       if (idle) window.cancelIdleCallback(idle)
     }
   }, [project])
+
+  // "Saved ✓" is a transient confirmation; go back to "Save" after a moment.
+  useEffect(() => {
+    if (saveStatus !== 'saved') return undefined
+    const timer = setTimeout(() => setSaveStatus('idle'), 2000)
+    return () => clearTimeout(timer)
+  }, [saveStatus])
 
   // Handlers for Project & Templates
   const handleUpdateProjectName = (name) => {
@@ -220,10 +228,12 @@ function Editor({ initialProject }) {
   }
 
   const handleSaveProject = async () => {
+    setSaveStatus('saving')
     try {
       await saveProjectToStorage(project)
-      alert(`Project "${project.name}" saved.`)
+      setSaveStatus('saved')
     } catch (err) {
+      setSaveStatus('idle')
       alert(`Could not save the project: ${err.message}`)
     }
   }
@@ -731,6 +741,7 @@ function Editor({ initialProject }) {
         onOpenWhatsNew={openWhatsNew}
         onOpenPalette={() => setShowPalette(true)}
         onSetSpeakerCount={handleSetSpeakerCount}
+        saveStatus={saveStatus}
       />
 
       {/* Main Workspace Area */}

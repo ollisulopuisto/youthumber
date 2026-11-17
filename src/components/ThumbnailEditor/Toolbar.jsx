@@ -28,6 +28,7 @@ function Toolbar({
   onOpenWhatsNew,
   onOpenPalette,
   onSetSpeakerCount,
+  saveStatus = 'idle',
 }) {
   const [activeRemoverId, setActiveRemoverId] = useState(() => {
     try {
@@ -292,12 +293,17 @@ function Toolbar({
 
         <button
           onClick={onSaveProject}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+          disabled={saveStatus === 'saving'}
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           title={shortcutTitle('save', 'Save to local storage')}
           aria-keyshortcuts={ariaKeyShortcuts('save')}
         >
-          Save
+          {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : 'Save'}
         </button>
+        {/* Announce the save result to screen readers, matching the button label. */}
+        <span role="status" aria-live="polite" className="sr-only">
+          {saveStatus === 'saved' ? 'Project saved' : saveStatus === 'saving' ? 'Saving project' : ''}
+        </span>
 
         <div className="h-5 w-px bg-gray-700" />
 

@@ -20,3 +20,7 @@
 ## 2026-11-12 - Top-level toolbar button keyboard focus indicators
 **Learning:** High-frequency top-level action buttons (speaker count, undo/redo, save/export, shortcuts) across dark header toolbars lose visual focus indication during keyboard tabbing unless explicitly styled with `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` (WCAG 2.4.7).
 **Action:** Always verify that top-level header and toolbar button controls receive standard `focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500` outlines so keyboard navigation across primary workflow actions remains clearly trackable.
+
+## 2026-11-17 - Blocking alerts for routine save feedback
+**Learning:** Explicit saves used a native `alert("Project saved.")` — a modal the user must dismiss for a routine, successful action. It blocks the editor, cannot be styled, and is not announced politely. The app already had a better pattern in `ShowPresetModal` (an inline `role="status"` message).
+**Action:** Prefer transient inline confirmation with `role="status" aria-live="polite"` (here, a "Saved ✓" button state that resets after 2 s) over `alert()` for successful actions. Reserve `alert()` for errors that genuinely need attention.
