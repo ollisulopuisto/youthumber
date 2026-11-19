@@ -291,7 +291,11 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             "img-src 'self' data: blob:; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' data: https://fonts.gstatic.com; "
-            "script-src 'self' 'wasm-unsafe-eval'; "
+            # 'unsafe-eval' is required by pywebview: window.evaluate_js wraps the
+            # script in eval() by design, and its DOM element API is built on that.
+            # Without it the packaged app's bridge dies with a CSP EvalError.
+            # Script *loading* stays same-origin; only string evaluation is relaxed.
+            "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; "
             "connect-src 'self' data: blob: https://huggingface.co https://*.huggingface.co https://github.com https://*.githubusercontent.com; "
             "media-src 'self' data: blob:; "
             "worker-src 'self' blob:; "

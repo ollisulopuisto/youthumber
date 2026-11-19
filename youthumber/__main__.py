@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import multiprocessing
 import sys
 import threading
 import webbrowser
@@ -17,6 +18,11 @@ except (ImportError, ValueError):
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point for running YouThumber."""
+    # multiprocessing spawn re-executes the frozen macOS binary with
+    # `-c from multiprocessing.resource_tracker import main;...` arguments.
+    # freeze_support() recognises and serves that invocation; without it the
+    # child dies in argparse ("unrecognized arguments"). No-op otherwise.
+    multiprocessing.freeze_support()
     parser = argparse.ArgumentParser(
         prog="youthumber",
         description="YouThumber: Local-first YouTube thumbnail editor with Apple Silicon background removal.",
