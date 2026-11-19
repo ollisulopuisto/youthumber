@@ -198,7 +198,7 @@ class DesktopServer:
             from .server import create_app
 
             config = uvicorn.Config(
-                app=create_app(dist_dir=self.dist_dir),
+                app=create_app(dist_dir=self.dist_dir, desktop=True),
                 log_level="warning",
                 access_log=False,
             )

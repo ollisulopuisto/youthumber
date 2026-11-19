@@ -66,18 +66,30 @@ def test_bind_free_socket_skips_a_port_in_use() -> None:
         first.close()
 
 
-def test_the_csp_allows_pywebviews_eval_based_bridge(tmp_path: Path) -> None:
+def _script_src(client: TestClient) -> str:
+    csp = client.get("/").headers["content-security-policy"]
+    return next(
+        d.strip() for d in csp.split(";") if d.strip().startswith("script-src")
+    )
+
+
+def test_the_desktop_csp_allows_pywebviews_eval_based_bridge(tmp_path: Path) -> None:
     """pywebview's window.evaluate_js wraps the script in eval() by design (to
     return the last value), and its whole DOM element API is built on that. A
     script-src without 'unsafe-eval' kills the packaged app's bridge with a CSP
     EvalError (19.3 field report, 2026-11-19). Only eval is relaxed; script
     loading stays same-origin."""
-    client = TestClient(create_app(dist_dir=tmp_path))
-    csp = client.get("/").headers["content-security-policy"]
-    script_src = next(
-        d.strip() for d in csp.split(";") if d.strip().startswith("script-src")
-    )
+    script_src = _script_src(TestClient(create_app(dist_dir=tmp_path, desktop=True)))
     assert "'unsafe-eval'" in script_src
+    assert "'self'" in script_src
+
+
+def test_the_browser_csp_keeps_eval_refused(tmp_path: Path) -> None:
+    """The headless server has no pywebview bridge, so its CSP refuses eval:
+    'unsafe-eval' is relaxed only for the desktop window, not for every page
+    the server serves (review on #128, 2026-11-20)."""
+    script_src = _script_src(TestClient(create_app(dist_dir=tmp_path)))
+    assert "'unsafe-eval'" not in script_src
     assert "'self'" in script_src
 
 
@@ -98,6 +110,40 @@ def test_main_calls_multiprocessing_freeze_support(monkeypatch) -> None:
         entry.main(["--help"])
     assert exc_info.value.code == 0
     assert calls == [True]
+
+
+def test_the_desktop_server_marks_its_app_desktop(monkeypatch) -> None:
+    """The GUI's own server is the one the pywebview window loads, so it is
+    the one that needs the eval-relaxed CSP."""
+    import uvicorn
+
+    from youthumber import gui
+
+    seen = {}
+    monkeypatch.setattr(
+        "youthumber.server.create_app",
+        lambda **kwargs: seen.update(kwargs) or object(),
+    )
+
+    class _Config:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+    class _Server:
+        should_exit = False
+
+        def __init__(self, _config) -> None:
+            pass
+
+        def run(self, sockets=None) -> None:
+            pass
+
+    monkeypatch.setattr(uvicorn, "Config", _Config)
+    monkeypatch.setattr(uvicorn, "Server", _Server)
+    server = gui.DesktopServer.__new__(gui.DesktopServer)
+    server.dist_dir = Path("/nonexistent")
+    server._run()
+    assert seen.get("desktop") is True
 
 
 def test_hashed_assets_are_cached_and_the_page_is_revalidated(tmp_path: Path) -> None:
