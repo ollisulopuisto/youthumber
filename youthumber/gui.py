@@ -113,9 +113,10 @@ def dropped_video_paths(event: dict) -> list[str]:
     files = (event.get("dataTransfer") or {}).get("files") or []
     paths = []
     for entry in files:
-        name = str(entry.get("name") or "")
+        # The scan opens the resolved path, so the path - not the drop-event
+        # name, which can disagree with it - decides what counts as a video.
         path = entry.get("pywebviewFullPath")
-        if path and name.lower().endswith(VIDEO_DROP_SUFFIXES):
+        if path and str(path).lower().endswith(VIDEO_DROP_SUFFIXES):
             paths.append(str(path))
     return paths
 

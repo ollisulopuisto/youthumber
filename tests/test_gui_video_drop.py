@@ -55,3 +55,13 @@ def test_forward_ignores_a_drop_with_no_videos():
         evaluate_js=calls.append,
     )
     assert calls == []
+
+
+def test_suffix_is_checked_on_the_resolved_path_not_the_drop_name():
+    # The scan opens pywebviewFullPath, so that is what the filter must judge:
+    # a misleading drop name neither smuggles a non-video in nor keeps one out.
+    event = _drop(
+        {"name": "clip", "pywebviewFullPath": "/x/clip.mp4"},
+        {"name": "sneaky.mp4", "pywebviewFullPath": "/x/sneaky.txt"},
+    )
+    assert dropped_video_paths(event) == ["/x/clip.mp4"]
