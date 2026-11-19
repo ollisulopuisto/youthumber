@@ -2,7 +2,7 @@ import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react'
 import { useUndoableState } from './hooks/useUndoableState'
 import { useStableCallback } from './hooks/useStableCallback'
 import { useAutosaveProject } from './hooks/useAutosaveProject'
-import { flushAndStartNewProject } from './modules/thumbnail/newProject'
+import { describeSaveError, flushAndStartNewProject } from './modules/thumbnail/newProject'
 import Toolbar from './components/ThumbnailEditor/Toolbar'
 import ThumbnailStudioCanvas from './components/ThumbnailEditor/ThumbnailStudioCanvas'
 import LayersPanel from './components/ThumbnailEditor/LayersPanel'
@@ -668,7 +668,7 @@ function Editor({ initialProject }) {
         fresh: () => createDefaultProject('YouTube Thumbnail'),
         // A silent failure reads as a dead menu item; say what happened.
         onSaveError: (err) =>
-          alert(`Could not save the current project, so the new project was not started: ${err.message}`),
+          alert(`Could not save the current project, so the new project was not started: ${describeSaveError(err)}`),
       }).then((switched) => {
         if (!switched)
           console.warn('New Project cancelled: the current project could not be saved first')

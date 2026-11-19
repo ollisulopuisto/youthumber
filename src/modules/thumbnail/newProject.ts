@@ -9,6 +9,16 @@ import type { ThumbnailProject } from '../../types/thumbnail'
  * so the caller can tell the user why nothing visibly happened; a switch that
  * only lost the race to a gallery load is not an error and stays quiet.
  */
+/**
+ * A save can reject with anything - IndexedDB hands `tx.error`, which is still
+ * null when the transaction's error event fires before its abort. Reading
+ * `.message` off such a rejection would throw inside the error handler and
+ * silence the very alert meant to explain the failure.
+ */
+export function describeSaveError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export async function flushAndStartNewProject({
   getProject,
   setProject,
