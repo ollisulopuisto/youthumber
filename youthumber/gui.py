@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import native_menu
+from . import __version__, diagnostics, native_menu
 from .paths import get_app_icon_path, get_dist_dir, get_user_data_dir
 
 logger = logging.getLogger(__name__)
@@ -261,6 +261,10 @@ def launch_gui(
     The window opens straight away, while the engine loads in the background; its page
     request is answered as soon as the engine is up.
     """
+    diag_path = diagnostics.setup_diagnostics(__version__)
+    if diag_path is not None:
+        logger.info("Diagnostics log: %s", diag_path)
+
     if dist_dir is None:
         dist_dir = get_dist_dir()
 
@@ -285,6 +289,18 @@ def launch_gui(
         server.stop()
 
     window.events.closed += on_closed
+
+    # Packaged builds have no console; the probe records whether the pywebview
+    # bridge ever reaches the page (see diagnostics module).
+    diagnostics.install_bridge_probe(window)
+
+    def log_menu_state_once() -> None:
+        # Menus are installed by the frontend through the bridge, so their
+        # titles are bridge health evidence; wait for the install first.
+        threading.Event().wait(8.0)
+        diagnostics.log_native_menu_state()
+
+    threading.Thread(target=log_menu_state_once, daemon=True).start()
 
     def watch_startup() -> None:
         # The first start after a reboot imports for several seconds; give it time.
