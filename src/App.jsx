@@ -685,6 +685,15 @@ function Editor({ initialProject }) {
     }
   }, [])
 
+  /** Manual 9:16 <-> 16:9 flip; the auto-switch on vertical frames stays. */
+  const handleToggleOrientation = () => {
+    applyAndReframe((prev) =>
+      prev.canvas.height > prev.canvas.width
+        ? switchProjectToLandscape(prev)
+        : switchProjectToPortrait(prev)
+    )
+  }
+
   const commandContext = (layerId, key) => ({
     layerId,
     project,
@@ -712,6 +721,7 @@ function Editor({ initialProject }) {
     exportImage: handleExport,
     openProjects: () => setShowProjectsModal(true),
     importVideo: handleImportVideo,
+    toggleOrientation: handleToggleOrientation,
     openHelp: () => setShowShortcuts(true),
     openPalette: () => setShowPalette(true),
     addText: handleAddText,
@@ -795,6 +805,7 @@ function Editor({ initialProject }) {
         onGotoHistory={gotoHistory}
         onOpenProjects={() => setShowProjectsModal(true)}
         onImportVideo={handleImportVideo}
+        onToggleOrientation={handleToggleOrientation}
         onExport={handleExport}
         exportSettings={exportSettings}
         onChangeExportSettings={(changes) => setExportSettings((prev) => ({ ...prev, ...changes }))}

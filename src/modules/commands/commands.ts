@@ -29,6 +29,7 @@ export interface CommandContext extends CommandState {
   exportImage(): void
   openProjects(): void
   importVideo(): void
+  toggleOrientation(): void
   openHelp(): void
   openPalette(): void
   addText(): void
@@ -363,6 +364,14 @@ export const COMMANDS: Command[] = [
     keywords: 'movie clip frames scan drop',
     appliesTo: always,
     run: (ctx) => ctx.importVideo(),
+  },
+  {
+    id: 'toggleOrientation',
+    label: 'Switch orientation',
+    scope: 'app',
+    keywords: 'portrait landscape vertical horizontal 9:16 16:9 rotate',
+    appliesTo: always,
+    run: (ctx) => ctx.toggleOrientation(),
   },
   { id: 'palette', label: 'Find a command', shortcutId: 'palette', scope: 'key', appliesTo: always, run: (ctx) => ctx.openPalette() },
   {

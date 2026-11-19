@@ -181,7 +181,7 @@ describe('paletteCommands', () => {
 
   it('offers the app commands without a selection, but not deselect', () => {
     const list = ids(paletteCommands(null, p))
-    expect(list).toEqual(['undo', 'redo', 'addText', 'addElement', 'newProject', 'save', 'export', 'projects', 'importVideo', 'help'])
+    expect(list).toEqual(['undo', 'redo', 'addText', 'addElement', 'newProject', 'save', 'export', 'projects', 'importVideo', 'toggleOrientation', 'help'])
   })
 
   it('greys out undo and redo when there is nothing to undo or redo', () => {
@@ -353,5 +353,17 @@ describe('importVideo', () => {
     const importVideo = vi.fn()
     command.run({ importVideo } as never)
     expect(importVideo).toHaveBeenCalled()
+  })
+})
+
+describe('toggleOrientation', () => {
+  it('is an app command that always applies and runs the context toggle', () => {
+    const command = COMMANDS.find((c) => c.id === 'toggleOrientation')!
+    expect(command).toBeDefined()
+    expect(command.scope).toBe('app')
+    expect(command.appliesTo(null, {} as never)).toBe(true)
+    const toggleOrientation = vi.fn()
+    command.run({ toggleOrientation } as never)
+    expect(toggleOrientation).toHaveBeenCalled()
   })
 })
