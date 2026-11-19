@@ -3,10 +3,36 @@
  * native file dialog, then ask the local CoreML backend to sample it at intervals
  * and score each frame with Apple Vision to find well-framed, in-focus faces.
  */
+import { useEffect, useState } from 'react'
 import { parseErrorResponse, resolveBaseUrl } from './backend'
 
 export function isDesktopVideoScanAvailable() {
   return typeof window !== 'undefined' && !!window.pywebview?.api?.pick_video_file
+}
+
+/**
+ * isDesktopVideoScanAvailable as state. The desktop app injects window.pywebview
+ * after the page's first render, so a one-shot check during render hides the video
+ * buttons until something re-renders (forever, once the speaker cards were memoised).
+ * Re-checks when the bridge announces itself, like installNativeMenusWhenReady.
+ */
+export function useDesktopVideoScanAvailable() {
+  const [available, setAvailable] = useState(isDesktopVideoScanAvailable)
+  useEffect(() => {
+    if (available) return undefined
+    // The bridge may have arrived (and its event fired) between the render-phase
+    // check and this subscription: look once more before waiting on the event.
+    if (isDesktopVideoScanAvailable()) {
+      setAvailable(true)
+      return undefined
+    }
+    const check = () => {
+      if (isDesktopVideoScanAvailable()) setAvailable(true)
+    }
+    window.addEventListener('pywebviewready', check)
+    return () => window.removeEventListener('pywebviewready', check)
+  }, [available])
+  return available
 }
 
 /** Opens the native file picker. Returns the selected absolute path, or null if cancelled. */

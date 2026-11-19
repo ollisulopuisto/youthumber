@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useRef, useState } from 'react'
-import { isDesktopVideoScanAvailable } from '../../services/videoScan'
+import { useDesktopVideoScanAvailable } from '../../services/videoScan'
 import { positionLabels } from '../../modules/thumbnail/layouts'
 const VideoScanModal = lazy(() => import('./VideoScanModal'))
 import MattingModelBanner from './MattingModelBanner'
@@ -216,7 +216,7 @@ function SpeakerSlotsPanel({
   const bgInputRef = useRef(null)
   const [videoScanTarget, setVideoScanTarget] = useState(undefined) // undefined = closed, null = no target
   const [lastScan, setLastScan] = useState(null) // { path, people } — reused across slots
-  const videoScanAvailable = isDesktopVideoScanAvailable()
+  const videoScanAvailable = useDesktopVideoScanAvailable()
 
   return (
     <div className="w-full bg-gray-950/90 border-t border-gray-800 p-3 sm:p-4 flex flex-col gap-3">
