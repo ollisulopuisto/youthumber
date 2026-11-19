@@ -83,10 +83,16 @@ def stamp_version(app: Path) -> None:
         )
 
 
-def run_pyinstaller() -> None:
-    """Executes PyInstaller to create the standalone desktop bundle."""
-    print("==> Packaging desktop application with PyInstaller...")
+def pyinstaller_command() -> list:
+    """Builds the PyInstaller command line.
 
+    Every ``--collect-all`` argument must be an *importable* package name:
+    PyInstaller warns and collects nothing for anything else, so a wrong name
+    silently drops that package's data files from the app. ``webview`` (not
+    the distribution name ``pywebview``) carries the JS files the bridge
+    injection reads; without them window.pywebview never appears in the
+    packaged app, which kills the native menus and every bridge feature.
+    """
     data_separator = ";" if sys.platform == "win32" else ":"
     data_arg = f"{DIST_DIR}{data_separator}dist"
 
@@ -105,7 +111,7 @@ def run_pyinstaller() -> None:
         "--add-data",
         data_arg,
         "--collect-all",
-        "pywebview",
+        "webview",
         "--collect-all",
         "uvicorn",
         "--collect-all",
@@ -183,7 +189,14 @@ def run_pyinstaller() -> None:
         )
 
     cmd.append(str(ROOT_DIR / "launcher.py"))
+    return cmd
 
+
+def run_pyinstaller() -> None:
+    """Executes PyInstaller to create the standalone desktop bundle."""
+    print("==> Packaging desktop application with PyInstaller...")
+
+    cmd = pyinstaller_command()
     subprocess.run(cmd, cwd=ROOT_DIR, check=True)
 
     if sys.platform == "darwin":
