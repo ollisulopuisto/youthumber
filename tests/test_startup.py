@@ -68,9 +68,7 @@ def test_bind_free_socket_skips_a_port_in_use() -> None:
 
 def _script_src(client: TestClient) -> str:
     csp = client.get("/").headers["content-security-policy"]
-    return next(
-        d.strip() for d in csp.split(";") if d.strip().startswith("script-src")
-    )
+    return next(d.strip() for d in csp.split(";") if d.strip().startswith("script-src"))
 
 
 def test_the_desktop_csp_allows_pywebviews_eval_based_bridge(tmp_path: Path) -> None:
@@ -103,9 +101,7 @@ def test_main_calls_multiprocessing_freeze_support(monkeypatch) -> None:
     import youthumber.__main__ as entry
 
     calls = []
-    monkeypatch.setattr(
-        multiprocessing, "freeze_support", lambda: calls.append(True)
-    )
+    monkeypatch.setattr(multiprocessing, "freeze_support", lambda: calls.append(True))
     with pytest.raises(SystemExit) as exc_info:
         entry.main(["--help"])
     assert exc_info.value.code == 0
