@@ -248,8 +248,13 @@ class HashedAssetFiles(StaticFiles):
         return response
 
 
-def create_app(dist_dir: Path | None = None) -> FastAPI:
-    """Creates and configures the FastAPI application."""
+def create_app(dist_dir: Path | None = None, desktop: bool = False) -> FastAPI:
+    """Creates and configures the FastAPI application.
+
+    ``desktop`` marks the GUI's own server: only its CSP relaxes script-src
+    with 'unsafe-eval', which pywebview's eval-based bridge requires. The
+    headless server refuses eval.
+    """
     if dist_dir is None:
         dist_dir = get_dist_dir()
 
@@ -274,6 +279,14 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
         version="26.11.5.1",
     )
 
+    # 'unsafe-eval' is required by pywebview: window.evaluate_js wraps the
+    # script in eval() by design, and its DOM element API is built on that.
+    # Without it the packaged app's bridge dies with a CSP EvalError. Only the
+    # desktop server's CSP relaxes it, and script *loading* stays same-origin.
+    script_src = "script-src 'self' 'wasm-unsafe-eval'"
+    if desktop:
+        script_src += " 'unsafe-eval'"
+
     # Security: Attach standard defense-in-depth headers on all HTTP responses to
     # prevent clickjacking, MIME-type sniffing, referrer leakage, unauthorized browser API access,
     # and restrict resource loading (CSP) against XSS and data exfiltration.
@@ -291,7 +304,7 @@ def create_app(dist_dir: Path | None = None) -> FastAPI:
             "img-src 'self' data: blob:; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' data: https://fonts.gstatic.com; "
-            "script-src 'self' 'wasm-unsafe-eval'; "
+            f"{script_src}; "
             "connect-src 'self' data: blob: https://huggingface.co https://*.huggingface.co https://github.com https://*.githubusercontent.com; "
             "media-src 'self' data: blob:; "
             "worker-src 'self' blob:; "
