@@ -80,3 +80,25 @@ export async function installNativeMenus() {
   if (!setNativeMenu) return false
   return !!(await setNativeMenu(buildNativeMenuSpec()))
 }
+
+/**
+ * Installs the menus once the pywebview API exists: right away when the page loaded
+ * after injection, or on the pywebviewready event when the editor mounted first.
+ * The per-call guard keeps a late event from installing twice, and the native side
+ * is idempotent besides. Returns a cleanup that stops the waiting.
+ */
+export function installNativeMenusWhenReady() {
+  if (typeof window === 'undefined') return () => {}
+  let started = false
+  const install = () => {
+    if (started) return
+    started = true
+    void installNativeMenus()
+  }
+  if (window.pywebview?.api?.set_native_menu) {
+    install()
+    return () => {}
+  }
+  window.addEventListener('pywebviewready', install)
+  return () => window.removeEventListener('pywebviewready', install)
+}

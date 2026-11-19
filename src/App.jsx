@@ -18,7 +18,7 @@ import { createExportFilename } from './modules/thumbnail/exportFilename'
 import { SEEN_KEY, currentVersion, shippedEntries, unseenEntries } from './modules/whatsnew/whatsnew'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
 import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
-import { installNativeMenus } from './services/nativeMenu'
+import { installNativeMenusWhenReady } from './services/nativeMenu'
 import CommandPalette from './components/ThumbnailEditor/CommandPalette'
 import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
 import ContextMenu from './components/ThumbnailEditor/ContextMenu'
@@ -727,8 +727,9 @@ function Editor({ initialProject }) {
 
   useEffect(() => {
     window.__youthumberNativeRun = runNativeMenuCommand
-    installNativeMenus()
+    const stopWaiting = installNativeMenusWhenReady()
     return () => {
+      stopWaiting()
       delete window.__youthumberNativeRun
     }
   }, [runNativeMenuCommand])

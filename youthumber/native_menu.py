@@ -282,6 +282,9 @@ def _restore(main: Any, taken: list) -> None:
 
 def _draw(spec: list[dict], main: Any, appkit: Any, target: Any) -> None:
     position = 1  # after the application menu
+    # pywebview's kept View items (Enter Full Screen) live in a View menu when the
+    # page has one, else in Window, where macOS puts Full Screen anyway.
+    kept_home = "view" if any(m["id"] == "view" for m in spec) else "window"
     for menu in spec:
         top = appkit.NSMenuItem.alloc().init()
         top.setTitle_(menu["label"])
@@ -290,7 +293,7 @@ def _draw(spec: list[dict], main: Any, appkit: Any, target: Any) -> None:
         sub.setAutoenablesItems_(False)
         native = list(_kept["edit"]) if menu["id"] == "edit" else []
         _fill(appkit, sub, menu["items"], target, native, swap=bool(native))
-        if menu["id"] == "view" and _kept["view"]:
+        if menu["id"] == kept_home and _kept["view"]:
             sub.addItem_(appkit.NSMenuItem.separatorItem())
             for kept in _kept["view"]:
                 _detach(kept)

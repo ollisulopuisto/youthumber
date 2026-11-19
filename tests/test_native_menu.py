@@ -167,12 +167,14 @@ def pywebview_menu():
                 ("Select All", "selectAll:"),
             ],
         ),
-        ("View", [("Enter Full Screen", "toggleFullScreen:")]),
+        ("View", [("Enter Full Screen", "toggleFullScreen:", "f")]),
     ):
         top = FakeItem(title)
         sub = FakeMenu(title)
-        for name, action in entries:
-            sub.addItem_(FakeItem(name, action))
+        for entry in entries:
+            name, action = entry[0], entry[1]
+            key = entry[2] if len(entry) > 2 else ""
+            sub.addItem_(FakeItem(name, action, key))
         top.setSubmenu_(sub)
         main.addItem_(top)
     return main
@@ -317,9 +319,9 @@ def test_the_native_clipboard_items_stay_pywebviews_and_ours_for_them_are_droppe
 
 def test_window_items_are_os_actions_with_real_key_equivalents():
     main = pywebview_menu()
-    _ok, target, _runs = run_install(main)
+    _ok, _target, _runs = run_install(main)
     window = main.items[3].submenu()
-    minimize, close = window.items
+    minimize, close = window.items[:2]
     assert minimize.action() == "miniaturize:"
     assert minimize.keyEquivalent() == "m"
     assert close.action() == "performClose:"
@@ -347,6 +349,18 @@ def test_choosing_an_item_hands_its_command_to_the_runner():
     save = main.items[1].submenu().items[1]
     native_menu.dispatch(target, save)
     assert runs == [{"id": "save"}]
+
+
+def test_pywebviews_fullscreen_lands_in_the_window_menu_when_there_is_no_view():
+    """The page's spec has no View menu; Enter Full Screen moves to Window."""
+    main = pywebview_menu()
+    run_install(main)
+    window = main.items[3].submenu()
+    last = window.items[-1]
+    assert last.title() == "Enter Full Screen"
+    assert last.action() == "toggleFullScreen:"
+    assert last.keyEquivalent() == "f"
+    assert window.items[-2].isSeparatorItem()
 
 
 def test_a_second_install_replaces_the_first_and_keeps_the_native_items():
@@ -430,10 +444,39 @@ def test_gui_set_native_menu_installs_and_runs_commands_on_the_page(monkeypatch)
     assert calls["spec"] == SPEC
 
     evaluated = []
-    monkeypatch.setattr(api, "_evaluate_js", evaluated.append)
+    ran = threading.Event()
+
+    def record(script):
+        evaluated.append(script)
+        ran.set()
+
+    monkeypatch.setattr(api, "_evaluate_js", record)
     calls["run"]({"id": "save"})
+    assert ran.wait(2.0), "the command never reached the page"
     assert evaluated == [
         'window.__youthumberNativeRun && window.__youthumberNativeRun("save")'
     ]
+
+
+def test_a_menu_command_returns_without_waiting_for_the_page(monkeypatch):
+    """The Cocoa evaluator waits on the main thread; the menu callback must not."""
+    import time
+
+    from youthumber import gui
+
+    api = gui.DesktopApi()
+    entered = threading.Event()
+    release = threading.Event()
+
+    def blocking(script):
+        entered.set()
+        release.wait(2.0)
+
+    monkeypatch.setattr(api, "_evaluate_js", blocking)
+    start = time.monotonic()
+    api._run_menu_command({"id": "save"})
+    assert time.monotonic() - start < 1.0, "the menu callback blocked on the page"
+    assert entered.wait(1.0), "the evaluation never started"
+    release.set()
 
 
