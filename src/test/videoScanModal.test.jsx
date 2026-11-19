@@ -79,3 +79,53 @@ describe('VideoScanModal with a pre-chosen path', () => {
     expect(scanVideoForSpeakers).toHaveBeenCalledWith('/picked/from-dialog.mp4', expect.anything())
   })
 })
+
+// Devin on #123: a cached scan must not hide a newly dropped video, and "Scan
+// another video" must let the user pick a different file instead of rescanning
+// the dropped one.
+describe('VideoScanModal scan-session interplay', () => {
+  it('opens setup for a dropped video even when a previous scan is cached', () => {
+    renderModal({
+      initialPath: '/Movies/b.mp4',
+      scan: { path: '/Movies/a.mp4', people: [{ frames: [] }] },
+    })
+    expect(container.textContent).toContain('b.mp4')
+    expect(scanButton().textContent).toMatch(/scan video/i)
+  })
+
+  it('still reuses the cached scan when reopened without a new path', () => {
+    renderModal({ scan: { path: '/Movies/a.mp4', people: [{ frames: [] }] } })
+    expect([...container.querySelectorAll('button')].some((b) => b.textContent === 'Scan another video')).toBe(true)
+  })
+
+  it('"Scan another video" opens the picker instead of rescanning the dropped file', async () => {
+    scanVideoForSpeakers.mockResolvedValueOnce([{ frames: [] }])
+    let currentScan = null
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    const project = createDefaultProject('Test')
+    const render = () =>
+      root.render(
+        h(VideoScanModal, {
+          project,
+          targetSpeakerId: null,
+          initialPath: '/Movies/talk.mp4',
+          scan: currentScan,
+          onScanComplete: (s) => {
+            currentScan = s
+            act(render)
+          },
+          onAssign: () => {},
+          onClose: () => {},
+        })
+      )
+    act(render)
+    await act(async () => scanButton().click())
+    expect(container.textContent).not.toContain('Scan video')
+    const another = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Scan another video')
+    act(() => another.click())
+    await act(async () => scanButton().click())
+    expect(pickVideoFile).toHaveBeenCalled()
+  })
+})

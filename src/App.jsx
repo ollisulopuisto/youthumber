@@ -926,6 +926,7 @@ function Editor({ initialProject }) {
 
       {videoScan !== undefined && (
         <VideoScanModal
+          key={`${videoScan.targetSpeakerId ?? 'all'}:${videoScan.initialPath ?? ''}`}
           project={project}
           targetSpeakerId={videoScan.targetSpeakerId}
           initialPath={videoScan.initialPath ?? null}
