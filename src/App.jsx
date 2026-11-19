@@ -18,6 +18,7 @@ import { createExportFilename } from './modules/thumbnail/exportFilename'
 import { SEEN_KEY, currentVersion, shippedEntries, unseenEntries } from './modules/whatsnew/whatsnew'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
 import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
+import { installNativeMenus } from './services/nativeMenu'
 import CommandPalette from './components/ThumbnailEditor/CommandPalette'
 import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
 import ContextMenu from './components/ThumbnailEditor/ContextMenu'
@@ -715,6 +716,22 @@ function Editor({ initialProject }) {
     window.addEventListener('keydown', handleShortcutKey)
     return () => window.removeEventListener('keydown', handleShortcutKey)
   }, [handleShortcutKey])
+
+  /* The macOS menu bar runs the same commands as the shortcuts: the native side
+     calls __youthumberNativeRun with a ShortcutId. useStableCallback keeps the
+     bridge from going stale between renders. In a browser tab both are no-ops. */
+  const runNativeMenuCommand = useStableCallback((id) => {
+    const command = commandForShortcut(id)
+    return command ? runCommand(command) : false
+  })
+
+  useEffect(() => {
+    window.__youthumberNativeRun = runNativeMenuCommand
+    installNativeMenus()
+    return () => {
+      delete window.__youthumberNativeRun
+    }
+  }, [runNativeMenuCommand])
 
   return (
     <div className="flex flex-col h-screen w-screen bg-gray-950 text-gray-100 overflow-hidden font-sans select-none">

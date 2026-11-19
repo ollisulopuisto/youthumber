@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import importlib
+import json
 import logging
 import socket
 import sys
@@ -12,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import native_menu
 from .paths import get_app_icon_path, get_dist_dir, get_user_data_dir
 
 logger = logging.getLogger(__name__)
@@ -68,6 +70,29 @@ class DesktopApi:
         if not result:
             return None
         return result[0]
+
+    def set_native_menu(self, spec: Any) -> bool:
+        """Draws the page's menu as native macOS menus. True once drawn.
+
+        A chosen item runs back on the page through ``__youthumberNativeRun``,
+        which runs the same command the toolbar buttons and shortcuts use.
+        Off macOS this returns False and the page keeps its own controls."""
+        return native_menu.install(spec, self._run_menu_command)
+
+    def _run_menu_command(self, payload: dict) -> None:
+        ident = payload.get("id")
+        if isinstance(ident, str):
+            self._evaluate_js(
+                f"window.__youthumberNativeRun && window.__youthumberNativeRun({json.dumps(ident)})"
+            )
+
+    @staticmethod
+    def _evaluate_js(script: str) -> None:
+        import webview
+
+        window = webview.windows[0] if webview.windows else None
+        if window is not None:
+            window.evaluate_js(script)
 
 
 def bind_free_socket(host: str = "127.0.0.1", start_port: int = 8731) -> socket.socket:
