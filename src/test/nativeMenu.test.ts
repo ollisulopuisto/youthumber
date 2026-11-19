@@ -37,6 +37,7 @@ describe('buildNativeMenuSpec', () => {
     expect(itemsOf(menus[0]).map((i) => i.id)).toEqual([
       'newProject',
       'projects',
+      'importVideo',
       'save',
       'export',
       'window.close',
@@ -44,6 +45,7 @@ describe('buildNativeMenuSpec', () => {
     expect(Object.fromEntries(itemsOf(menus[0]).map((i) => [i.id, i.keys]))).toEqual({
       newProject: '⌘N',
       projects: '⌘O',
+      importVideo: '',
       save: '⌘S',
       export: '⌘E',
       // AppKit runs window.* items through the responder chain and shows its own keys.

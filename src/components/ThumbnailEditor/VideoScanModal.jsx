@@ -32,8 +32,14 @@ function fileName(path) {
  * large, and put it on any speaker position. The last scan is kept by the parent
  * (`scan` / `onScanComplete`) so opening the picker for another speaker doesn't rescan.
  */
-function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssign, onClose }) {
-  const [phase, setPhase] = useState(scan ? 'results' : 'setup') // setup | scanning | results | error
+function VideoScanModal({ project, targetSpeakerId, initialPath = null, scan, onScanComplete, onAssign, onClose }) {
+  // A freshly dropped path outranks the cached scan; the cache is only for
+  // reopening without a new file. "Scan another video" clears the selection,
+  // so its next scan picks a file instead of repeating the dropped one.
+  const [selectedPath, setSelectedPath] = useState(initialPath)
+  const [phase, setPhase] = useState(
+    scan && (!initialPath || scan.path === initialPath) ? 'results' : 'setup'
+  ) // setup | scanning | results | error
   const [numPeople, setNumPeople] = useState(Math.min(MAX_PEOPLE, project.speakers.length))
   const [error, setError] = useState(null)
   const [viewing, setViewing] = useState(null) // { personIndex, frameIndex }
@@ -48,7 +54,9 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   const startScan = async () => {
     setError(null)
     try {
-      const path = await pickVideoFile()
+      // A dropped or menu-imported video arrives with its path: scan it in
+      // place, never copied or uploaded, and skip the picker.
+      const path = selectedPath ?? (await pickVideoFile())
       if (!path) return
       setProgress(0)
       setPhase('scanning')
@@ -172,7 +180,10 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
           <div className="flex items-center gap-3">
             {phase === 'results' && (
               <button
-                onClick={() => setPhase('setup')}
+                onClick={() => {
+                  setSelectedPath(null)
+                  setPhase('setup')
+                }}
                 className="text-xs text-gray-400 hover:text-gray-200 underline"
               >
                 Scan another video
@@ -207,11 +218,16 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
             <p className="text-[11px] text-gray-500 max-w-sm text-center">
               Count everyone who is on camera, even people you will leave off the thumbnail.
             </p>
+            {selectedPath && (
+              <p className="text-xs text-gray-300 max-w-sm text-center break-all">
+                {fileName(selectedPath)}
+              </p>
+            )}
             <button
               onClick={startScan}
               className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-sm font-bold"
             >
-              Choose video…
+              {selectedPath ? 'Scan video' : 'Choose video…'}
             </button>
           </div>
         )}

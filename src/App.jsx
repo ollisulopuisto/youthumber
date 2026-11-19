@@ -13,6 +13,7 @@ const ShowPresetModal = lazy(() => import('./components/ThumbnailEditor/ShowPres
 const ElementPickerModal = lazy(() => import('./components/ThumbnailEditor/ElementPickerModal'))
 const ShortcutsModal = lazy(() => import('./components/ThumbnailEditor/ShortcutsModal'))
 const WhatsNewModal = lazy(() => import('./components/ThumbnailEditor/WhatsNewModal'))
+const VideoScanModal = lazy(() => import('./components/ThumbnailEditor/VideoScanModal'))
 import { findElement } from './data/elements'
 import { fitElementToBox, goesBehindText, newSticker } from './modules/thumbnail/elementFit'
 import { applyShowPresetToProject } from './modules/shows/showPreferences'
@@ -21,6 +22,7 @@ import { SEEN_KEY, currentVersion, shippedEntries, unseenEntries } from './modul
 import { matchShortcut } from './modules/shortcuts/shortcuts'
 import { barCommands, commandForId, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
 import { installNativeMenusWhenReady } from './services/nativeMenu'
+import { isDesktopVideoScanAvailable } from './services/videoScan'
 import CommandPalette from './components/ThumbnailEditor/CommandPalette'
 import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
 import ContextMenu from './components/ThumbnailEditor/ContextMenu'
@@ -145,6 +147,11 @@ function Editor({ initialProject }) {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [whatsNew, setWhatsNew] = useState(null) // { version, entries } while the sheet is open
   const [showPalette, setShowPalette] = useState(false)
+  // The app owns the video-scan modal so the toolbar button, the File menu, the
+  // speaker cards and a dropped video file all open the same one. Value:
+  // { targetSpeakerId: string|null, initialPath?: string }.
+  const [videoScan, setVideoScan] = useState(undefined)
+  const [lastVideoScan, setLastVideoScan] = useState(null) // { path, people } - reused across slots
   const closePalette = useCallback(() => setShowPalette(false), [])
   const [exportSettings, setExportSettings] = useState({ format: 'jpeg', resolution: 'fullhd' })
   const canvasRef = useRef(null)
@@ -651,6 +658,33 @@ function Editor({ initialProject }) {
 
   const closeShortcuts = useCallback(() => setShowShortcuts(false), [])
 
+  /** File > Import Video… and the toolbar button land here. The bridge, not
+   * render timing, decides availability: the button always shows and says so
+   * when the desktop app's video machinery is not there. */
+  const handleImportVideo = () => {
+    if (!isDesktopVideoScanAvailable()) {
+      alert('Importing a video needs the YouThumber desktop app.')
+      return
+    }
+    setVideoScan({ targetSpeakerId: null })
+  }
+
+  // A video dropped anywhere on the desktop window opens the scan on the file
+  // in place; gui.py forwards the real path, nothing is copied or uploaded.
+  useEffect(() => {
+    window.__youthumberVideoDropped = (path) =>
+      setVideoScan({ targetSpeakerId: null, initialPath: path })
+    // Without this a dropped file would navigate the page away (browser/dev).
+    const swallow = (e) => e.preventDefault()
+    window.addEventListener('dragover', swallow)
+    window.addEventListener('drop', swallow)
+    return () => {
+      delete window.__youthumberVideoDropped
+      window.removeEventListener('dragover', swallow)
+      window.removeEventListener('drop', swallow)
+    }
+  }, [])
+
   const commandContext = (layerId, key) => ({
     layerId,
     project,
@@ -677,6 +711,7 @@ function Editor({ initialProject }) {
     save: handleSaveProject,
     exportImage: handleExport,
     openProjects: () => setShowProjectsModal(true),
+    importVideo: handleImportVideo,
     openHelp: () => setShowShortcuts(true),
     openPalette: () => setShowPalette(true),
     addText: handleAddText,
@@ -759,6 +794,7 @@ function Editor({ initialProject }) {
         historyTips={historyTips}
         onGotoHistory={gotoHistory}
         onOpenProjects={() => setShowProjectsModal(true)}
+        onImportVideo={handleImportVideo}
         onExport={handleExport}
         exportSettings={exportSettings}
         onChangeExportSettings={(changes) => setExportSettings((prev) => ({ ...prev, ...changes }))}
@@ -867,6 +903,7 @@ function Editor({ initialProject }) {
             {...speakerCardHandlers}
             onUploadBackgroundImage={handleUploadBackgroundImage}
             onClearBackgroundImage={handleClearBackgroundImage}
+            onOpenVideoScan={(speakerId) => setVideoScan({ targetSpeakerId: speakerId })}
           />
         </div>
       </div>
@@ -886,6 +923,19 @@ function Editor({ initialProject }) {
       )}
 
       {showShortcuts && <ShortcutsModal onClose={closeShortcuts} />}
+
+      {videoScan !== undefined && (
+        <VideoScanModal
+          key={`${videoScan.targetSpeakerId ?? 'all'}:${videoScan.initialPath ?? ''}`}
+          project={project}
+          targetSpeakerId={videoScan.targetSpeakerId}
+          initialPath={videoScan.initialPath ?? null}
+          scan={lastVideoScan}
+          onScanComplete={setLastVideoScan}
+          onAssign={handleUploadSpeakerSource}
+          onClose={() => setVideoScan(undefined)}
+        />
+      )}
       {whatsNew && (
         <WhatsNewModal version={whatsNew.version} entries={whatsNew.entries} onClose={closeWhatsNew} />
       )}
