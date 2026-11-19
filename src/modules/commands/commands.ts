@@ -24,6 +24,7 @@ export interface CommandContext extends CommandState {
   key?: string
   undo(): void
   redo(): void
+  newProject(): void
   save(): void
   exportImage(): void
   openProjects(): void
@@ -318,6 +319,15 @@ export const COMMANDS: Command[] = [
     run: (ctx) => ctx.addElement(),
   },
   {
+    id: 'newProject',
+    label: 'New project',
+    shortcutId: 'newProject',
+    scope: 'app',
+    keywords: 'create blank start over',
+    appliesTo: always,
+    run: (ctx) => ctx.newProject(),
+  },
+  {
     id: 'save',
     label: 'Save project',
     shortcutId: 'save',
@@ -379,9 +389,15 @@ export function paletteCommands(layerId: LayerId | null, project: ThumbnailProje
 }
 
 const byShortcut = new Map(COMMANDS.filter((c) => c.shortcutId).map((c) => [c.shortcutId!, c]))
+const byId = new Map(COMMANDS.map((c) => [c.id, c]))
 
 export function commandForShortcut(id: ShortcutId): Command | undefined {
   return byShortcut.get(id)
+}
+
+/** Look up a command by its own id, for native menus that run a command with no shortcut. */
+export function commandForId(id: string): Command | undefined {
+  return byId.get(id)
 }
 
 export function isCommandEnabled(command: Command, state: CommandState): boolean {

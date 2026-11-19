@@ -178,7 +178,7 @@ describe('paletteCommands', () => {
 
   it('offers the app commands without a selection, but not deselect', () => {
     const list = ids(paletteCommands(null, p))
-    expect(list).toEqual(['undo', 'redo', 'addText', 'addElement', 'save', 'export', 'projects', 'help'])
+    expect(list).toEqual(['undo', 'redo', 'addText', 'addElement', 'newProject', 'save', 'export', 'projects', 'help'])
   })
 
   it('greys out undo and redo when there is nothing to undo or redo', () => {

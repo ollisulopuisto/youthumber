@@ -7,6 +7,7 @@
  * AppKit resolves itself. In a plain browser tab there is no pywebview and no bar.
  */
 import { getShortcut } from '../modules/shortcuts/shortcuts'
+import { commandForId } from '../modules/commands/commands'
 
 /** A binding as it appears in a menu: ⌘S, ⇧⌘Z. Display only; the page owns the keys. */
 function keyHint(binding) {
@@ -32,13 +33,33 @@ function clipboardItem(id, label, keys) {
   return { kind: 'item', id, label, keys, enabled: true }
 }
 
-/** The menu spec sent to the desktop app. Item ids are ShortcutIds the App runs. */
+/** A command with no keyboard shortcut: the menu is where it can be found. */
+function commandOnlyItem(id) {
+  return { kind: 'item', id, label: commandForId(id)?.label ?? id, keys: '', enabled: true }
+}
+
+/**
+ * The menu spec sent to the desktop app. Every command appears exactly once,
+ * with the same key hint the tooltips show; selection commands are always
+ * enabled and no-op when nothing is selected, like pressing the key without
+ * a selection. The nudge commands are left out on purpose: an arrow key
+ * carries a direction, a menu item cannot. Item ids are the command ids the
+ * App runs through __youthumberNativeRun (ShortcutId where one exists).
+ */
 export function buildNativeMenuSpec() {
   return [
     {
       id: 'file',
       label: 'File',
-      items: [commandItem('projects'), commandItem('save'), commandItem('export')],
+      items: [
+        commandItem('newProject'),
+        commandItem('projects'),
+        commandItem('save'),
+        commandItem('export'),
+        { kind: 'separator' },
+        // AppKit runs window.* items itself and shows the real key (⌘W here).
+        { kind: 'item', id: 'window.close', label: 'Close Window', keys: '', enabled: true },
+      ],
     },
     {
       id: 'edit',
@@ -51,7 +72,46 @@ export function buildNativeMenuSpec() {
         clipboardItem('edit.copy', 'Copy', '⌘C'),
         clipboardItem('edit.paste', 'Paste', '⌘V'),
         clipboardItem('edit.select_all', 'Select All', '⌘A'),
+        { kind: 'separator' },
+        commandItem('duplicate'),
+        commandItem('delete'),
+        commandItem('deselect'),
       ],
+    },
+    {
+      id: 'object',
+      label: 'Object',
+      items: [
+        commandOnlyItem('addText'),
+        commandOnlyItem('addElement'),
+        { kind: 'separator' },
+        commandOnlyItem('editText'),
+        commandOnlyItem('autoFrame'),
+        commandOnlyItem('removeBackground'),
+        commandOnlyItem('fitToHeadline'),
+        { kind: 'separator' },
+        commandOnlyItem('flip'),
+        commandOnlyItem('resetPosition'),
+        commandOnlyItem('resetMask'),
+        { kind: 'separator' },
+        commandOnlyItem('properties'),
+      ],
+    },
+    {
+      id: 'arrange',
+      label: 'Arrange',
+      items: [
+        commandItem('bringForward'),
+        commandItem('sendBackward'),
+        { kind: 'separator' },
+        commandOnlyItem('behindText'),
+        commandOnlyItem('inFrontOfText'),
+      ],
+    },
+    {
+      id: 'view',
+      label: 'View',
+      items: [commandItem('palette')],
     },
     {
       id: 'window',
@@ -59,13 +119,12 @@ export function buildNativeMenuSpec() {
       items: [
         // AppKit runs these through the responder chain and shows its own keys.
         { kind: 'item', id: 'window.minimize', label: 'Minimize', keys: '', enabled: true },
-        { kind: 'item', id: 'window.close', label: 'Close Window', keys: '', enabled: true },
       ],
     },
     {
       id: 'help',
       label: 'Help',
-      items: [commandItem('palette'), commandItem('help')],
+      items: [commandItem('help')],
     },
   ]
 }

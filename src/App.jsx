@@ -1,6 +1,8 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react'
 import { useUndoableState } from './hooks/useUndoableState'
 import { useStableCallback } from './hooks/useStableCallback'
+import { useAutosaveProject } from './hooks/useAutosaveProject'
+import { flushAndStartNewProject } from './modules/thumbnail/newProject'
 import Toolbar from './components/ThumbnailEditor/Toolbar'
 import ThumbnailStudioCanvas from './components/ThumbnailEditor/ThumbnailStudioCanvas'
 import LayersPanel from './components/ThumbnailEditor/LayersPanel'
@@ -17,7 +19,7 @@ import { applyShowPresetToProject } from './modules/shows/showPreferences'
 import { createExportFilename } from './modules/thumbnail/exportFilename'
 import { SEEN_KEY, currentVersion, shippedEntries, unseenEntries } from './modules/whatsnew/whatsnew'
 import { matchShortcut } from './modules/shortcuts/shortcuts'
-import { barCommands, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
+import { barCommands, commandForId, commandForShortcut, isCommandEnabled, layerLabel } from './modules/commands/commands'
 import { installNativeMenusWhenReady } from './services/nativeMenu'
 import CommandPalette from './components/ThumbnailEditor/CommandPalette'
 import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
@@ -153,20 +155,7 @@ function Editor({ initialProject }) {
   const [saveStatus, setSaveStatus] = useState('idle') // idle | saving | saved
 
   // Auto-save project changes to local storage
-  useEffect(() => {
-    // Serialising a project full of data-URL images is heavy; do it when the browser is idle.
-    let idle
-    const timer = setTimeout(() => {
-      const save = () =>
-        saveProjectToStorage(project).catch((err) => console.warn('Autosave failed:', err))
-      if (window.requestIdleCallback) idle = window.requestIdleCallback(save, { timeout: 2000 })
-      else save()
-    }, 600)
-    return () => {
-      clearTimeout(timer)
-      if (idle) window.cancelIdleCallback(idle)
-    }
-  }, [project])
+  useAutosaveProject(project, getProject)
 
   // "Saved ✓" is a transient confirmation; go back to "Save" after a moment.
   useEffect(() => {
@@ -668,6 +657,18 @@ function Editor({ initialProject }) {
     key,
     undo,
     redo,
+    newProject: () => {
+      // Save before switching: the switch cancels the pending autosave.
+      void flushAndStartNewProject({
+        getProject,
+        setProject,
+        save: saveProjectToStorage,
+        fresh: () => createDefaultProject('YouTube Thumbnail'),
+      }).then((switched) => {
+        if (!switched)
+          console.warn('New Project cancelled: the current project could not be saved first')
+      })
+    },
     save: handleSaveProject,
     exportImage: handleExport,
     openProjects: () => setShowProjectsModal(true),
@@ -718,10 +719,11 @@ function Editor({ initialProject }) {
   }, [handleShortcutKey])
 
   /* The macOS menu bar runs the same commands as the shortcuts: the native side
-     calls __youthumberNativeRun with a ShortcutId. useStableCallback keeps the
-     bridge from going stale between renders. In a browser tab both are no-ops. */
+     calls __youthumberNativeRun with a ShortcutId, or a command id for the
+     commands that have no shortcut. useStableCallback keeps the bridge from
+     going stale between renders. In a browser tab both are no-ops. */
   const runNativeMenuCommand = useStableCallback((id) => {
-    const command = commandForShortcut(id)
+    const command = commandForShortcut(id) ?? commandForId(id)
     return command ? runCommand(command) : false
   })
 

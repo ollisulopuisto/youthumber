@@ -7,6 +7,7 @@
 export type ShortcutId =
   | 'undo'
   | 'redo'
+  | 'newProject'
   | 'save'
   | 'export'
   | 'projects'
@@ -51,6 +52,7 @@ export const SHORTCUTS: Shortcut[] = [
       { mod: true, key: 'y' },
     ],
   },
+  { id: 'newProject', label: 'New project', group: 'File', bindings: [{ mod: true, key: 'n' }], inInputs: true },
   { id: 'save', label: 'Save project', group: 'File', bindings: [{ mod: true, key: 's' }], inInputs: true },
   { id: 'export', label: 'Export thumbnail', group: 'File', bindings: [{ mod: true, key: 'e' }], inInputs: true },
   { id: 'projects', label: 'Open projects', group: 'File', bindings: [{ mod: true, key: 'o' }], inInputs: true },
