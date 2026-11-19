@@ -1,9 +1,10 @@
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
 import { withDecorLayer } from '../../modules/thumbnail/decor'
+import { COMMANDS } from '../../modules/commands/commands'
 import { useRef } from 'react'
 import { findElement } from '../../data/elements'
 
-function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility, onAddElement, onAddText, onAddBug }) {
+function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, onToggleVisibility, onAddElement, onAddText, onAddBug, onDeleteLayer }) {
   const bugInput = useRef(null)
   const layerLabels = {
     text: { name: 'Headline Text', icon: 'T', color: 'text-amber-400' },
@@ -127,6 +128,8 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
               tabIndex={0}
               onClick={() => onSelectLayer(layerId)}
               onKeyDown={(e) => {
+                // Keys from a focused row button belong to that button.
+                if (e.target !== e.currentTarget) return
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
                   onSelectLayer(layerId)
@@ -148,6 +151,18 @@ function LayersPanel({ project, selectedLayer, onSelectLayer, onReorderLayers, o
               </div>
 
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                {/* Delete button: the layers the Delete command (Delete/Backspace) covers */}
+                {onDeleteLayer && COMMANDS.find((c) => c.id === 'delete')?.appliesTo(layerId, project) && (
+                  <button
+                    onClick={() => onDeleteLayer(layerId)}
+                    aria-label={`Delete ${info.name}`}
+                    className="w-6 h-6 rounded flex items-center justify-center text-xs text-red-400 hover:bg-red-950 hover:text-red-300 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400"
+                    title="Delete layer (Delete)"
+                  >
+                    🗑
+                  </button>
+                )}
+
                 {/* Visibility button */}
                 {layerId !== 'background' && (
                   <button

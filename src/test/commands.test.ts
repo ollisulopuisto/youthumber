@@ -103,7 +103,7 @@ describe('commandsFor', () => {
     const before = ids(commandsFor(host.id, p))
     expect(before).toEqual(expect.arrayContaining(['removeBackground', 'flip', 'resetPosition']))
     expect(before).not.toContain('autoFrame')
-    expect(before).not.toContain('delete')
+    expect(before).toContain('delete')
 
     const cut = updateSpeaker(p, host.id, (s) => ({ ...s, cutoutUrl: 'data:,cut', maskUrl: 'data:,mask' }))
     const after = ids(commandsFor(host.id, cut))
@@ -115,12 +115,15 @@ describe('commandsFor', () => {
     const list = ids(commandsFor(guest.id, p))
     expect(list).not.toContain('removeBackground')
     expect(list).not.toContain('flip')
+    expect(list).not.toContain('delete')
     expect(list).toContain('resetPosition')
   })
 
   it('has only properties and ordering for the graphics layer, and only properties for the background', () => {
     expect(ids(commandsFor('decor', p))).toEqual(['bringForward', 'sendBackward', 'properties'])
     expect(ids(commandsFor('background', p))).toEqual(['properties'])
+    expect(ids(commandsFor('decor', p))).not.toContain('delete')
+    expect(ids(commandsFor('background', p))).not.toContain('delete')
   })
 
   it('has nothing without a selection, or for a layer that is gone', () => {
@@ -155,7 +158,7 @@ describe('barCommands', () => {
     expect(ids(barCommands('txt_a', p))).toEqual(['editText', 'duplicate', 'delete', 'properties'])
     expect(ids(barCommands('bug_a', p))).toEqual(['duplicate', 'delete', 'flip', 'properties'])
     expect(ids(barCommands('stk_fit', p))).toEqual(['duplicate', 'delete', 'fitToHeadline', 'inFrontOfText', 'properties'])
-    expect(ids(barCommands(p.speakers[0].id, p))).toEqual(['removeBackground', 'flip', 'resetPosition', 'properties'])
+    expect(ids(barCommands(p.speakers[0].id, p))).toEqual(['removeBackground', 'delete', 'flip', 'resetPosition', 'properties'])
   })
 
   it('has no bar for the graphics layer, the background or no selection', () => {
@@ -218,6 +221,13 @@ describe('running commands', () => {
     commandForShortcut('nudgeFar')!.run(ctx({ layerId: 'bug_a', key: 'ArrowDown', nudge }))
     expect(nudge).toHaveBeenNthCalledWith(1, 'bug_a', -1, 0)
     expect(nudge).toHaveBeenNthCalledWith(2, 'bug_a', 0, 10)
+  })
+
+  it('deletes a speaker by clearing its photo, keeping the slot', () => {
+    const project = fullProject()
+    const remove = vi.fn()
+    commandForShortcut('delete')!.run(ctx({ layerId: project.speakers[0].id, project, remove }))
+    expect(remove).toHaveBeenCalledWith(project.speakers[0].id)
   })
 
   it('reorders the layers one step with bring forward and send backward', () => {

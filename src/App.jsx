@@ -615,6 +615,8 @@ function Editor({ initialProject }) {
     if (isExtraTextLayer(layerId)) handleRemoveText(layerId)
     else if (isBugLayer(layerId)) handleRemoveBug(layerId)
     else if (isStickerLayer(layerId)) handleRemoveSticker(layerId)
+    // A speaker keeps its slot; deleting clears its photo. The slot stays selected.
+    else if (isSpeakerLayer(layerId)) handleRemoveSpeaker(layerId)
   }
 
   const handleDuplicateSelected = (layerId) => {
@@ -825,6 +827,7 @@ function Editor({ initialProject }) {
             onAddElement={() => setShowElementPicker(true)}
             onAddText={handleAddText}
             onAddBug={handleAddBug}
+            onDeleteLayer={handleDeleteSelected}
           />
 
           {/* Properties Panel */}
