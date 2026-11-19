@@ -22,36 +22,95 @@ afterEach(() => {
 })
 
 describe('buildNativeMenuSpec', () => {
-  it('mirrors the shortcut registry: File, Edit, Window, Help', () => {
+  it('mirrors the shortcut registry: File, Edit, Object, Arrange, View, Window, Help', () => {
     const menus = spec()
-    expect(menus.map((m) => m.label)).toEqual(['File', 'Edit', 'Window', 'Help'])
+    expect(menus.map((m) => m.label)).toEqual([
+      'File',
+      'Edit',
+      'Object',
+      'Arrange',
+      'View',
+      'Window',
+      'Help',
+    ])
 
-    expect(itemsOf(menus[0]).map((i) => i.id)).toEqual(['projects', 'save', 'export'])
+    expect(itemsOf(menus[0]).map((i) => i.id)).toEqual([
+      'newProject',
+      'projects',
+      'save',
+      'export',
+      'window.close',
+    ])
     expect(Object.fromEntries(itemsOf(menus[0]).map((i) => [i.id, i.keys]))).toEqual({
+      newProject: '⌘N',
       projects: '⌘O',
       save: '⌘S',
       export: '⌘E',
+      // AppKit runs window.* items through the responder chain and shows its own keys.
+      'window.close': '',
     })
 
-    const edit = menus[1].items
-    expect(edit[0]).toMatchObject({ id: 'undo', keys: '⌘Z' })
-    expect(edit[1]).toMatchObject({ id: 'redo', keys: '⇧⌘Z' })
-    expect(edit[2]).toEqual({ kind: 'separator' })
-    // edit.* ids let the native side swap in pywebview's real clipboard items.
-    expect(itemsOf(menus[1]).slice(2).map((i) => i.id)).toEqual([
-      'edit.cut',
-      'edit.copy',
-      'edit.paste',
-      'edit.select_all',
+    const edit = itemsOf(menus[1]).map((i) => [i.id, i.keys])
+    expect(edit).toEqual([
+      ['undo', '⌘Z'],
+      ['redo', '⇧⌘Z'],
+      // edit.* ids let the native side swap in pywebview's real clipboard items.
+      ['edit.cut', '⌘X'],
+      ['edit.copy', '⌘C'],
+      ['edit.paste', '⌘V'],
+      ['edit.select_all', '⌘A'],
+      ['duplicate', '⌘D'],
+      ['delete', 'Delete'],
+      ['deselect', 'Escape'],
     ])
+
+    expect(itemsOf(menus[2]).map((i) => i.id)).toEqual([
+      'addText',
+      'addElement',
+      'editText',
+      'autoFrame',
+      'removeBackground',
+      'fitToHeadline',
+      'flip',
+      'resetPosition',
+      'resetMask',
+      'properties',
+    ])
+    expect(itemsOf(menus[3]).map((i) => [i.id, i.keys])).toEqual([
+      ['bringForward', '⌘]'],
+      ['sendBackward', '⌘['],
+      ['behindText', ''],
+      ['inFrontOfText', ''],
+    ])
+    expect(itemsOf(menus[4]).map((i) => i.id)).toEqual(['palette'])
 
     // Window items are OS actions; AppKit shows the real keys, so no hint text.
-    expect(menus[2].items).toEqual([
+    expect(menus[5].items).toEqual([
       { kind: 'item', id: 'window.minimize', label: 'Minimize', keys: '', enabled: true },
-      { kind: 'item', id: 'window.close', label: 'Close Window', keys: '', enabled: true },
     ])
 
-    expect(itemsOf(menus[3]).map((i) => i.id)).toEqual(['palette', 'help'])
+    expect(itemsOf(menus[6]).map((i) => i.id)).toEqual(['help'])
+  })
+
+  it('exposes every command exactly once, with the registry key hint', async () => {
+    const { COMMANDS } = await import('../modules/commands/commands')
+    const { getShortcut } = await import('../modules/shortcuts/shortcuts')
+    // Nudges are arrow-key actions: a menu item cannot choose a direction,
+    // and running one without a key is a no-op by design.
+    const menuable = COMMANDS.filter((c) => c.id !== 'nudge' && c.id !== 'nudgeFar')
+    const items = spec().flatMap((m) => itemsOf(m))
+    const ids = items.map((i) => i.id)
+    for (const command of menuable) {
+      expect(ids.filter((id) => id === command.id)).toHaveLength(1)
+      const item = items.find((i) => i.id === command.id)
+      expect(item?.label).toBe(
+        command.shortcutId ? getShortcut(command.shortcutId).label : command.label
+      )
+      const expectedKeys = command.shortcutId
+        ? getShortcut(command.shortcutId).bindings[0]
+        : null
+      if (expectedKeys) expect(item?.keys).not.toBe('')
+    }
   })
 
   it('labels come from the shortcut registry, not a second copy', () => {
