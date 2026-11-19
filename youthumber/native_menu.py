@@ -39,7 +39,10 @@ _HINT_TAB = 300.0
 #: Window menu items AppKit runs itself through the responder chain (target is nil):
 #: action and the proper keyEquivalent, no command back to the page. AppKit decides
 #: usability, so the item is always drawn enabled.
-OS_WINDOW_ACTIONS = {"window.minimize": ("miniaturize:", "m"), "window.close": ("performClose:", "w")}
+OS_WINDOW_ACTIONS = {
+    "window.minimize": ("miniaturize:", "m"),
+    "window.close": ("performClose:", "w"),
+}
 
 #: What pywebview's menus held; survives across installs (an install moves them).
 _kept: dict[str, list[Any]] = {"edit": [], "view": []}
@@ -331,7 +334,9 @@ def install(
 
             main_thread = AppHelper.callAfter
     except Exception as e:  # noqa: BLE001 - any AppKit absence or PyObjC failure means "no native menus", never a crash
-        log.warning("Native menu bar unavailable (%s); the page keeps its own controls.", e)
+        log.warning(
+            "Native menu bar unavailable (%s); the page keeps its own controls.", e
+        )
         return False
     result = {"ok": False}
     done = threading.Event()
@@ -340,12 +345,12 @@ def install(
         try:
             result["ok"] = _build(menus, run, appkit, target_factory)
         except Exception as e:  # noqa: BLE001 - a menu must never stall the window; log and keep the defaults
-            log.warning("Native menu bar unavailable (%s); the page keeps its own controls.", e)
+            log.warning(
+                "Native menu bar unavailable (%s); the page keeps its own controls.", e
+            )
         finally:
             done.set()
 
     main_thread(work)
     done.wait(draw_timeout)
     return result["ok"]
-
-

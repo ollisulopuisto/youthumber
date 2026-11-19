@@ -156,7 +156,10 @@ def pywebview_menu():
     for title, entries in (
         (
             "YouThumber",
-            [("About YouThumber", "orderFrontStandardAboutPanel:"), ("Quit", "terminate:")],
+            [
+                ("About YouThumber", "orderFrontStandardAboutPanel:"),
+                ("Quit", "terminate:"),
+            ],
         ),
         (
             "Edit",
@@ -478,5 +481,3 @@ def test_a_menu_command_returns_without_waiting_for_the_page(monkeypatch):
     assert time.monotonic() - start < 1.0, "the menu callback blocked on the page"
     assert entered.wait(1.0), "the evaluation never started"
     release.set()
-
-

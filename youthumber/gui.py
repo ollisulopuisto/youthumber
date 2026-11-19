@@ -83,9 +83,7 @@ class DesktopApi:
         ident = payload.get("id")
         if not isinstance(ident, str):
             return
-        script = (
-            f"window.__youthumberNativeRun && window.__youthumberNativeRun({json.dumps(ident)})"
-        )
+        script = f"window.__youthumberNativeRun && window.__youthumberNativeRun({json.dumps(ident)})"
         # Menu actions arrive on AppKit's main thread, and pywebview's Cocoa
         # evaluate_js schedules onto that thread and waits: calling it here would
         # freeze the window. Hand the call to a worker instead.
