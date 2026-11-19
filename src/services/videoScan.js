@@ -3,7 +3,7 @@
  * native file dialog, then ask the local CoreML backend to sample it at intervals
  * and score each frame with Apple Vision to find well-framed, in-focus faces.
  */
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { parseErrorResponse, resolveBaseUrl } from './backend'
 
 export function isDesktopVideoScanAvailable() {
@@ -14,25 +14,17 @@ export function isDesktopVideoScanAvailable() {
  * isDesktopVideoScanAvailable as state. The desktop app injects window.pywebview
  * after the page's first render, so a one-shot check during render hides the video
  * buttons until something re-renders (forever, once the speaker cards were memoised).
- * Re-checks when the bridge announces itself, like installNativeMenusWhenReady.
+ * An external store: re-reads when the bridge announces itself, like
+ * installNativeMenusWhenReady, and re-checks right after subscribing, which catches
+ * a bridge that arrived between the render and the subscription.
  */
 export function useDesktopVideoScanAvailable() {
-  const [available, setAvailable] = useState(isDesktopVideoScanAvailable)
-  useEffect(() => {
-    if (available) return undefined
-    // The bridge may have arrived (and its event fired) between the render-phase
-    // check and this subscription: look once more before waiting on the event.
-    if (isDesktopVideoScanAvailable()) {
-      setAvailable(true)
-      return undefined
-    }
-    const check = () => {
-      if (isDesktopVideoScanAvailable()) setAvailable(true)
-    }
-    window.addEventListener('pywebviewready', check)
-    return () => window.removeEventListener('pywebviewready', check)
-  }, [available])
-  return available
+  return useSyncExternalStore(subscribeToBridge, isDesktopVideoScanAvailable)
+}
+
+function subscribeToBridge(onChange) {
+  window.addEventListener('pywebviewready', onChange)
+  return () => window.removeEventListener('pywebviewready', onChange)
 }
 
 /** Opens the native file picker. Returns the selected absolute path, or null if cancelled. */
