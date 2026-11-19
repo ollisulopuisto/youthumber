@@ -192,7 +192,9 @@ export const COMMANDS: Command[] = [
     onBar: true,
     danger: true,
     keywords: 'remove',
-    appliesTo: is('text', 'bug', 'sticker'),
+    // Texts, logos and elements are removed; a speaker keeps its slot and loses its photo.
+    appliesTo: (id, project) =>
+      is('text', 'bug', 'sticker')(id, project) || !!speakerOf(id, project)?.sourceImageUrl,
     run: (ctx) => ctx.remove(ctx.layerId!),
   },
   {
