@@ -84,7 +84,7 @@ describe('buildNativeMenuSpec', () => {
       ['behindText', ''],
       ['inFrontOfText', ''],
     ])
-    expect(itemsOf(menus[4]).map((i) => i.id)).toEqual(['palette'])
+    expect(itemsOf(menus[4]).map((i) => i.id)).toEqual(['toggleOrientation', 'palette'])
 
     // Window items are OS actions; AppKit shows the real keys, so no hint text.
     expect(menus[5].items).toEqual([

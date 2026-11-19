@@ -22,6 +22,7 @@ function Toolbar({
   onGotoHistory,
   onOpenProjects,
   onImportVideo,
+  onToggleOrientation,
   onExport,
   exportSettings,
   onChangeExportSettings,
@@ -300,6 +301,15 @@ function Toolbar({
           title="Scan a video and pick frames for the speakers"
         >
           🎬 Import video
+        </button>
+
+        {/* Manual 9:16 <-> 16:9 flip, labeled with the ratio it switches to. */}
+        <button
+          onClick={onToggleOrientation}
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+          title={`Switch to ${isPortrait ? 'landscape 16:9' : 'portrait 9:16'} - speaker positions reset to the layout preset`}
+        >
+          {isPortrait ? '16:9' : '9:16'}
         </button>
 
         <button

@@ -112,7 +112,7 @@ export function buildNativeMenuSpec() {
     {
       id: 'view',
       label: 'View',
-      items: [commandItem('palette')],
+      items: [commandOnlyItem('toggleOrientation'), commandItem('palette')],
     },
     {
       id: 'window',
