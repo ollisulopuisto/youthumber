@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import __version__, diagnostics, native_menu
+from . import diagnostics, native_menu
 from .paths import get_app_icon_path, get_dist_dir, get_user_data_dir
 
 logger = logging.getLogger(__name__)
@@ -261,7 +261,7 @@ def launch_gui(
     The window opens straight away, while the engine loads in the background; its page
     request is answered as soon as the engine is up.
     """
-    diag_path = diagnostics.setup_diagnostics(__version__)
+    diag_path = diagnostics.setup_diagnostics(diagnostics.app_version())
     if diag_path is not None:
         logger.info("Diagnostics log: %s", diag_path)
 

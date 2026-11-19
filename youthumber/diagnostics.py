@@ -36,6 +36,36 @@ _state_lock = threading.Lock()
 _log_path: Path | None = None
 
 
+def _metadata_version() -> str | None:
+    """Installed package version (dev runs); None when not installed."""
+    try:
+        from importlib.metadata import version
+
+        return version("youthumber")
+    except Exception:  # noqa: BLE001 - PackageNotFoundError included; never fatal
+        return None
+
+
+def _bundle_version() -> str | None:
+    """CFBundleShortVersionString in a packaged macOS app; None elsewhere."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        from AppKit import NSBundle  # type: ignore[import-not-found]
+
+        value = NSBundle.mainBundle().infoDictionary().get("CFBundleShortVersionString")
+        return str(value) if value else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def app_version() -> str:
+    """Best available version: packaged bundle, installed metadata, then the constant."""
+    from . import __version__
+
+    return _bundle_version() or _metadata_version() or __version__
+
+
 def _log_base_dir() -> Path:
     """Platform log directory (Library/Logs on macOS, XDG state elsewhere)."""
     if sys.platform == "darwin":
@@ -93,7 +123,11 @@ def setup_diagnostics(version: str) -> Path | None:
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
         logger.propagate = False
-        faulthandler.enable()
+        if sys.stderr is not None:
+            try:
+                faulthandler.enable()
+            except (RuntimeError, ValueError, OSError):
+                logger.warning("faulthandler unavailable", exc_info=True)
         logger.info("diagnostics enabled, version %s", version)
         logger.info(
             "frozen=%s _MEIPASS=%s platform=%s executable=%s",
@@ -129,7 +163,14 @@ def install_bridge_probe(
         for attempt in range(1, max_attempts + 1):
             try:
                 result = window.evaluate_js(_probe_js)
-            except Exception:
+            except Exception as exc:
+                if "failed to start" in str(exc):
+                    # pywebview's evaluate_js waits 20 s for pywebviewready and
+                    # raises when injection never ran: the dead-bridge case.
+                    logger.error(
+                        "bridge never became ready: %s (injection did not run)", exc
+                    )
+                    return
                 logger.exception("bridge probe attempt %d raised", attempt)
             else:
                 logger.info("bridge probe attempt %d: %s", attempt, result)

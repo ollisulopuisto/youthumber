@@ -76,7 +76,9 @@ def test_enabled_when_frozen(monkeypatch):
     # Frozen mode redirects OS-level stdout/stderr, which pytest's capture
     # wraps; keep this to behavior that survives that (no crash, log created).
     monkeypatch.setattr(diagnostics.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(diagnostics.sys, "_MEIPASS", "/app/Contents/Frameworks", raising=False)
+    monkeypatch.setattr(
+        diagnostics.sys, "_MEIPASS", "/app/Contents/Frameworks", raising=False
+    )
     path = diagnostics.setup_diagnostics("9.9.9")
     assert path is not None
     assert path.exists()
@@ -85,7 +87,10 @@ def test_enabled_when_frozen(monkeypatch):
 
 def test_mac_log_path(monkeypatch, tmp_path):
     monkeypatch.setattr(diagnostics.sys, "platform", "darwin")
-    assert diagnostics.log_path() == tmp_path / "Library" / "Logs" / "YouThumber" / "youthumber.log"
+    assert (
+        diagnostics.log_path()
+        == tmp_path / "Library" / "Logs" / "YouThumber" / "youthumber.log"
+    )
 
 
 def test_probe_reports_success_and_stops(caplog):
@@ -110,7 +115,9 @@ def test_probe_logs_error_when_bridge_never_appears(caplog):
     with caplog.at_level(logging.INFO, logger="youthumber.diagnostics"):
         diagnostics.install_bridge_probe(window, interval=0.01, max_attempts=3)
         _wait_for(window, lambda: window.calls >= 3)
-    assert any("unavailable" in r.message for r in caplog.records if r.levelno >= logging.ERROR)
+    assert any(
+        "unavailable" in r.message for r in caplog.records if r.levelno >= logging.ERROR
+    )
 
 
 def test_probe_logs_loaded_event(caplog):
@@ -135,3 +142,48 @@ def _wait_for(window, condition, timeout=5.0):
     deadline.wait(timeout)
     deadline.set()
     thread.join(timeout=1.0)
+
+
+def test_faulthandler_guarded_when_stderr_missing(monkeypatch):
+    """Windowed builds can have sys.stderr=None; setup must not crash."""
+    monkeypatch.setenv("YOUTHUMBER_DIAGNOSTICS", "1")
+    monkeypatch.setattr(diagnostics.sys, "stderr", None)
+    monkeypatch.setattr(
+        diagnostics.faulthandler,
+        "enable",
+        lambda: (_ for _ in ()).throw(RuntimeError("sys.stderr is None")),
+    )
+    assert diagnostics.setup_diagnostics("1.2.3") is not None
+
+
+def test_probe_stops_when_pywebview_never_ready(caplog):
+    """A dead bridge makes evaluate_js wait ~20s and raise; log once and stop."""
+
+    class NotReady(Exception):
+        pass
+
+    window = FakeWindow(
+        [NotReady("Main window failed to start"), "function:pick_video_file"]
+    )
+    with caplog.at_level(logging.INFO, logger="youthumber.diagnostics"):
+        diagnostics.install_bridge_probe(window, interval=0.01, max_attempts=5)
+        _wait_for(window, lambda: window.calls >= 1)
+        deadline = threading.Event()
+        deadline.wait(0.2)
+    assert window.calls == 1
+    assert any(
+        "never became ready" in r.message
+        for r in caplog.records
+        if r.levelno >= logging.ERROR
+    )
+
+
+def test_app_version_prefers_package_metadata(monkeypatch):
+    monkeypatch.setattr(diagnostics, "_metadata_version", lambda: "26.11.19.3")
+    assert diagnostics.app_version() == "26.11.19.3"
+
+
+def test_app_version_falls_back(monkeypatch):
+    monkeypatch.setattr(diagnostics, "_metadata_version", lambda: None)
+    monkeypatch.setattr(diagnostics, "_bundle_version", lambda: None)
+    assert diagnostics.app_version()
