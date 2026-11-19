@@ -6,7 +6,7 @@
 import { createRoot } from 'react-dom/client'
 import { act, createElement as h } from 'react'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { flushAndStartNewProject } from '../modules/thumbnail/newProject'
+import { describeSaveError, flushAndStartNewProject } from '../modules/thumbnail/newProject'
 import { useAutosaveProject } from '../hooks/useAutosaveProject'
 import type { ThumbnailProject } from '../types/thumbnail'
 
@@ -102,6 +102,41 @@ describe('flushAndStartNewProject', () => {
     expect(ok).toBe(false)
     expect(setProject).not.toHaveBeenCalled()
   })
+
+  it('reports a failed save to the caller, so the user hears why nothing happened', async () => {
+    const setProject = vi.fn()
+    const onSaveError = vi.fn()
+    const diskFull = new Error('disk full')
+    const ok = await flushAndStartNewProject({
+      getProject: () => project('p1', 'edited'),
+      setProject,
+      save: vi.fn(async () => {
+        throw diskFull
+      }),
+      fresh: () => project('p2', 'fresh'),
+      onSaveError,
+    })
+    expect(ok).toBe(false)
+    expect(onSaveError).toHaveBeenCalledWith(diskFull)
+  })
+
+  it('does not cry save-error when another project simply became active mid-flush', async () => {
+    const box = { current: project('p1', 'v1') }
+    const onSaveError = vi.fn()
+    const ok = await flushAndStartNewProject({
+      getProject: () => box.current,
+      setProject: vi.fn((p: ThumbnailProject) => {
+        box.current = p
+      }),
+      save: vi.fn(async () => {
+        box.current = project('p9', 'elsewhere')
+      }),
+      fresh: () => project('p2', 'fresh'),
+      onSaveError,
+    })
+    expect(ok).toBe(false)
+    expect(onSaveError).not.toHaveBeenCalled()
+  })
 })
 
 describe('useAutosaveProject', () => {
@@ -162,5 +197,23 @@ describe('useAutosaveProject', () => {
     // Every write carried the latest state; no stale 'v1' write landed after the flush.
     expect(seen).not.toContain('v1')
     expect(seen[0]).toBe('v2')
+  })
+})
+
+// Devin on #120: IndexedDB can reject the save with `tx.error` before abort set
+// it, i.e. with null. Reading .message off that threw inside onSaveError, so the
+// alert never showed and New Project was silent again - the very bug the alert
+// was for. The rejection must format safely no matter what it is.
+describe('describeSaveError', () => {
+  it('formats Error rejections by their message', () => {
+    expect(describeSaveError(new Error('disk full'))).toBe('disk full')
+  })
+
+  it('formats a null rejection instead of throwing', () => {
+    expect(describeSaveError(null)).toBe('null')
+  })
+
+  it('formats non-Error rejections', () => {
+    expect(describeSaveError('quota')).toBe('quota')
   })
 })
