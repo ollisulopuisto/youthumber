@@ -54,6 +54,7 @@ export function buildNativeMenuSpec() {
       items: [
         commandItem('newProject'),
         commandItem('projects'),
+        commandOnlyItem('importVideo'),
         commandItem('save'),
         commandItem('export'),
         { kind: 'separator' },

@@ -28,6 +28,7 @@ export interface CommandContext extends CommandState {
   save(): void
   exportImage(): void
   openProjects(): void
+  importVideo(): void
   openHelp(): void
   openPalette(): void
   addText(): void
@@ -354,6 +355,14 @@ export const COMMANDS: Command[] = [
     keywords: 'gallery load',
     appliesTo: always,
     run: (ctx) => ctx.openProjects(),
+  },
+  {
+    id: 'importVideo',
+    label: 'Import video…',
+    scope: 'app',
+    keywords: 'movie clip frames scan drop',
+    appliesTo: always,
+    run: (ctx) => ctx.importVideo(),
   },
   { id: 'palette', label: 'Find a command', shortcutId: 'palette', scope: 'key', appliesTo: always, run: (ctx) => ctx.openPalette() },
   {

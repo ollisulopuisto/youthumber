@@ -181,7 +181,7 @@ describe('paletteCommands', () => {
 
   it('offers the app commands without a selection, but not deselect', () => {
     const list = ids(paletteCommands(null, p))
-    expect(list).toEqual(['undo', 'redo', 'addText', 'addElement', 'newProject', 'save', 'export', 'projects', 'help'])
+    expect(list).toEqual(['undo', 'redo', 'addText', 'addElement', 'newProject', 'save', 'export', 'projects', 'importVideo', 'help'])
   })
 
   it('greys out undo and redo when there is nothing to undo or redo', () => {
@@ -341,5 +341,17 @@ describe('nextEnabledIndex', () => {
   it('stays put when nothing else is enabled', () => {
     expect(nextEnabledIndex(commands, 0, 1, (command) => command.id === 'a')).toBe(0)
     expect(nextEnabledIndex([], 0, 1, () => true)).toBe(0)
+  })
+})
+
+describe('importVideo', () => {
+  it('is an app command that always applies and runs the context import', () => {
+    const command = COMMANDS.find((c) => c.id === 'importVideo')!
+    expect(command).toBeDefined()
+    expect(command.scope).toBe('app')
+    expect(command.appliesTo(null, {} as never)).toBe(true)
+    const importVideo = vi.fn()
+    command.run({ importVideo } as never)
+    expect(importVideo).toHaveBeenCalled()
   })
 })

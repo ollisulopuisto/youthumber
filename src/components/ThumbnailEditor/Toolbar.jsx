@@ -21,6 +21,7 @@ function Toolbar({
   historyTips,
   onGotoHistory,
   onOpenProjects,
+  onImportVideo,
   onExport,
   exportSettings,
   onChangeExportSettings,
@@ -289,6 +290,16 @@ function Toolbar({
           aria-keyshortcuts={ariaKeyShortcuts('projects')}
         >
           Projects
+        </button>
+
+        {/* Always rendered: the click, not render timing, decides whether the
+            desktop app's video machinery is there and says so when it is not. */}
+        <button
+          onClick={onImportVideo}
+          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+          title="Scan a video and pick frames for the speakers"
+        >
+          🎬 Import video
         </button>
 
         <button

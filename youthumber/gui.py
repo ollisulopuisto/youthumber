@@ -98,6 +98,58 @@ class DesktopApi:
             window.evaluate_js(script)
 
 
+VIDEO_DROP_SUFFIXES = (".mp4", ".mov", ".m4v")
+
+
+def dropped_video_paths(event: dict) -> list[str]:
+    """Real paths of the video files in a native drop event.
+
+    pywebview's native layer resolves each dropped file to its true path and
+    hands it to the handler as ``pywebviewFullPath``; a file without one (a
+    drop the native layer did not resolve, or a browser-side File) is skipped
+    rather than scanned under a made-up location. Videos are opened in place:
+    never copied, never uploaded.
+    """
+    files = (event.get("dataTransfer") or {}).get("files") or []
+    paths = []
+    for entry in files:
+        name = str(entry.get("name") or "")
+        path = entry.get("pywebviewFullPath")
+        if path and name.lower().endswith(VIDEO_DROP_SUFFIXES):
+            paths.append(str(path))
+    return paths
+
+
+def forward_dropped_videos(event: dict, evaluate_js) -> None:
+    """Opens the scan modal on each dropped video, on its original path."""
+    for path in dropped_video_paths(event):
+        evaluate_js(
+            "window.__youthumberVideoDropped && "
+            f"window.__youthumberVideoDropped({json.dumps(path)})"
+        )
+
+
+def register_video_drop(window) -> None:
+    """Lets a video dropped anywhere on the window open the scan modal, in place.
+
+    Registered through pywebview's DOM API because only those handlers receive
+    the real path (the native layer captures it from the pasteboard); a plain
+    page-side drop listener sees a File with no path. The dragover default must
+    be prevented for a drop to fire at all.
+    """
+    from webview.dom import DOMEventHandler
+
+    def on_drop(event: dict) -> None:
+        # The handler already runs on its own thread, so evaluate_js can wait
+        # for AppKit's main thread here.
+        forward_dropped_videos(event, window.evaluate_js)
+
+    window.dom.body.on(
+        "dragover", DOMEventHandler(lambda event: None, prevent_default=True)
+    )
+    window.dom.body.on("drop", DOMEventHandler(on_drop, prevent_default=True))
+
+
 def bind_free_socket(host: str = "127.0.0.1", start_port: int = 8731) -> socket.socket:
     """Binds and listens on the first free TCP port from ``start_port``.
 
@@ -242,6 +294,7 @@ def launch_gui(
             window.load_html(STARTUP_FAILED_HTML.format(error=html.escape(str(error))))
             return
         window.events.loaded.wait(timeout=30.0)
+        register_video_drop(window)
         preload_frameworks()
 
     icon_path = get_app_icon_path()

@@ -1,7 +1,6 @@
-import { lazy, memo, Suspense, useRef, useState } from 'react'
+import { memo, useRef } from 'react'
 import { useDesktopVideoScanAvailable } from '../../services/videoScan'
 import { positionLabels } from '../../modules/thumbnail/layouts'
-const VideoScanModal = lazy(() => import('./VideoScanModal'))
 import MattingModelBanner from './MattingModelBanner'
 
 function readFileAsDataUrl(e, callback) {
@@ -212,10 +211,9 @@ function SpeakerSlotsPanel({
   onMoveSpeaker,
   onUploadBackgroundImage,
   onClearBackgroundImage,
+  onOpenVideoScan,
 }) {
   const bgInputRef = useRef(null)
-  const [videoScanTarget, setVideoScanTarget] = useState(undefined) // undefined = closed, null = no target
-  const [lastScan, setLastScan] = useState(null) // { path, people } — reused across slots
   const videoScanAvailable = useDesktopVideoScanAvailable()
 
   return (
@@ -224,7 +222,7 @@ function SpeakerSlotsPanel({
         <MattingModelBanner />
         {videoScanAvailable && (
           <button
-            onClick={() => setVideoScanTarget(null)}
+            onClick={() => onOpenVideoScan(null)}
             className="text-xs px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 transition-colors"
             title="Scan one video and pick frames for every speaker"
           >
@@ -247,7 +245,7 @@ function SpeakerSlotsPanel({
             onRemoveSpeaker={onRemoveSpeaker}
             onRenameSpeaker={onRenameSpeaker}
             onMoveSpeaker={onMoveSpeaker}
-            onOpenVideoScan={setVideoScanTarget}
+            onOpenVideoScan={onOpenVideoScan}
           />
         ))}
 
@@ -297,19 +295,6 @@ function SpeakerSlotsPanel({
           />
         </div>
       </div>
-
-      {videoScanTarget !== undefined && (
-        <Suspense fallback={null}>
-          <VideoScanModal
-            project={project}
-            targetSpeakerId={videoScanTarget}
-            scan={lastScan}
-            onScanComplete={setLastScan}
-            onAssign={onUploadSpeakerSource}
-            onClose={() => setVideoScanTarget(undefined)}
-          />
-        </Suspense>
-      )}
     </div>
   )
 }

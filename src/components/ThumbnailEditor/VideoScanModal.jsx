@@ -32,7 +32,7 @@ function fileName(path) {
  * large, and put it on any speaker position. The last scan is kept by the parent
  * (`scan` / `onScanComplete`) so opening the picker for another speaker doesn't rescan.
  */
-function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssign, onClose }) {
+function VideoScanModal({ project, targetSpeakerId, initialPath = null, scan, onScanComplete, onAssign, onClose }) {
   const [phase, setPhase] = useState(scan ? 'results' : 'setup') // setup | scanning | results | error
   const [numPeople, setNumPeople] = useState(Math.min(MAX_PEOPLE, project.speakers.length))
   const [error, setError] = useState(null)
@@ -48,7 +48,9 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
   const startScan = async () => {
     setError(null)
     try {
-      const path = await pickVideoFile()
+      // A dropped or menu-imported video arrives with its path: scan it in
+      // place, never copied or uploaded, and skip the picker.
+      const path = initialPath ?? (await pickVideoFile())
       if (!path) return
       setProgress(0)
       setPhase('scanning')
@@ -207,11 +209,16 @@ function VideoScanModal({ project, targetSpeakerId, scan, onScanComplete, onAssi
             <p className="text-[11px] text-gray-500 max-w-sm text-center">
               Count everyone who is on camera, even people you will leave off the thumbnail.
             </p>
+            {initialPath && (
+              <p className="text-xs text-gray-300 max-w-sm text-center break-all">
+                {fileName(initialPath)}
+              </p>
+            )}
             <button
               onClick={startScan}
               className="px-4 py-2 rounded bg-amber-600 hover:bg-amber-500 text-sm font-bold"
             >
-              Choose video…
+              {initialPath ? 'Scan video' : 'Choose video…'}
             </button>
           </div>
         )}

@@ -4,7 +4,7 @@
 // the panel. The availability must become reactive instead.
 import { createRoot } from 'react-dom/client'
 import { act, createElement as h } from 'react'
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import SpeakerSlotsPanel from '../components/ThumbnailEditor/SpeakerSlotsPanel'
 import { createDefaultProject } from '../modules/thumbnail/thumbnailState'
 
@@ -23,7 +23,7 @@ afterEach(() => {
   delete window.pywebview
 })
 
-function renderPanel() {
+function renderPanel(extraProps = {}) {
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -37,6 +37,8 @@ function renderPanel() {
     onMoveSpeaker: () => {},
     onUploadBackgroundImage: () => {},
     onClearBackgroundImage: () => {},
+    onOpenVideoScan: () => {},
+    ...extraProps,
   }
   act(() => root.render(h(SpeakerSlotsPanel, props)))
 }
@@ -53,6 +55,17 @@ function injectBridge() {
 }
 
 describe('SpeakerSlotsPanel video scan availability', () => {
+  it('opens the scan through the app, not a panel-local modal', () => {
+    // The app owns the modal so a dropped file and the toolbar button open the
+    // same one; the panel only asks for it.
+    const onOpenVideoScan = vi.fn()
+    window.pywebview = { api: { pick_video_file: () => null } }
+    renderPanel({ onOpenVideoScan })
+    const button = videoButtons().find((b) => b.textContent.includes('speaker frames'))
+    act(() => button.click())
+    expect(onOpenVideoScan).toHaveBeenCalledWith(null)
+  })
+
   it('shows the video buttons right away when the bridge is already there', () => {
     window.pywebview = { api: { pick_video_file: () => null } }
     renderPanel()
