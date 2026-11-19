@@ -666,6 +666,9 @@ function Editor({ initialProject }) {
         setProject,
         save: saveProjectToStorage,
         fresh: () => createDefaultProject('YouTube Thumbnail'),
+        // A silent failure reads as a dead menu item; say what happened.
+        onSaveError: (err) =>
+          alert(`Could not save the current project, so the new project was not started: ${err.message}`),
       }).then((switched) => {
         if (!switched)
           console.warn('New Project cancelled: the current project could not be saved first')

@@ -102,6 +102,41 @@ describe('flushAndStartNewProject', () => {
     expect(ok).toBe(false)
     expect(setProject).not.toHaveBeenCalled()
   })
+
+  it('reports a failed save to the caller, so the user hears why nothing happened', async () => {
+    const setProject = vi.fn()
+    const onSaveError = vi.fn()
+    const diskFull = new Error('disk full')
+    const ok = await flushAndStartNewProject({
+      getProject: () => project('p1', 'edited'),
+      setProject,
+      save: vi.fn(async () => {
+        throw diskFull
+      }),
+      fresh: () => project('p2', 'fresh'),
+      onSaveError,
+    })
+    expect(ok).toBe(false)
+    expect(onSaveError).toHaveBeenCalledWith(diskFull)
+  })
+
+  it('does not cry save-error when another project simply became active mid-flush', async () => {
+    const box = { current: project('p1', 'v1') }
+    const onSaveError = vi.fn()
+    const ok = await flushAndStartNewProject({
+      getProject: () => box.current,
+      setProject: vi.fn((p: ThumbnailProject) => {
+        box.current = p
+      }),
+      save: vi.fn(async () => {
+        box.current = project('p9', 'elsewhere')
+      }),
+      fresh: () => project('p2', 'fresh'),
+      onSaveError,
+    })
+    expect(ok).toBe(false)
+    expect(onSaveError).not.toHaveBeenCalled()
+  })
 })
 
 describe('useAutosaveProject', () => {
