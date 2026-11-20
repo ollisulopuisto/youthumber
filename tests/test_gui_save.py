@@ -61,7 +61,10 @@ def test_an_existing_file_is_not_touched_until_the_page_chooses(chosen, tmp_path
     target.write_bytes(b"old")
     chosen.path = str(target)
     api = gui.DesktopApi()
-    assert api.save_image(DATA_URL, "a.jpg") == {"status": "exists", "path": str(target)}
+    assert api.save_image(DATA_URL, "a.jpg") == {
+        "status": "exists",
+        "path": str(target),
+    }
     assert target.read_bytes() == b"old"
     assert api.save_image_to(DATA_URL, str(target), "replace") == {
         "status": "saved",
@@ -84,7 +87,9 @@ def test_keep_both_writes_a_numbered_copy_and_leaves_the_original(chosen, tmp_pa
 
 
 def test_save_image_to_refuses_a_path_the_panel_never_returned(tmp_path):
-    result = gui.DesktopApi().save_image_to(DATA_URL, str(tmp_path / "x.jpg"), "replace")
+    result = gui.DesktopApi().save_image_to(
+        DATA_URL, str(tmp_path / "x.jpg"), "replace"
+    )
     assert result["status"] == "error"
     assert not (tmp_path / "x.jpg").exists()
 
@@ -109,5 +114,19 @@ def test_a_failing_replace_comes_back_as_an_error(chosen, tmp_path, monkeypatch)
 
     monkeypatch.setattr(gui, "write_data_url_to_path", deny)
     result = api.save_image_to(DATA_URL, str(target), "replace")
-    assert result["status"] == "error" and "Operation not permitted" in result["message"]
+    assert (
+        result["status"] == "error" and "Operation not permitted" in result["message"]
+    )
     assert target.read_bytes() == b"old"
+
+
+def test_keep_both_never_overwrites_a_name_taken_after_the_check(tmp_path):
+    """Two exports racing for "(2)": the loser must move on, not truncate the winner's file."""
+    url = "data:image/png;base64," + base64.b64encode(b"new").decode()
+    target = tmp_path / "t.png"
+    target.write_bytes(b"orig")
+    (tmp_path / "t (2).png").write_bytes(b"other process")
+    written = gui.write_data_url_unique(url, str(target))
+    assert written == str(tmp_path / "t (3).png")
+    assert (tmp_path / "t (2).png").read_bytes() == b"other process"
+    assert target.read_bytes() == b"orig"

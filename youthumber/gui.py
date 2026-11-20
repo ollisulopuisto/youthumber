@@ -27,15 +27,27 @@ def write_data_url_to_path(data_url: str, path: str) -> None:
     Path(path).write_bytes(base64.b64decode(encoded))
 
 
-def unique_path(path: str) -> str:
-    """``path`` with " (2)", " (3)"... before the extension until nothing is there."""
+def write_data_url_unique(data_url: str, path: str) -> str:
+    """Writes the data URL to the first free " (n)" name next to ``path`` and returns it.
+
+    The file is created exclusively, so a name another process took a moment ago is
+    skipped instead of overwritten.
+    """
+    import base64
+
+    _, encoded = data_url.split(",", 1)
+    data = base64.b64decode(encoded)
     p = Path(path)
     n = 2
     while True:
         candidate = p.with_name(f"{p.stem} ({n}){p.suffix}")
-        if not candidate.exists():
-            return str(candidate)
-        n += 1
+        try:
+            with open(candidate, "xb") as f:
+                f.write(data)
+        except FileExistsError:
+            n += 1
+            continue
+        return str(candidate)
 
 
 class DesktopApi:
@@ -87,8 +99,15 @@ class DesktopApi:
             return {"status": "error", "message": "That export is no longer waiting."}
         self._pending.discard(path)
         if mode == "keep_both":
-            path = unique_path(path)
-        elif mode != "replace":
+            try:
+                return {
+                    "status": "saved",
+                    "path": write_data_url_unique(data_url, path),
+                }
+            except Exception as e:  # noqa: BLE001 - shown to the user, as in _write
+                logger.exception("writing the export failed: %s", path)
+                return {"status": "error", "message": f"Could not write {path}: {e}"}
+        if mode != "replace":
             return {"status": "error", "message": f"Unknown choice: {mode}"}
         return self._write(data_url, path)
 
