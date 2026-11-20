@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from 'react'
 import * as fabric from 'fabric'
 import { cropOffset, cropSource, normalizeCrop, visibleShare } from '../../modules/thumbnail/imageCrop'
+import { clipToPanel } from '../../modules/thumbnail/panelClip'
 import {
   isSpeakerLayer,
   isStickerLayer,
@@ -62,25 +63,6 @@ function anchorOf(obj) {
   const { naturalWidth, naturalHeight, crop } = obj.data
   const offset = cropOffset(naturalWidth, naturalHeight, crop, obj.scaleX || 1, obj.scaleY || 1, obj.angle || 0, !!obj.flipX)
   return { x: Math.round((obj.left || 0) - offset.dx), y: Math.round((obj.top || 0) - offset.dy) }
-/** Clips a speaker to its layout panel (canvas px, fixed to the canvas), or removes the clip. */
-function clipToPanel(img, panel) {
-  if (!panel) {
-    if (img.clipPath) img.set({ clipPath: undefined })
-    return
-  }
-  img.set({
-    clipPath: new fabric.Rect({
-      left: panel.x,
-      top: panel.y,
-      width: panel.width,
-      height: panel.height,
-      originX: 'left',
-      originY: 'top',
-      absolutePositioned: true,
-    }),
-  })
-}
-
 function ThumbnailStudioCanvas(
   {
     project,
