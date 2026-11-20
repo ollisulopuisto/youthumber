@@ -4,6 +4,13 @@ import { defaultRemoverRegistry } from '../../services/background-removal'
 import { loadShowPresetsPersistent } from '../../modules/shows/showPreferences'
 import { ariaKeyShortcuts, shortcutTitle } from '../../modules/shortcuts/shortcuts'
 
+const TABS = [
+  { id: 'setup', label: 'Setup' },
+  { id: 'faces', label: 'Faces' },
+  { id: 'edit', label: 'Edit' },
+  { id: 'export', label: 'Export' },
+]
+
 const SPEAKER_COUNTS = Array.from({ length: MAX_SPEAKERS }, (_, i) => i + 1)
 
 function Toolbar({
@@ -42,6 +49,7 @@ function Toolbar({
   const [availableRemovers] = useState(() => defaultRemoverRegistry.list())
   const [showPresets, setShowPresets] = useState([])
   const [coreMLStatus, setCoreMLStatus] = useState('checking')
+  const [tab, setTab] = useState('setup')
 
   useEffect(() => {
     let isMounted = true
@@ -97,294 +105,362 @@ function Toolbar({
   const hdDimensions = isPortrait ? '720×1280' : '1280×720'
   const fullHdDimensions = isPortrait ? '1080×1920' : '1920×1080'
 
+  const tabKeyDown = (event) => {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+    if (!step) return
+    event.preventDefault()
+    const index = TABS.findIndex((t) => t.id === tab)
+    const next = TABS[(index + step + TABS.length) % TABS.length]
+    setTab(next.id)
+    document.getElementById(`toolbar-tab-${next.id}`)?.focus()
+  }
+
+  const labelClass = 'text-[10px] uppercase tracking-wider text-gray-400 font-medium'
+  const buttonClass = 'px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500'
+
   return (
-    <header className="w-full bg-gray-900 border-b border-gray-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-white">
-      {/* Left: Branding & Project Name */}
-      <div className="flex items-center gap-3">
+    <header className="w-full bg-gray-900 border-b border-gray-800 px-4 py-2 flex flex-col gap-2 text-white">
+      {/* Row 1: always there. Name, the four steps, undo/redo/save and Export. */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <img src="/icon.svg" alt="" className="w-9 h-9 -m-0.5" />
-          <span className="font-bold text-sm tracking-wide hidden sm:inline text-gray-200">
-            YouThumber
-          </span>
+          <span className="font-bold text-sm tracking-wide hidden sm:inline text-gray-200">YouThumber</span>
         </div>
-
-        <div className="h-5 w-px bg-gray-700 hidden sm:block" />
 
         <input
           type="text"
           value={project.name}
           onChange={(e) => onUpdateProjectName(e.target.value)}
           placeholder="Untitled Project"
+          aria-label="Project name"
           className="bg-gray-800/80 hover:bg-gray-800 focus:bg-gray-950 px-2.5 py-1 rounded text-xs sm:text-sm font-medium border border-gray-700 focus:border-amber-500 outline-none text-gray-100 transition-colors w-36 sm:w-52"
         />
 
-        {/* Speaker count */}
-        <div
-          className="flex items-center rounded border border-gray-700 overflow-hidden text-[11px]"
-          role="group"
-          aria-label="Number of speakers"
-        >
-          <span className="px-1.5 text-gray-400" aria-hidden="true">
-            👥
-          </span>
-          {SPEAKER_COUNTS.map((n) => (
+        <div role="tablist" aria-label="Steps" className="flex rounded border border-gray-700 overflow-hidden text-xs">
+          {TABS.map((t) => (
             <button
-              key={n}
-              onClick={() => onSetSpeakerCount(n)}
-              aria-pressed={n === speakerCount}
-              title={`${n} speaker${n === 1 ? '' : 's'}`}
-              className={`px-2 py-0.5 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${
-                n === speakerCount
-                  ? 'bg-amber-600 text-white'
-                  : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+              key={t.id}
+              id={`toolbar-tab-${t.id}`}
+              role="tab"
+              type="button"
+              aria-selected={tab === t.id}
+              aria-controls="toolbar-step-panel"
+              tabIndex={tab === t.id ? 0 : -1}
+              onClick={() => setTab(t.id)}
+              onKeyDown={tabKeyDown}
+              className={`px-3 py-1 font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${
+                tab === t.id ? 'bg-amber-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
               }`}
             >
-              {n}
+              {t.label}
             </button>
           ))}
         </div>
 
-        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700/60 hidden lg:inline">
-          1280 × 720
-        </span>
-      </div>
-
-      {/* Middle: Per-Show Presets & Templates */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-        {/* Show Presets Switcher */}
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-gray-400 font-medium hidden lg:inline">Show:</span>
-          <select
-            onChange={(e) => {
-              const show = showPresets.find((p) => p.id === e.target.value)
-              if (show) onApplyShowPreset(show)
-            }}
-            defaultValue=""
-            className="bg-gray-800 text-amber-300 font-semibold border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750"
-            title="Load saved show styling and layout preferences"
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+            title={shortcutTitle('undo')}
+            aria-label="Undo"
+            aria-keyshortcuts={ariaKeyShortcuts('undo')}
           >
-            <option value="" disabled>
-              Select Show Preset...
-            </option>
-            {showPresets.map((s) => (
-              <option key={s.id} value={s.id}>
-                📺 {s.name} ({s.speakerCount}P)
-              </option>
-            ))}
-          </select>
+            ↶
+          </button>
+          <button
+            onClick={onRedo}
+            disabled={!canRedo}
+            className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+            title={shortcutTitle('redo')}
+            aria-label="Redo"
+            aria-keyshortcuts={ariaKeyShortcuts('redo')}
+          >
+            ↷
+          </button>
 
           <button
-            onClick={onOpenShows}
-            className="px-2 py-1 text-[11px] font-bold rounded bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-600/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-            title="Manage saved show preferences"
+            onClick={onSaveProject}
+            disabled={saveStatus === 'saving'}
+            className={buttonClass + ' disabled:opacity-60 disabled:cursor-not-allowed'}
+            title={shortcutTitle('save', 'Save to local storage')}
+            aria-keyshortcuts={ariaKeyShortcuts('save')}
           >
-            Manage Shows
+            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : 'Save'}
           </button>
-        </div>
+          {/* Announce the save result to screen readers, matching the button label. */}
+          <span role="status" aria-live="polite" className="sr-only">
+            {saveStatus === 'saved' ? 'Project saved' : saveStatus === 'saving' ? 'Saving project' : ''}
+          </span>
 
-        {/* Template Selector */}
-        <div className="flex items-center gap-1.5 text-xs">
-          <span className="text-gray-400 font-medium hidden xl:inline">Layout:</span>
-          <select
-            value={project.layoutId}
-            onChange={(e) => {
-              const layout = layouts.find((l) => l.id === e.target.value)
-              if (layout) onSelectLayout(layout)
-            }}
-            className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750"
-            title={`Layouts for ${speakerCount} speaker${speakerCount === 1 ? '' : 's'}`}
-            aria-label="Layout"
+          <button
+            onClick={onExport}
+            title={shortcutTitle('export')}
+            aria-keyshortcuts={ariaKeyShortcuts('export')}
+            className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
           >
-            {layouts.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Backend Model / Remover Selector & Health Badge */}
-        <div className="flex items-center gap-1.5 text-xs">
-          <select
-            value={activeRemoverId}
-            onChange={handleRemoverChange}
-            className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750 font-mono"
-            title="Select local background removal engine"
-          >
-            {availableRemovers.map((remover) => {
-              const isCoreML = remover.id.includes('coreml')
-              const statusTag = isCoreML
-                ? coreMLStatus === 'checking'
-                  ? ' (Checking...)'
-                  : coreMLStatus === 'online'
-                    ? ' (Online)'
-                    : ' (Offline)'
-                : ''
-              const icon = isCoreML ? '⚡' : remover.id.includes('mock') ? '🧪' : '🌐'
-              return (
-                <option key={remover.id} value={remover.id}>
-                  {icon} {remover.name}
-                  {statusTag}
-                </option>
-              )
-            })}
-          </select>
-
-          {/* Health Status Indicator */}
-          {coreMLStatus === 'online' ? (
-            <div
-              className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-950/80 border border-emerald-600/40 text-emerald-400 text-[11px] font-medium shadow-xs"
-              title="Apple Neural Engine / Metal acceleration active on local port"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Core ML Online</span>
-            </div>
-          ) : coreMLStatus === 'offline' ? (
-            <div
-              className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-gray-800/90 border border-gray-700/80 text-gray-400 text-[11px] font-medium"
-              title="Local Core ML service not detected. Background removal runs via in-browser WebAssembly."
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
-              <span>WASM Fallback</span>
-            </div>
-          ) : null}
+            <span>Export {exportSettings.resolution === 'fullhd' ? fullHdDimensions : hdDimensions}</span>
+          </button>
         </div>
       </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title={shortcutTitle('undo')}
-          aria-label="Undo"
-          aria-keyshortcuts={ariaKeyShortcuts('undo')}
-        >
-          ↶
-        </button>
-        <button
-          onClick={onRedo}
-          disabled={!canRedo}
-          className="w-7 h-7 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title={shortcutTitle('redo')}
-          aria-label="Redo"
-          aria-keyshortcuts={ariaKeyShortcuts('redo')}
-        >
-          ↷
-        </button>
+      {/* Row 2: only the controls of the chosen step. */}
+      <div
+        id="toolbar-step-panel"
+        role="tabpanel"
+        aria-labelledby={`toolbar-tab-${tab}`}
+        className="flex flex-wrap items-end gap-x-6 gap-y-2 border-t border-gray-800 pt-2 text-xs"
+      >
+        {tab === 'setup' && (
+          <>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Speakers</span>
+              <div className="flex items-center rounded border border-gray-700 overflow-hidden text-[11px]" role="group" aria-label="Number of speakers">
+                {SPEAKER_COUNTS.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => onSetSpeakerCount(n)}
+                    aria-pressed={n === speakerCount}
+                    title={`${n} speaker${n === 1 ? '' : 's'}`}
+                    className={`px-2.5 py-1 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${
+                      n === speakerCount ? 'bg-amber-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <select
-          aria-label="Undo branches"
-          title="Session history: choose an alternate branch, then undo to earlier edits. History ends when this app closes. No automatic pruning; images can use significant memory."
-          className="max-w-32 bg-gray-800 text-xs rounded border border-gray-700 p-1"
-          value={historyHead}
-          onChange={(event) => onGotoHistory(event.target.value)}
-        >
-          {historyTips.map((node) => <option key={node.id} value={node.id}>{node.label}{node.id === historyHead ? ' (current)' : ' (branch)'}</option>)}
-        </select>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Show</span>
+              <div className="flex items-center gap-1.5">
+                <select
+                  onChange={(e) => {
+                    const show = showPresets.find((p) => p.id === e.target.value)
+                    if (show) onApplyShowPreset(show)
+                  }}
+                  defaultValue=""
+                  aria-label="Show preset"
+                  className="bg-gray-800 text-amber-300 font-semibold border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750"
+                  title="Load saved show styling and layout preferences"
+                >
+                  <option value="" disabled>
+                    Select Show Preset...
+                  </option>
+                  {showPresets.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      📺 {s.name} ({s.speakerCount}P)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={onOpenShows}
+                  className="px-2 py-1 text-[11px] font-bold rounded bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-600/40 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+                  title="Manage saved show preferences"
+                >
+                  Manage Shows
+                </button>
+              </div>
+            </div>
 
-        <button
-          onClick={onOpenProjects}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title={shortcutTitle('projects', 'Open Project Manager')}
-          aria-keyshortcuts={ariaKeyShortcuts('projects')}
-        >
-          Projects
-        </button>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Layout</span>
+              <select
+                value={project.layoutId}
+                onChange={(e) => {
+                  const layout = layouts.find((l) => l.id === e.target.value)
+                  if (layout) onSelectLayout(layout)
+                }}
+                className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750"
+                title={`Layouts for ${speakerCount} speaker${speakerCount === 1 ? '' : 's'}`}
+                aria-label="Layout"
+              >
+                {layouts.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        {/* Always rendered: the click, not render timing, decides whether the
-            desktop app's video machinery is there and says so when it is not. */}
-        <button
-          onClick={onImportVideo}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-amber-300 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title="Scan a video and pick frames for the speakers"
-        >
-          🎬 Import video
-        </button>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Orientation</span>
+              {/* Manual 9:16 <-> 16:9 flip; the pressed side is the current one. */}
+              <div className="flex items-center rounded border border-gray-700 overflow-hidden text-[11px]" role="group" aria-label="Orientation">
+                {[
+                  { portrait: false, label: '16:9' },
+                  { portrait: true, label: '9:16' },
+                ].map((o) => (
+                  <button
+                    key={o.label}
+                    onClick={() => {
+                      if (o.portrait !== isPortrait) onToggleOrientation()
+                    }}
+                    aria-pressed={o.portrait === isPortrait}
+                    title={
+                      o.portrait === isPortrait
+                        ? `Current format ${o.label}`
+                        : `Switch to ${o.portrait ? 'portrait 9:16' : 'landscape 16:9'} - speaker positions reset to the layout preset`
+                    }
+                    className={`px-2.5 py-1 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white ${
+                      o.portrait === isPortrait ? 'bg-amber-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Manual 9:16 <-> 16:9 flip, labeled with the ratio it switches to. */}
-        <button
-          onClick={onToggleOrientation}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title={`Switch to ${isPortrait ? 'landscape 16:9' : 'portrait 9:16'} - speaker positions reset to the layout preset`}
-        >
-          {isPortrait ? '16:9' : '9:16'}
-        </button>
+            {/* Backend Model / Remover Selector & Health Badge */}
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Background removal</span>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={activeRemoverId}
+                  onChange={handleRemoverChange}
+                  aria-label="Background removal engine"
+                  className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 text-xs outline-none focus:border-amber-500 hover:bg-gray-750 font-mono"
+                  title="Select local background removal engine"
+                >
+                  {availableRemovers.map((remover) => {
+                    const isCoreML = remover.id.includes('coreml')
+                    const statusTag = isCoreML
+                      ? coreMLStatus === 'checking'
+                        ? ' (Checking...)'
+                        : coreMLStatus === 'online'
+                          ? ' (Online)'
+                          : ' (Offline)'
+                      : ''
+                    const icon = isCoreML ? '⚡' : remover.id.includes('mock') ? '🧪' : '🌐'
+                    return (
+                      <option key={remover.id} value={remover.id}>
+                        {icon} {remover.name}
+                        {statusTag}
+                      </option>
+                    )
+                  })}
+                </select>
+                {coreMLStatus === 'online' ? (
+                  <div
+                    className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-950/80 border border-emerald-600/40 text-emerald-400 text-[11px] font-medium shadow-xs"
+                    title="Apple Neural Engine / Metal acceleration active on local port"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Core ML Online</span>
+                  </div>
+                ) : coreMLStatus === 'offline' ? (
+                  <div
+                    className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded bg-gray-800/90 border border-gray-700/80 text-gray-400 text-[11px] font-medium"
+                    title="Local Core ML service not detected. Background removal runs via in-browser WebAssembly."
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+                    <span>WASM Fallback</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </>
+        )}
 
-        <button
-          onClick={onSaveProject}
-          disabled={saveStatus === 'saving'}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title={shortcutTitle('save', 'Save to local storage')}
-          aria-keyshortcuts={ariaKeyShortcuts('save')}
-        >
-          {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : 'Save'}
-        </button>
-        {/* Announce the save result to screen readers, matching the button label. */}
-        <span role="status" aria-live="polite" className="sr-only">
-          {saveStatus === 'saved' ? 'Project saved' : saveStatus === 'saving' ? 'Saving project' : ''}
-        </span>
+        {tab === 'faces' && (
+          <div className="flex flex-col gap-1">
+            <span className={labelClass}>Video</span>
+            {/* Always rendered: the click, not render timing, decides whether the
+                desktop app's video machinery is there and says so when it is not. */}
+            <button
+              onClick={onImportVideo}
+              className={buttonClass + ' text-amber-300'}
+              title="Scan a video and pick frames for the speakers"
+            >
+              🎬 Import video
+            </button>
+          </div>
+        )}
 
-        <div className="h-5 w-px bg-gray-700" />
+        {tab === 'edit' && (
+          <>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>History</span>
+              <select
+                aria-label="Undo branches"
+                title="Session history: choose an alternate branch, then undo to earlier edits. History ends when this app closes. No automatic pruning; images can use significant memory."
+                className="max-w-40 bg-gray-800 text-xs rounded border border-gray-700 p-1"
+                value={historyHead}
+                onChange={(event) => onGotoHistory(event.target.value)}
+              >
+                {historyTips.map((node) => <option key={node.id} value={node.id}>{node.label}{node.id === historyHead ? ' (current)' : ' (branch)'}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Project</span>
+              <button
+                onClick={onOpenProjects}
+                className={buttonClass}
+                title={shortcutTitle('projects', 'Open Project Manager')}
+                aria-keyshortcuts={ariaKeyShortcuts('projects')}
+              >
+                Projects
+              </button>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Help</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onOpenPalette}
+                  className={buttonClass}
+                  title={shortcutTitle('palette', 'Find a command')}
+                  aria-keyshortcuts={ariaKeyShortcuts('palette')}
+                >
+                  Commands
+                </button>
+                <button onClick={onOpenWhatsNew} className={buttonClass} title="What changed in this version">
+                  What&apos;s new
+                </button>
+                <button
+                  onClick={onOpenShortcuts}
+                  className="w-7 h-7 text-sm font-bold rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+                  title={shortcutTitle('help', 'Keyboard shortcuts')}
+                  aria-label="Keyboard shortcuts"
+                  aria-keyshortcuts={ariaKeyShortcuts('help')}
+                >
+                  ?
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
-        {/* Format Selector */}
-        <select
-          value={exportSettings.format}
-          onChange={(e) => onChangeExportSettings({ format: e.target.value })}
-          className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
-        >
-          <option value="jpeg">JPG</option>
-          <option value="png">PNG</option>
-        </select>
-
-        {/* Resolution Selector */}
-        <select
-          value={exportSettings.resolution}
-          onChange={(e) => onChangeExportSettings({ resolution: e.target.value })}
-          className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
-          title="Export resolution"
-        >
-          <option value="hd">{hdDimensions}</option>
-          <option value="fullhd">{fullHdDimensions}</option>
-        </select>
-
-        {/* Export Button */}
-        <button
-          onClick={onExport}
-          title={shortcutTitle('export')}
-          aria-keyshortcuts={ariaKeyShortcuts('export')}
-          className="px-3 py-1 text-xs font-bold rounded bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white shadow-md transition-all active:scale-95 flex items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-        >
-          <span>Export {exportSettings.resolution === 'fullhd' ? fullHdDimensions : hdDimensions}</span>
-        </button>
-
-        <button
-          onClick={onOpenPalette}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title={shortcutTitle('palette', 'Find a command')}
-          aria-keyshortcuts={ariaKeyShortcuts('palette')}
-        >
-          Commands
-        </button>
-
-        <button
-          onClick={onOpenWhatsNew}
-          className="px-2.5 py-1 text-xs font-medium rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title="What changed in this version"
-        >
-          What&apos;s new
-        </button>
-
-        <button
-          onClick={onOpenShortcuts}
-          className="w-7 h-7 text-sm font-bold rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
-          title={shortcutTitle('help', 'Keyboard shortcuts')}
-          aria-label="Keyboard shortcuts"
-          aria-keyshortcuts={ariaKeyShortcuts('help')}
-        >
-          ?
-        </button>
+        {tab === 'export' && (
+          <>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Format</span>
+              <select
+                value={exportSettings.format}
+                onChange={(e) => onChangeExportSettings({ format: e.target.value })}
+                aria-label="Export format"
+                className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
+              >
+                <option value="jpeg">JPG</option>
+                <option value="png">PNG</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={labelClass}>Size</span>
+              <select
+                value={exportSettings.resolution}
+                onChange={(e) => onChangeExportSettings({ resolution: e.target.value })}
+                aria-label="Export resolution"
+                className="bg-gray-800 text-gray-200 border border-gray-700 rounded px-1.5 py-1 text-xs outline-none focus:border-amber-500 font-mono"
+                title="Export resolution"
+              >
+                <option value="hd">{hdDimensions}</option>
+                <option value="fullhd">{fullHdDimensions}</option>
+              </select>
+            </div>
+          </>
+        )}
       </div>
     </header>
   )

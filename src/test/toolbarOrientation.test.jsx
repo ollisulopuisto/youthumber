@@ -52,25 +52,29 @@ function renderToolbar(project, onToggleOrientation = vi.fn()) {
   return onToggleOrientation
 }
 
-function orientationButton() {
-  return [...node.querySelectorAll('button')].find((b) => /^(9:16|16:9)$/.test(b.textContent))
-}
+const orientationButton = (label) =>
+  [...node.querySelectorAll('[role="group"][aria-label="Orientation"] button')].find((b) => b.textContent === label)
 
-it('offers 9:16 while landscape, and clicking asks for the flip', () => {
+it('marks 16:9 as current while landscape, and clicking 9:16 asks for the flip', () => {
   const onToggle = renderToolbar(createDefaultProject('Test', 2))
-  const button = orientationButton()
-  expect(button).toBeDefined()
-  expect(button.textContent).toBe('9:16')
-  act(() => button.click())
-  expect(onToggle).toHaveBeenCalled()
+  expect(orientationButton('16:9').getAttribute('aria-pressed')).toBe('true')
+  expect(orientationButton('9:16').getAttribute('aria-pressed')).toBe('false')
+  act(() => orientationButton('16:9').click())
+  expect(onToggle).not.toHaveBeenCalled()
+  act(() => orientationButton('9:16').click())
+  expect(onToggle).toHaveBeenCalledTimes(1)
 })
 
-it('offers 16:9 while portrait', () => {
-  renderToolbar(switchProjectToPortrait(createDefaultProject('Test', 2)))
-  expect(orientationButton().textContent).toBe('16:9')
+it('marks 9:16 as current while portrait, and clicking 16:9 asks for the flip', () => {
+  const onToggle = renderToolbar(switchProjectToPortrait(createDefaultProject('Test', 2)))
+  expect(orientationButton('9:16').getAttribute('aria-pressed')).toBe('true')
+  act(() => orientationButton('9:16').click())
+  expect(onToggle).not.toHaveBeenCalled()
+  act(() => orientationButton('16:9').click())
+  expect(onToggle).toHaveBeenCalledTimes(1)
 })
 
 it('warns in the tooltip that positions reset to the layout preset', () => {
   renderToolbar(createDefaultProject('Test', 2))
-  expect(orientationButton().title).toMatch(/reset/i)
+  expect(orientationButton('9:16').title).toMatch(/reset/i)
 })
