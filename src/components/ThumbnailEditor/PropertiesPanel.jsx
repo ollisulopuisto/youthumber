@@ -1,4 +1,5 @@
 import CropControls from './CropControls'
+import AngleField from './AngleField'
 import { useCallback } from 'react'
 import { backgroundGradientPresets } from '../../data/backgroundGradients'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
@@ -572,20 +573,10 @@ function PropertiesPanel({
               }
               className="flex-1 accent-sky-500"
             />
-            <input
-              type="number"
-              min={-180}
-              max={180}
-              step={1}
+            <AngleField
+              label="Rotation in degrees"
               value={transform.rotation}
-              aria-label="Rotation in degrees"
-              onChange={(e) => {
-                const value = Number(e.target.value)
-                if (Number.isFinite(value)) {
-                  onUpdateSpeakerTransform(selectedLayer, { rotation: Math.max(-180, Math.min(180, value)) })
-                }
-              }}
-              className="w-16 bg-gray-950 border border-gray-700 rounded px-1.5 py-0.5 text-gray-200 font-mono text-[11px]"
+              onChange={(rotation) => onUpdateSpeakerTransform(selectedLayer, { rotation })}
             />
           </div>
         </div>
