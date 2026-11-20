@@ -63,6 +63,8 @@ function anchorOf(obj) {
   const { naturalWidth, naturalHeight, crop } = obj.data
   const offset = cropOffset(naturalWidth, naturalHeight, crop, obj.scaleX || 1, obj.scaleY || 1, obj.angle || 0, !!obj.flipX)
   return { x: Math.round((obj.left || 0) - offset.dx), y: Math.round((obj.top || 0) - offset.dy) }
+}
+
 function ThumbnailStudioCanvas(
   {
     project,
