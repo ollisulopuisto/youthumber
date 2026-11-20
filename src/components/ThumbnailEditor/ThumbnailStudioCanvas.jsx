@@ -772,7 +772,7 @@ function ThumbnailStudioCanvas(
         rotation: text.angle || 0,
       }
     },
-    exportThumbnail: ({ format = 'jpeg', quality = 0.92, filename, scale = 1 }) => {
+    exportThumbnail: ({ format = 'jpeg', quality = 0.92, filename, scale = 1, askReplace }) => {
       const canvas = fabricCanvasRef.current
       if (!canvas) return null
 
@@ -795,7 +795,7 @@ function ThumbnailStudioCanvas(
         `youtube-thumbnail-${Math.round(canvasWidth * scale)}x${Math.round(canvasHeight * scale)}-${new Date().toISOString().slice(0, 10)}.${
           format === 'png' ? 'png' : 'jpg'
         }`
-      return saveExportedImage(dataUrl, name)
+      return saveExportedImage(dataUrl, name, { askReplace })
     },
   }))
 
