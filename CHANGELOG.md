@@ -2,6 +2,17 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.20.2] - 2026-11-20
+
+### Added
+- Crop speaker photos and logos, and rotate them freely with a number field (PR #131).
+- Portrait projects can stack panels with the wide panel on top or on the bottom (PR #132).
+- The header now has four step tabs, Setup, Faces, Edit and Export, each showing only its own controls, instead of one crowded band (PR #133).
+
+### Fixed
+- Export shows every failure and asks before replacing an existing file (PR #130).
+- The More... button opens the selected object's command menu, and the duplicate Edit and View menus are gone (PR #129).
+
 ## [26.11.10.2] - 2026-11-10
 
 ### Fixed
