@@ -249,6 +249,50 @@ def _take_pywebview_menus(main: Any, taken: list | None = None) -> None:
             main.removeItem_(item)
 
 
+def prune_duplicate_menus(main: Any) -> int:
+    """Removes pywebview's Edit and View from the bar once ours exist. They come back
+    when pywebview rebuilds its menu after our install, and the bar then shows each
+    twice. Returns how many were removed."""
+    ours = {str(i.title()) for i in main.itemArray() if i.tag() == MENU_TAG}
+    stray = [
+        i
+        for i in main.itemArray()
+        if i.tag() != MENU_TAG
+        and i.submenu() is not None
+        and str(i.title()) in ("Edit", "View")
+        and str(i.title()) in ours
+    ]
+    for item in stray:
+        main.removeItem_(item)
+    return len(stray)
+
+
+_watcher: Any = None  # the notification center holds observers weakly
+
+
+def _watch_for_duplicates(appkit: Any, main_thread: Callable) -> None:
+    """Prunes again whenever something adds a top-level menu to the bar. Once per process."""
+    global _watcher
+    center = getattr(appkit, "NSNotificationCenter", None)
+    name = getattr(appkit, "NSMenuDidAddItemNotification", None)
+    if _watcher is not None or center is None or name is None:
+        return
+
+    class YouThumberMenuWatcher(appkit.NSObject):
+        def menuChanged_(self, note):
+            def prune() -> None:
+                main = appkit.NSApplication.sharedApplication().mainMenu()
+                if main is not None and prune_duplicate_menus(main):
+                    log.info("removed pywebview's duplicate Edit/View menus")
+
+            main_thread(prune)
+
+    _watcher = YouThumberMenuWatcher.alloc().init()
+    center.defaultCenter().addObserver_selector_name_object_(
+        _watcher, "menuChanged:", name, None
+    )
+
+
 def _build(
     spec: list[dict],
     run: Callable[[dict], None],
@@ -268,6 +312,7 @@ def _build(
     except Exception:
         _restore(main, taken)
         raise
+    prune_duplicate_menus(main)
     return True
 
 
@@ -344,6 +389,8 @@ def install(
     def work() -> None:
         try:
             result["ok"] = _build(menus, run, appkit, target_factory)
+            if result["ok"]:
+                _watch_for_duplicates(appkit, main_thread)
         except Exception as e:  # noqa: BLE001 - a menu must never stall the window; log and keep the defaults
             log.warning(
                 "Native menu bar unavailable (%s); the page keeps its own controls.", e
