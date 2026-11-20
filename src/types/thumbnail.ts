@@ -211,10 +211,20 @@ export interface SlotFrame {
   personHeight: number
 }
 
+/** A rectangle of the canvas in canvas px. */
+export interface PanelRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export interface SlotLayout {
   /** Default placement when there's no cutout to auto-frame from. */
   transform: TransformState
   frame: SlotFrame
+  /** When set, the speaker is clipped to this rectangle, like a video panel in a stacked layout. */
+  panel?: PanelRect
 }
 
 export interface LayoutPreset {

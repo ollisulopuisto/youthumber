@@ -7,6 +7,7 @@ import {
   isTextLayer,
   isExtraTextLayer,
   isBugLayer,
+  panelFor,
 } from '../../modules/thumbnail/thumbnailState'
 import { ElementObject, elementObjectProps } from '../../modules/thumbnail/elementObject'
 import { saveExportedImage } from '../../services/exportImage'
@@ -61,6 +62,23 @@ function anchorOf(obj) {
   const { naturalWidth, naturalHeight, crop } = obj.data
   const offset = cropOffset(naturalWidth, naturalHeight, crop, obj.scaleX || 1, obj.scaleY || 1, obj.angle || 0, !!obj.flipX)
   return { x: Math.round((obj.left || 0) - offset.dx), y: Math.round((obj.top || 0) - offset.dy) }
+/** Clips a speaker to its layout panel (canvas px, fixed to the canvas), or removes the clip. */
+function clipToPanel(img, panel) {
+  if (!panel) {
+    if (img.clipPath) img.set({ clipPath: undefined })
+    return
+  }
+  img.set({
+    clipPath: new fabric.Rect({
+      left: panel.x,
+      top: panel.y,
+      width: panel.width,
+      height: panel.height,
+      originX: 'left',
+      originY: 'top',
+      absolutePositioned: true,
+    }),
+  })
 }
 
 function ThumbnailStudioCanvas(
@@ -456,6 +474,7 @@ function ThumbnailStudioCanvas(
         })
         placeImage(img, latest.crop, transform.x, transform.y, transform.scaleX, transform.scaleY, transform.rotation, !!transform.flipX)
         img.setCoords()
+        clipToPanel(img, panelFor(latestProjectRef.current, layerId))
         live.add(img)
         reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
         live.requestRenderAll()
@@ -722,6 +741,8 @@ function ThumbnailStudioCanvas(
 
     for (const speaker of project.speakers) {
       syncSpeakerObject(canvas, speaker, speaker.id)
+      const object = canvas.getObjects().find((o) => o.data?.layerId === speaker.id)
+      if (object) clipToPanel(object, panelFor(project, speaker.id))
     }
 
     // Sync Text layer
