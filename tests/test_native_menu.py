@@ -496,7 +496,10 @@ def readd_pywebview_menus(main):
 
 def test_pywebviews_edit_and_view_added_after_ours_are_removed():
     main = pywebview_menu()
-    run_install(main, spec=[SPEC[1], {"id": "view", "label": "View", "items": [item("palette")]}])
+    run_install(
+        main,
+        spec=[SPEC[1], {"id": "view", "label": "View", "items": [item("palette")]}],
+    )
     readd_pywebview_menus(main)
     assert titles(main).count("Edit") == 2
     assert native_menu.prune_duplicate_menus(main) == 2
