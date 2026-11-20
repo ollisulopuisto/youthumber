@@ -87,7 +87,7 @@ class DesktopApi:
                 self._pending.add(path)
                 return {"status": "exists", "path": path}
             return self._write(data_url, path)
-        except Exception as e:  # noqa: BLE001 - the page must hear about any failure, never silence
+        except Exception as e:
             logger.exception("save_image failed")
             return {"status": "error", "message": f"Could not save the export: {e}"}
 
@@ -104,7 +104,7 @@ class DesktopApi:
                     "status": "saved",
                     "path": write_data_url_unique(data_url, path),
                 }
-            except Exception as e:  # noqa: BLE001 - shown to the user, as in _write
+            except Exception as e:
                 logger.exception("writing the export failed: %s", path)
                 return {"status": "error", "message": f"Could not write {path}: {e}"}
         if mode != "replace":
@@ -115,7 +115,7 @@ class DesktopApi:
     def _write(data_url: str, path: str) -> dict[str, str]:
         try:
             write_data_url_to_path(data_url, path)
-        except Exception as e:  # noqa: BLE001 - permission, disk full, bad data: all must be shown
+        except Exception as e:
             logger.exception("writing the export failed: %s", path)
             return {"status": "error", "message": f"Could not write {path}: {e}"}
         return {"status": "saved", "path": path}
