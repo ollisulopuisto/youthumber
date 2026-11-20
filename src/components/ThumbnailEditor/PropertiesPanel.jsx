@@ -1,3 +1,4 @@
+import CropControls from './CropControls'
 import { useCallback } from 'react'
 import { backgroundGradientPresets } from '../../data/backgroundGradients'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
@@ -115,6 +116,7 @@ function PropertiesPanel({
   onDuplicateText,
   onRemoveText,
   onUpdateSpeakerTransform,
+  onSetSpeakerCrop,
   onUpdateBackground,
   onResetSpeakerTransform,
   onUpdateSpeakerMaskOptions,
@@ -557,18 +559,41 @@ function PropertiesPanel({
             <span className="text-gray-400">Rotation</span>
             <span className="font-mono text-gray-200">{transform.rotation}°</span>
           </div>
-          <input
-            type="range"
-            min={-45}
-            max={45}
-            step={1}
-            value={transform.rotation}
-            onChange={(e) =>
-              onUpdateSpeakerTransform(selectedLayer, { rotation: Number(e.target.value) })
-            }
-            className="w-full accent-sky-500"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={transform.rotation}
+              aria-label="Rotation"
+              onChange={(e) =>
+                onUpdateSpeakerTransform(selectedLayer, { rotation: Number(e.target.value) })
+              }
+              className="flex-1 accent-sky-500"
+            />
+            <input
+              type="number"
+              min={-180}
+              max={180}
+              step={1}
+              value={transform.rotation}
+              aria-label="Rotation in degrees"
+              onChange={(e) => {
+                const value = Number(e.target.value)
+                if (Number.isFinite(value)) {
+                  onUpdateSpeakerTransform(selectedLayer, { rotation: Math.max(-180, Math.min(180, value)) })
+                }
+              }}
+              className="w-16 bg-gray-950 border border-gray-700 rounded px-1.5 py-0.5 text-gray-200 font-mono text-[11px]"
+            />
+          </div>
         </div>
+
+        <CropControls
+          crop={project.speakers.find((s) => s.id === selectedLayer)?.crop}
+          onChange={(crop) => onSetSpeakerCrop?.(selectedLayer, crop)}
+        />
 
         {/* Coordinates X, Y */}
         <div className="grid grid-cols-2 gap-2">

@@ -1,3 +1,4 @@
+import { normalizeCrop, type Crop } from './imageCrop'
 import type {
   BugState,
   ExtraTextState,
@@ -271,6 +272,11 @@ export function updateSpeakerTransform(
     ...s,
     transform: { ...s.transform, ...transform },
   }))
+}
+
+/** Trims (or with `undefined` restores) a speaker's photo. The crop is normalized so a hand-edited value cannot hide the photo. */
+export function setSpeakerCrop(project: ThumbnailProject, speakerId: string, crop: Crop | undefined): ThumbnailProject {
+  return updateSpeaker(project, speakerId, (s) => ({ ...s, crop: normalizeCrop(crop) }))
 }
 
 export function updateSpeakerMaskOptions(

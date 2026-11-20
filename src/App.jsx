@@ -38,6 +38,7 @@ import {
   setSpeakerCutout,
   activeMaskUrl,
   updateSpeakerTransform,
+  setSpeakerCrop,
   updateSpeakerMaskOptions,
   toggleSpeakerVisibility,
   clearSpeakerImage,
@@ -336,6 +337,10 @@ function Editor({ initialProject }) {
 
   const handleUpdateSpeakerTransform = useCallback((slotId, transform) => {
     setProject((prev) => updateSpeakerTransform(prev, slotId, transform))
+  }, [])
+
+  const handleSetSpeakerCrop = useCallback((slotId, crop) => {
+    setProject((prev) => setSpeakerCrop(prev, slotId, crop))
   }, [])
 
   const handleResetSpeakerTransform = (slotId) => {
@@ -900,6 +905,7 @@ function Editor({ initialProject }) {
             onFitSticker={handleFitSticker}
             onStickerBehindText={handleStickerBehindText}
             onUpdateSpeakerTransform={handleUpdateSpeakerTransform}
+            onSetSpeakerCrop={handleSetSpeakerCrop}
             onUpdateBackground={handleUpdateBackground}
             onResetSpeakerTransform={handleResetSpeakerTransform}
             onUpdateSpeakerMaskOptions={handleUpdateSpeakerMaskOptions}

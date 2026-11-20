@@ -1,3 +1,4 @@
+import CropControls from './CropControls'
 import { ariaKeyShortcuts, shortcutTitle } from '../../modules/shortcuts/shortcuts'
 
 const BUTTON = 'text-[10px] px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700'
@@ -79,6 +80,8 @@ function BugPanel({ bug, onUpdate, onRemove, onDuplicate }) {
         format={(v) => `${v}°`}
         onChange={(rotation) => update({ rotation })}
       />
+
+      <CropControls crop={bug.crop} onChange={(crop) => update({ crop })} />
 
       <div className="flex items-center gap-3">
         <button onClick={() => update({ flipX: !bug.flipX })} className={BUTTON}>
