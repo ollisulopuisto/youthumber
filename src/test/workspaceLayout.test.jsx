@@ -53,6 +53,8 @@ describe('workspace and export defaults', () => {
 
   it('exports 1080p initially and honors later 720p choices', async () => {
     await mount()
+    // Format and size live on the Export step of the header.
+    await act(async () => host.querySelector('#toolbar-tab-export').click())
     const resolution = host.querySelector('select[title="Export resolution"]')
     expect(resolution.value).toBe('fullhd')
     const exportButton = () => [...host.querySelectorAll('button')].find(b => b.textContent.startsWith('Export '))
