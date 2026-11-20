@@ -14,6 +14,7 @@ from youthumber import native_menu
 def _fresh_module_state():
     native_menu._kept.update({"edit": [], "view": []})
     native_menu._target = None
+    native_menu._watcher = None
 
 
 class FakeItem:
@@ -481,3 +482,152 @@ def test_a_menu_command_returns_without_waiting_for_the_page(monkeypatch):
     assert time.monotonic() - start < 1.0, "the menu callback blocked on the page"
     assert entered.wait(1.0), "the evaluation never started"
     release.set()
+
+
+def readd_pywebview_menus(main):
+    """pywebview rebuilding its default menus after ours were drawn: they land at the end."""
+    for title, action in (("Edit", "cut:"), ("View", "toggleFullScreen:")):
+        top = FakeItem(title)
+        sub = FakeMenu(title)
+        sub.addItem_(FakeItem("x", action))
+        top.setSubmenu_(sub)
+        main.addItem_(top)
+
+
+def test_pywebviews_edit_and_view_added_after_ours_are_removed():
+    main = pywebview_menu()
+    run_install(
+        main,
+        spec=[SPEC[1], {"id": "view", "label": "View", "items": [item("palette")]}],
+    )
+    readd_pywebview_menus(main)
+    assert titles(main).count("Edit") == 2
+    assert native_menu.prune_duplicate_menus(main) == 2
+    assert titles(main).count("Edit") == 1 and titles(main).count("View") == 1
+    assert all(i.tag() == native_menu.MENU_TAG for i in main.items[1:])
+
+
+def test_a_default_menu_we_did_not_replace_stays():
+    main = pywebview_menu()
+    run_install(main, spec=[SPEC[0]])  # no Edit or View of ours
+    readd_pywebview_menus(main)
+    assert native_menu.prune_duplicate_menus(main) == 0
+    assert titles(main).count("Edit") == 1
+
+
+def test_the_bar_is_watched_so_late_duplicates_go_without_another_install():
+    main = pywebview_menu()
+    seen = {}
+
+    class Center:
+        @staticmethod
+        def defaultCenter():
+            return Center
+
+        @staticmethod
+        def addObserver_selector_name_object_(watcher, selector, name, obj):
+            seen.update(watcher=watcher, selector=selector, name=name)
+
+    class NSObject:
+        @classmethod
+        def alloc(cls):
+            return cls()
+
+        def init(self):
+            return self
+
+    kit = FakeAppKit(main)
+    kit.NSNotificationCenter = Center
+    kit.NSMenuDidAddItemNotification = "NSMenuDidAddItemNotification"
+    kit.NSObject = NSObject
+    ok = native_menu.install(
+        [SPEC[1]],
+        lambda payload: None,
+        platform="darwin",
+        appkit=kit,
+        main_thread=lambda fn: fn(),
+        target_factory=lambda run: type("T", (), {"run": staticmethod(run)})(),
+    )
+    assert ok and seen["name"] == "NSMenuDidAddItemNotification"
+    readd_pywebview_menus(main)
+    seen["watcher"].menuChanged_(None)
+    assert titles(main) == ["YouThumber", "Edit", "View"]
+
+
+def test_the_watcher_defers_pruning_to_the_main_thread_and_its_selector_matches():
+    """AppKit may post the notification from any thread and calls the method named by
+    the selector string. The prune must be handed to the main-thread hook rather than run
+    inline, and "menuChanged:" must be a method the watcher really has."""
+    main = pywebview_menu()
+    seen = {}
+    queued = []
+
+    class Center:
+        @staticmethod
+        def defaultCenter():
+            return Center
+
+        @staticmethod
+        def addObserver_selector_name_object_(watcher, selector, name, obj):
+            seen.update(watcher=watcher, selector=selector)
+
+    class NSObject:
+        @classmethod
+        def alloc(cls):
+            return cls()
+
+        def init(self):
+            return self
+
+    kit = FakeAppKit(main)
+    kit.NSNotificationCenter = Center
+    kit.NSMenuDidAddItemNotification = "NSMenuDidAddItemNotification"
+    kit.NSObject = NSObject
+    native_menu.install(
+        [SPEC[1]],
+        lambda payload: None,
+        platform="darwin",
+        appkit=kit,
+        main_thread=queued.append,
+        target_factory=lambda run: type("T", (), {"run": staticmethod(run)})(),
+    )
+    for job in queued:  # run the install's own queued work
+        job()
+    queued.clear()
+    assert callable(getattr(seen["watcher"], seen["selector"].replace(":", "_")))
+    readd_pywebview_menus(main)
+    seen["watcher"].menuChanged_(None)
+    assert titles(main).count("Edit") == 2, (
+        "pruned inline instead of on the main thread"
+    )
+    assert len(queued) == 1
+    queued[0]()
+    assert titles(main) == ["YouThumber", "Edit", "View"]
+
+
+def test_without_an_injected_hook_the_main_thread_hand_off_is_apphelper_callafter(
+    monkeypatch,
+):
+    """The default hook is PyObjCTools.AppHelper.callAfter, for both the first draw and
+    the watcher's later prunes. A stand-in module proves the wiring without PyObjC."""
+    import sys
+    import types
+
+    calls = []
+    helper = types.ModuleType("PyObjCTools.AppHelper")
+    helper.callAfter = lambda fn: (calls.append(fn), fn())
+    package = types.ModuleType("PyObjCTools")
+    package.AppHelper = helper
+    monkeypatch.setitem(sys.modules, "PyObjCTools", package)
+    monkeypatch.setitem(sys.modules, "PyObjCTools.AppHelper", helper)
+
+    main = pywebview_menu()
+    ok = native_menu.install(
+        [SPEC[1]],
+        lambda payload: None,
+        platform="darwin",
+        appkit=FakeAppKit(main),
+        target_factory=lambda run: type("T", (), {"run": staticmethod(run)})(),
+    )
+    assert ok
+    assert len(calls) == 1, "the first draw did not go through AppHelper.callAfter"

@@ -857,7 +857,16 @@ function Editor({ initialProject }) {
             label={selectedLayer ? layerLabel(selectedLayer, project) : ''}
             commands={selectedLayer ? barCommands(selectedLayer, project) : []}
             isEnabled={(command) => isCommandEnabled(command, { layerId: selectedLayer, project, canUndo, canRedo })}
-            onRun={(command) => runCommand(command)}
+            onRun={(command, buttonRect) => {
+              // "More…" lists everything this object can do, right under the button. The
+              // properties panel it used to scroll to is usually on screen already, so
+              // nothing seemed to happen.
+              if (command.id === 'properties' && buttonRect) {
+                setContextMenu({ layerId: selectedLayer, x: buttonRect.left, y: buttonRect.bottom + 4 })
+              } else {
+                runCommand(command)
+              }
+            }}
           />
           <ContextMenu
             menu={contextMenu}

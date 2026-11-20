@@ -8,6 +8,8 @@ import { ShortcutKeys } from './Kbd'
  * A few commands for the selected canvas object, floating just above it (below it when
  * there's no room). `rect` is the object's box in window pixels, null to hide. Rendered
  * into <body> so the canvas frame's overflow doesn't clip it; it never takes focus itself.
+ * `onRun(command, buttonRect)`: the clicked button's box in window pixels, so "More…" can open
+ * a menu right under it.
  */
 function SelectionActionBar({ rect, viewportRef, label, commands, isEnabled, onRun }) {
   const barRef = useRef(null)
@@ -62,7 +64,7 @@ function SelectionActionBar({ rect, viewportRef, label, commands, isEnabled, onR
           <button
             key={command.id}
             type="button"
-            onClick={() => onRun(command)}
+            onClick={(e) => onRun(command, e.currentTarget.getBoundingClientRect())}
             disabled={!enabled}
             title={command.shortcutId ? shortcutTitle(command.shortcutId, command.label) : more ? 'Show all properties' : command.label}
             aria-keyshortcuts={command.shortcutId ? ariaKeyShortcuts(command.shortcutId) : undefined}
