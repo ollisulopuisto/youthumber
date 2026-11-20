@@ -27,32 +27,79 @@ def write_data_url_to_path(data_url: str, path: str) -> None:
     Path(path).write_bytes(base64.b64decode(encoded))
 
 
+def unique_path(path: str) -> str:
+    """``path`` with " (2)", " (3)"... before the extension until nothing is there."""
+    p = Path(path)
+    n = 2
+    while True:
+        candidate = p.with_name(f"{p.stem} ({n}){p.suffix}")
+        if not candidate.exists():
+            return str(candidate)
+        n += 1
+
+
 class DesktopApi:
     """Methods exposed to the frontend as ``window.pywebview.api.*``."""
 
-    def save_image(self, data_url: str, filename: str) -> str | None:
+    def __init__(self) -> None:
+        #: Paths the Save panel returned that already exist, waiting for the page's
+        #: Replace / Keep both answer. ``save_image_to`` writes nowhere else.
+        self._pending: set[str] = set()
+
+    def save_image(self, data_url: str, filename: str) -> dict[str, str]:
         """Asks where to save an exported thumbnail via a native Save dialog, then writes it.
 
         pywebview ships with downloads disabled, so the browser-style ``<a download>``
-        export silently does nothing inside the desktop window. Returns the saved path,
-        or None if the user cancelled.
+        export silently does nothing inside the desktop window. Never raises: an error
+        raised here reached the page as nothing at all, so every outcome is a result,
+        ``{"status": "saved" | "cancelled" | "exists" | "error", "path"?, "message"?}``.
+        ``exists`` means the chosen file is already there; the page asks, then calls
+        ``save_image_to``.
         """
-        import webview
+        try:
+            import webview
 
-        window = webview.windows[0] if webview.windows else None
-        if window is None:
-            return None
+            window = webview.windows[0] if webview.windows else None
+            if window is None:
+                return {"status": "error", "message": "The app window is not ready."}
 
-        result = window.create_file_dialog(
-            webview.FileDialog.SAVE,
-            directory=str(Path.home() / "Downloads"),
-            save_filename=filename,
-        )
-        if not result:
-            return None
-        path = result if isinstance(result, str) else result[0]
-        write_data_url_to_path(data_url, path)
-        return path
+            result = window.create_file_dialog(
+                webview.FileDialog.SAVE,
+                directory=str(Path.home() / "Downloads"),
+                save_filename=filename,
+            )
+            if not result:
+                return {"status": "cancelled"}
+            path = str(result if isinstance(result, str) else result[0])
+            if Path(path).exists():
+                self._pending.add(path)
+                return {"status": "exists", "path": path}
+            return self._write(data_url, path)
+        except Exception as e:  # noqa: BLE001 - the page must hear about any failure, never silence
+            logger.exception("save_image failed")
+            return {"status": "error", "message": f"Could not save the export: {e}"}
+
+    def save_image_to(self, data_url: str, path: str, mode: str) -> dict[str, str]:
+        """Finishes an export whose file existed. ``mode``: ``replace`` or ``keep_both``
+        (writes ``name (2).jpg`` beside it). Only a path ``save_image`` returned as
+        ``exists`` is accepted."""
+        if path not in self._pending:
+            return {"status": "error", "message": "That export is no longer waiting."}
+        self._pending.discard(path)
+        if mode == "keep_both":
+            path = unique_path(path)
+        elif mode != "replace":
+            return {"status": "error", "message": f"Unknown choice: {mode}"}
+        return self._write(data_url, path)
+
+    @staticmethod
+    def _write(data_url: str, path: str) -> dict[str, str]:
+        try:
+            write_data_url_to_path(data_url, path)
+        except Exception as e:  # noqa: BLE001 - permission, disk full, bad data: all must be shown
+            logger.exception("writing the export failed: %s", path)
+            return {"status": "error", "message": f"Could not write {path}: {e}"}
+        return {"status": "saved", "path": path}
 
     def pick_video_file(self) -> str | None:
         """Opens a native file dialog and returns the selected video's absolute path, or None."""

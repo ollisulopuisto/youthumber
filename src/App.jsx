@@ -24,6 +24,7 @@ import { barCommands, commandForId, commandForShortcut, isCommandEnabled, layerL
 import { installNativeMenusWhenReady } from './services/nativeMenu'
 import { isDesktopVideoScanAvailable } from './services/videoScan'
 import CommandPalette from './components/ThumbnailEditor/CommandPalette'
+import ExportPromptModal from './components/ThumbnailEditor/ExportPromptModal'
 import SelectionActionBar from './components/ThumbnailEditor/SelectionActionBar'
 import ContextMenu from './components/ThumbnailEditor/ContextMenu'
 
@@ -157,6 +158,8 @@ function Editor({ initialProject }) {
   const canvasRef = useRef(null)
   const canvasAreaRef = useRef(null)
   const [selectionRect, setSelectionRect] = useState(null)
+  // The export's question for the user: { kind: 'exists', path, resolve } or { kind: 'error', message }.
+  const [exportPrompt, setExportPrompt] = useState(null)
   const [contextMenu, setContextMenu] = useState(null)
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
   const [saveStatus, setSaveStatus] = useState('idle') // idle | saving | saved
@@ -248,12 +251,21 @@ function Editor({ initialProject }) {
         quality,
         scale,
         filename: createExportFilename(project, exportWidth, exportHeight, format),
+        askReplace: (path) => new Promise((resolve) => setExportPrompt({ kind: 'exists', path, resolve })),
       })
       if (result?.savedPath) alert(`Exported to ${result.savedPath}`)
     } catch (err) {
-      alert(`Export failed: ${err.message}`)
+      // A dialog, not only an alert: the desktop window may not show alerts.
+      setExportPrompt({ kind: 'error', message: err.message })
     }
   }
+
+  const answerExportPrompt = useCallback((choice) => {
+    setExportPrompt((prompt) => {
+      prompt?.resolve?.(choice)
+      return null
+    })
+  }, [])
 
   // Speaker Actions
   const handleUploadSpeakerSource = (slotId, sourceUrl, metadata) => {
@@ -605,7 +617,7 @@ function Editor({ initialProject }) {
 
   // Commands (modules/commands) are what the keys, the selection bar, the right-click menu
   // and the command palette run; the keys themselves live in modules/shortcuts.
-  const anyModalOpen = showProjectsModal || showShowsModal || showElementPicker || showShortcuts || whatsNew !== null
+  const anyModalOpen = showProjectsModal || showShowsModal || showElementPicker || showShortcuts || whatsNew !== null || exportPrompt !== null
 
   const handleDeleteSelected = (layerId) => {
     if (isExtraTextLayer(layerId)) handleRemoveText(layerId)
@@ -946,6 +958,9 @@ function Editor({ initialProject }) {
           onAssign={handleUploadSpeakerSource}
           onClose={() => setVideoScan(undefined)}
         />
+      )}
+      {exportPrompt && (
+        <ExportPromptModal kind={exportPrompt.kind} path={exportPrompt.path} message={exportPrompt.message} onChoose={answerExportPrompt} />
       )}
       {whatsNew && (
         <WhatsNewModal version={whatsNew.version} entries={whatsNew.entries} onClose={closeWhatsNew} />
