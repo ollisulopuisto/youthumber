@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from 'react'
 import * as fabric from 'fabric'
+import { cropOffset, cropSource, normalizeCrop, visibleShare } from '../../modules/thumbnail/imageCrop'
 import {
   isSpeakerLayer,
   isStickerLayer,
@@ -28,6 +29,38 @@ const MAX_BACKGROUND_SIDE = 4096
 if (fabric.config.textureSize < MAX_BACKGROUND_SIDE) {
   fabric.config.textureSize = MAX_BACKGROUND_SIDE
   fabric.setFilterBackend(fabric.initFilterBackend())
+}
+
+/**
+ * Puts an image layer on the canvas. The layer's x, y, scale and angle are those of the whole
+ * (uncropped) image; a crop shows part of it, drawn so the kept pixels stay where they were.
+ * The image's full size is kept in data.naturalWidth/Height, since width/height shrink with the crop.
+ */
+function placeImage(img, rawCrop, x, y, scaleX, scaleY, angle, flipX) {
+  const crop = normalizeCrop(rawCrop)
+  const { naturalWidth, naturalHeight } = img.data
+  const source = cropSource(naturalWidth, naturalHeight, crop)
+  const offset = cropOffset(naturalWidth, naturalHeight, crop, scaleX, scaleY, angle, flipX)
+  img.set({
+    cropX: source.cropX,
+    cropY: source.cropY,
+    width: source.width,
+    height: source.height,
+    left: x + offset.dx,
+    top: y + offset.dy,
+    scaleX,
+    scaleY,
+    angle,
+    flipX,
+  })
+  img.data.crop = crop
+}
+
+/** The whole image's centre for an image layer the user has just moved or resized. */
+function anchorOf(obj) {
+  const { naturalWidth, naturalHeight, crop } = obj.data
+  const offset = cropOffset(naturalWidth, naturalHeight, crop, obj.scaleX || 1, obj.scaleY || 1, obj.angle || 0, !!obj.flipX)
+  return { x: Math.round((obj.left || 0) - offset.dx), y: Math.round((obj.top || 0) - offset.dy) }
 }
 
 function ThumbnailStudioCanvas(
@@ -180,9 +213,10 @@ function ThumbnailStudioCanvas(
       const layerId = obj.data.layerId
 
       if (isSpeakerLayer(layerId)) {
+        const anchor = anchorOf(obj)
         onUpdateSpeakerTransform?.(layerId, {
-          x: Math.round(obj.left || 0),
-          y: Math.round(obj.top || 0),
+          x: anchor.x,
+          y: anchor.y,
           scaleX: Number((obj.scaleX || 1).toFixed(3)),
           scaleY: Number((obj.scaleY || 1).toFixed(3)),
           rotation: Math.round(obj.angle || 0),
@@ -200,11 +234,13 @@ function ThumbnailStudioCanvas(
         })
       } else if (isBugLayer(layerId)) {
         // Like elements: resizing changes the size, and the image is re-scaled from it.
+        const anchor = anchorOf(obj)
+        const share = visibleShare(obj.data.crop)
         onUpdateBug?.(layerId, {
-          x: Math.round(obj.left || 0),
-          y: Math.round(obj.top || 0),
-          width: Math.round(obj.getScaledWidth()),
-          height: Math.round(obj.getScaledHeight()),
+          x: anchor.x,
+          y: anchor.y,
+          width: Math.round(obj.getScaledWidth() / share.x),
+          height: Math.round(obj.getScaledHeight() / share.y),
           rotation: Math.round(obj.angle || 0),
           flipX: !!obj.flipX,
         })
@@ -387,15 +423,9 @@ function ThumbnailStudioCanvas(
 
     if (existing && existing.data?.currentSrc === imageSrc) {
       // Just update transform
-      existing.set({
-        left: speakerState.transform.x,
-        top: speakerState.transform.y,
-        scaleX: speakerState.transform.scaleX,
-        scaleY: speakerState.transform.scaleY,
-        angle: speakerState.transform.rotation,
-        flipX: !!speakerState.transform.flipX,
-        visible: speakerState.visible,
-      })
+      const t = speakerState.transform
+      placeImage(existing, speakerState.crop, t.x, t.y, t.scaleX, t.scaleY, t.rotation, !!t.flipX)
+      existing.set({ visible: speakerState.visible })
       existing.setCoords()
     } else {
       if (existing) {
@@ -411,13 +441,7 @@ function ThumbnailStudioCanvas(
         // Auto-frame may have moved the speaker while the image decoded.
         const { transform } = latest
         img.set({
-          data: { layerId, currentSrc: imageSrc },
-          left: transform.x,
-          top: transform.y,
-          scaleX: transform.scaleX,
-          scaleY: transform.scaleY,
-          angle: transform.rotation,
-          flipX: !!transform.flipX,
+          data: { layerId, currentSrc: imageSrc, naturalWidth: img.width, naturalHeight: img.height },
           originX: 'center',
           originY: 'center',
           // Clicks on a cutout's transparent area reach whatever is visible below it.
@@ -430,6 +454,8 @@ function ThumbnailStudioCanvas(
           borderScaleFactor: 2,
           hasRotatingPoint: true,
         })
+        placeImage(img, latest.crop, transform.x, transform.y, transform.scaleX, transform.scaleY, transform.rotation, !!transform.flipX)
+        img.setCoords()
         live.add(img)
         reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
         live.requestRenderAll()
@@ -584,23 +610,21 @@ function ThumbnailStudioCanvas(
         if (existing) canvas.remove(existing)
         continue
       }
-      const placement = (img) => ({
-        left: bug.x,
-        top: bug.y,
-        scaleX: bug.width / (img.width || 1),
-        scaleY: bug.height / (img.height || 1),
-        angle: bug.rotation,
-        flipX: !!bug.flipX,
-        opacity: bug.opacity,
-        shadow: bug.shadow
-          ? new fabric.Shadow({ color: 'rgba(0,0,0,0.6)', blur: 12, offsetX: 3, offsetY: 5 })
-          : null,
-      })
+      const place = (img) => {
+        const { naturalWidth, naturalHeight } = img.data
+        placeImage(img, bug.crop, bug.x, bug.y, bug.width / (naturalWidth || 1), bug.height / (naturalHeight || 1), bug.rotation, !!bug.flipX)
+        img.set({
+          opacity: bug.opacity,
+          shadow: bug.shadow
+            ? new fabric.Shadow({ color: 'rgba(0,0,0,0.6)', blur: 12, offsetX: 3, offsetY: 5 })
+            : null,
+        })
+        img.setCoords()
+      }
       if (existing && existing.data?.currentSrc === bug.imageUrl) {
         if (existing.data.lastState === bug) continue
         existing.data.lastState = bug
-        existing.set(placement(existing))
-        existing.setCoords()
+        place(existing)
         continue
       }
       if (existing) canvas.remove(existing)
@@ -610,7 +634,7 @@ function ThumbnailStudioCanvas(
         // A sync that ran while this image loaded may already have added it.
         if (live.getObjects().some((o) => o.data?.layerId === bug.id)) return
         img.set({
-          data: { layerId: bug.id, currentSrc: bug.imageUrl, lastState: bug },
+          data: { layerId: bug.id, currentSrc: bug.imageUrl, lastState: bug, naturalWidth: img.width, naturalHeight: img.height },
           originX: 'center',
           originY: 'center',
           perPixelTargetFind: true,
@@ -621,8 +645,7 @@ function ThumbnailStudioCanvas(
           borderColor: '#0284C7',
           lockUniScaling: false,
         })
-        img.set(placement(img))
-        img.setCoords()
+        place(img)
         live.add(img)
         reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
         live.requestRenderAll()

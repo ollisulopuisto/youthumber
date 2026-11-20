@@ -1,3 +1,4 @@
+import type { Crop } from '../modules/thumbnail/imageCrop'
 export interface TransformState {
   x: number
   y: number
@@ -35,6 +36,8 @@ export interface SpeakerState {
   transform: TransformState
   maskOptions?: MaskRefinementOptions
   removerId?: string
+  /** Part of the photo trimmed away, as fractions of its edges. Missing means uncropped. */
+  crop?: Crop
 }
 
 export interface BackgroundGradient {
@@ -164,6 +167,8 @@ export interface BugState {
   shadow: boolean
   visible: boolean
   flipX?: boolean
+  /** Part of the logo trimmed away. x, y, width and height describe the whole, uncropped image. */
+  crop?: Crop
 }
 
 /** 'background', 'decor', 'text', a speaker's id (`spk_…`), an element's id (`stk_…`), an extra text's id (`txt_…`) or a bug's id (`bug_…`). */

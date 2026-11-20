@@ -1,3 +1,5 @@
+import CropControls from './CropControls'
+import AngleField from './AngleField'
 import { useCallback } from 'react'
 import { backgroundGradientPresets } from '../../data/backgroundGradients'
 import { speakerLabel } from '../../modules/thumbnail/thumbnailState'
@@ -115,6 +117,7 @@ function PropertiesPanel({
   onDuplicateText,
   onRemoveText,
   onUpdateSpeakerTransform,
+  onSetSpeakerCrop,
   onUpdateBackground,
   onResetSpeakerTransform,
   onUpdateSpeakerMaskOptions,
@@ -557,18 +560,31 @@ function PropertiesPanel({
             <span className="text-gray-400">Rotation</span>
             <span className="font-mono text-gray-200">{transform.rotation}°</span>
           </div>
-          <input
-            type="range"
-            min={-45}
-            max={45}
-            step={1}
-            value={transform.rotation}
-            onChange={(e) =>
-              onUpdateSpeakerTransform(selectedLayer, { rotation: Number(e.target.value) })
-            }
-            className="w-full accent-sky-500"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={transform.rotation}
+              aria-label="Rotation"
+              onChange={(e) =>
+                onUpdateSpeakerTransform(selectedLayer, { rotation: Number(e.target.value) })
+              }
+              className="flex-1 accent-sky-500"
+            />
+            <AngleField
+              label="Rotation in degrees"
+              value={transform.rotation}
+              onChange={(rotation) => onUpdateSpeakerTransform(selectedLayer, { rotation })}
+            />
+          </div>
         </div>
+
+        <CropControls
+          crop={project.speakers.find((s) => s.id === selectedLayer)?.crop}
+          onChange={(crop) => onSetSpeakerCrop?.(selectedLayer, crop)}
+        />
 
         {/* Coordinates X, Y */}
         <div className="grid grid-cols-2 gap-2">
