@@ -552,3 +552,54 @@ def test_the_bar_is_watched_so_late_duplicates_go_without_another_install():
     readd_pywebview_menus(main)
     seen["watcher"].menuChanged_(None)
     assert titles(main) == ["YouThumber", "Edit", "View"]
+
+
+def test_the_watcher_defers_pruning_to_the_main_thread_and_its_selector_matches():
+    """AppKit may post the notification from any thread and calls the method named by
+    the selector string. The prune must be handed to the main-thread hook rather than run
+    inline, and "menuChanged:" must be a method the watcher really has."""
+    main = pywebview_menu()
+    seen = {}
+    queued = []
+
+    class Center:
+        @staticmethod
+        def defaultCenter():
+            return Center
+
+        @staticmethod
+        def addObserver_selector_name_object_(watcher, selector, name, obj):
+            seen.update(watcher=watcher, selector=selector)
+
+    class NSObject:
+        @classmethod
+        def alloc(cls):
+            return cls()
+
+        def init(self):
+            return self
+
+    kit = FakeAppKit(main)
+    kit.NSNotificationCenter = Center
+    kit.NSMenuDidAddItemNotification = "NSMenuDidAddItemNotification"
+    kit.NSObject = NSObject
+    native_menu.install(
+        [SPEC[1]],
+        lambda payload: None,
+        platform="darwin",
+        appkit=kit,
+        main_thread=queued.append,
+        target_factory=lambda run: type("T", (), {"run": staticmethod(run)})(),
+    )
+    for job in queued:  # run the install's own queued work
+        job()
+    queued.clear()
+    assert callable(getattr(seen["watcher"], seen["selector"].replace(":", "_")))
+    readd_pywebview_menus(main)
+    seen["watcher"].menuChanged_(None)
+    assert titles(main).count("Edit") == 2, (
+        "pruned inline instead of on the main thread"
+    )
+    assert len(queued) == 1
+    queued[0]()
+    assert titles(main) == ["YouThumber", "Edit", "View"]
