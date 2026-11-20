@@ -2,6 +2,38 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.20.2] - 2026-11-20
+
+Covers everything merged since 26.11.10.2.
+
+### Added
+- Crop speaker photos and logos, and rotate them freely with a number field (PR #131).
+- Portrait projects can stack panels with the wide panel on top or on the bottom (PR #132).
+- The header now has four step tabs, Setup, Faces, Edit and Export, each showing only its own controls, instead of one crowded band (PR #133).
+- A native macOS menu bar on the desktop window, with every editor command in it and File > New Project (PRs #115, #116).
+- Delete speaker layers, with a delete button on every deletable layer row (PR #118).
+- Import videos by dropping them on the window or from the toolbar (PR #123).
+- A manual portrait/landscape orientation toggle.
+- A packaged-build bridge diagnostics log (PR #126).
+- A Finder DMG welcome layout with bilingual artwork (PR #103).
+
+### Changed
+- The save confirmation no longer blocks the window (PR #113).
+- Toolbar buttons, font and weight options and the speaker-count control show a visible focus outline (PRs #102, #104 and the toolbar focus change).
+
+### Fixed
+- Export shows every failure and asks before replacing an existing file (PR #130).
+- The More... button opens the selected object's command menu, and the duplicate Edit and View menus are gone (PR #129).
+- The video-scan buttons appear when the pywebview bridge arrives late (PR #117).
+- New Project alerts visibly when it cannot save first (PR #120).
+- The packaged build includes the webview import package (PR #121), allows pywebview's eval bridge in its CSP and calls multiprocessing.freeze_support().
+
+### Security
+- Limit concurrent video speaker scan jobs, so a burst of requests cannot exhaust the server (PR #106).
+
+### Performance
+- Faster mask combining, using a separable box blur with a bounded reach (PR #105).
+
 ## [26.11.10.2] - 2026-11-10
 
 ### Fixed
