@@ -120,13 +120,29 @@ def test_a_failing_replace_comes_back_as_an_error(chosen, tmp_path, monkeypatch)
     assert target.read_bytes() == b"old"
 
 
-def test_keep_both_never_overwrites_a_name_taken_after_the_check(tmp_path):
-    """Two exports racing for "(2)": the loser must move on, not truncate the winner's file."""
+def test_keep_both_never_overwrites_a_name_taken_after_the_check(tmp_path, monkeypatch):
+    """Another process takes "(2)" between choosing the name and creating the file.
+
+    The competing file appears immediately before our ``open``, so a check-then-write
+    implementation (look for a free name, then write it) would truncate it.
+    """
     url = "data:image/png;base64," + base64.b64encode(b"new").decode()
     target = tmp_path / "t.png"
     target.write_bytes(b"orig")
-    (tmp_path / "t (2).png").write_bytes(b"other process")
+    taken = tmp_path / "t (2).png"
+    real_open = open
+    raced = []
+
+    def racing_open(file, mode="r", *args, **kwargs):
+        if Path(file) == taken and not raced:
+            raced.append(True)
+            taken.write_bytes(b"other process")
+        return real_open(file, mode, *args, **kwargs)
+
+    monkeypatch.setattr(gui, "open", racing_open, raising=False)
     written = gui.write_data_url_unique(url, str(target))
+    assert raced
     assert written == str(tmp_path / "t (3).png")
-    assert (tmp_path / "t (2).png").read_bytes() == b"other process"
+    assert taken.read_bytes() == b"other process"
+    assert Path(written).read_bytes() == b"new"
     assert target.read_bytes() == b"orig"

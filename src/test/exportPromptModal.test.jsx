@@ -43,3 +43,37 @@ it('shows the failure reason', () => {
   expect(document.body.textContent).toContain('Export failed')
   expect(document.body.textContent).toContain('Could not write /d/thumb.jpg: denied')
 })
+
+const tab = (shiftKey = false) =>
+  act(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true })))
+
+it('keeps Tab inside the dialog and wraps at both ends', () => {
+  show({ kind: 'exists', path: '/d/thumb.jpg', onChoose: () => {} })
+  expect(document.activeElement).toBe(button('Cancel'))
+  tab()
+  expect(document.activeElement).toBe(button('Keep both'))
+  tab()
+  expect(document.activeElement).toBe(button('Replace'))
+  tab()
+  expect(document.activeElement).toBe(button('Cancel'))
+  tab(true)
+  expect(document.activeElement).toBe(button('Replace'))
+})
+
+it('pulls focus back into the dialog when it sits on a background control', () => {
+  const outside = document.createElement('button')
+  document.body.append(outside)
+  show({ kind: 'exists', path: '/d/thumb.jpg', onChoose: () => {} })
+  outside.focus()
+  tab()
+  expect(document.activeElement).toBe(button('Cancel'))
+  outside.remove()
+})
+
+it('has a single stop on the error dialog', () => {
+  show({ kind: 'error', message: 'Disk full', onChoose: () => {} })
+  tab()
+  expect(document.activeElement).toBe(button('OK'))
+  tab(true)
+  expect(document.activeElement).toBe(button('OK'))
+})

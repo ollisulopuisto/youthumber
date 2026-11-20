@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react'
  */
 function ExportPromptModal({ kind, path, message, onChoose }) {
   const safeRef = useRef(null)
+  const dialogRef = useRef(null)
 
   useEffect(() => {
     const opener = document.activeElement
@@ -15,6 +16,15 @@ function ExportPromptModal({ kind, path, message, onChoose }) {
       if (e.key === 'Escape') {
         e.preventDefault()
         onChoose('cancel')
+      } else if (e.key === 'Tab') {
+        // Keep focus on the dialog's buttons: Tab and Shift+Tab wrap, and focus that
+        // somehow sits outside is pulled back in.
+        const stops = [...(dialogRef.current?.querySelectorAll('button:not([disabled])') ?? [])]
+        if (stops.length === 0) return
+        const index = stops.indexOf(document.activeElement)
+        const next = index === -1 ? (e.shiftKey ? stops.length - 1 : 0) : (index + (e.shiftKey ? -1 : 1) + stops.length) % stops.length
+        e.preventDefault()
+        stops[next].focus()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -31,6 +41,7 @@ function ExportPromptModal({ kind, path, message, onChoose }) {
   return (
     <div
       className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+      ref={dialogRef}
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="export-prompt-title"
