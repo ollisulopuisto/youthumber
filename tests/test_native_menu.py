@@ -603,3 +603,31 @@ def test_the_watcher_defers_pruning_to_the_main_thread_and_its_selector_matches(
     assert len(queued) == 1
     queued[0]()
     assert titles(main) == ["YouThumber", "Edit", "View"]
+
+
+def test_without_an_injected_hook_the_main_thread_hand_off_is_apphelper_callafter(
+    monkeypatch,
+):
+    """The default hook is PyObjCTools.AppHelper.callAfter, for both the first draw and
+    the watcher's later prunes. A stand-in module proves the wiring without PyObjC."""
+    import sys
+    import types
+
+    calls = []
+    helper = types.ModuleType("PyObjCTools.AppHelper")
+    helper.callAfter = lambda fn: (calls.append(fn), fn())
+    package = types.ModuleType("PyObjCTools")
+    package.AppHelper = helper
+    monkeypatch.setitem(sys.modules, "PyObjCTools", package)
+    monkeypatch.setitem(sys.modules, "PyObjCTools.AppHelper", helper)
+
+    main = pywebview_menu()
+    ok = native_menu.install(
+        [SPEC[1]],
+        lambda payload: None,
+        platform="darwin",
+        appkit=FakeAppKit(main),
+        target_factory=lambda run: type("T", (), {"run": staticmethod(run)})(),
+    )
+    assert ok
+    assert len(calls) == 1, "the first draw did not go through AppHelper.callAfter"
