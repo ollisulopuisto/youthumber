@@ -1,4 +1,4 @@
-import type { LayoutPreset, SlotLayout } from '../../types/thumbnail'
+import type { LayoutPreset, PanelRect, SlotLayout } from '../../types/thumbnail'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './canvasSize'
 
 export const MAX_SPEAKERS = 4
@@ -12,11 +12,37 @@ const portraitTextStyle: LayoutPreset['textStyleAndPosition'] = {
   transform: { x: PORTRAIT_WIDTH / 2, y: 90, scaleX: 1, scaleY: 1, rotation: 0 }, visible: true,
 }
 
+// Panel layouts mirror Autoraffkat's 1080x1920 vertical exports scaled to this 720x1280
+// canvas (x 2/3): two halves of 720x640, or a 16:9 wide panel (1080x608 there, 720x405 here)
+// with the close-up taking the rest (720x875).
+const WIDE_PANEL_HEIGHT = 405
+const HALF_PANEL_HEIGHT = 640
+
+function panelSlot(panel: PanelRect, personHeight: number, scale: number): SlotLayout {
+  const centerX = panel.x + panel.width / 2
+  // The person sits low in the panel so the head has room above it.
+  const centerY = panel.y + panel.height * 0.55
+  return {
+    transform: { x: centerX, y: centerY, scaleX: scale, scaleY: scale, rotation: 0 },
+    frame: { centerX, centerY, personHeight },
+    panel,
+  }
+}
+
+const WIDE_PANEL: PanelRect = { x: 0, y: 0, width: PORTRAIT_WIDTH, height: WIDE_PANEL_HEIGHT }
+const CLOSE_PANEL: PanelRect = { x: 0, y: WIDE_PANEL_HEIGHT, width: PORTRAIT_WIDTH, height: 1280 - WIDE_PANEL_HEIGHT }
+
 const PORTRAIT_LAYOUTS: LayoutPreset[] = [
   { id: 'portrait-solo-spotlight', name: 'Solo Spotlight', description: 'One large speaker beneath a bold title', speakerCount: 1,
     slots: [{ transform: { x: 360, y: 850, scaleX: 1.15, scaleY: 1.15, rotation: 0 }, frame: { centerX: 360, centerY: 800, personHeight: 1000 } }], textStyleAndPosition: portraitTextStyle },
   { id: 'portrait-stacked-duo', name: 'Stacked Duo', description: 'Two speakers arranged top and bottom for portrait video', speakerCount: 2,
     slots: [320, 930].map((y) => ({ transform: { x: 360, y, scaleX: 0.76, scaleY: 0.76, rotation: 0 }, frame: { centerX: 360, centerY: y, personHeight: 570 } })), textStyleAndPosition: portraitTextStyle },
+  { id: 'portrait-stacked-panels', name: 'Stacked Panels', description: 'Two speakers in equal 720x640 panels, top and bottom, like the stacked vertical video', speakerCount: 2,
+    slots: [0, 1].map((i) => panelSlot({ x: 0, y: i * HALF_PANEL_HEIGHT, width: PORTRAIT_WIDTH, height: HALF_PANEL_HEIGHT }, 560, 0.7)), textStyleAndPosition: portraitTextStyle },
+  { id: 'portrait-wide-top', name: 'Wide on Top', description: 'Wide-shot panel above a large close-up panel', speakerCount: 2,
+    slots: [panelSlot(WIDE_PANEL, 360, 0.45), panelSlot(CLOSE_PANEL, 800, 1.0)], textStyleAndPosition: portraitTextStyle },
+  { id: 'portrait-wide-bottom', name: 'Wide on Bottom', description: 'Large close-up panel above a wide-shot panel', speakerCount: 2,
+    slots: [panelSlot({ ...CLOSE_PANEL, y: 0 }, 800, 1.0), panelSlot({ ...WIDE_PANEL, y: 1280 - WIDE_PANEL_HEIGHT }, 360, 0.45)], textStyleAndPosition: portraitTextStyle },
   { id: 'portrait-three-up', name: 'Three-Up Panel', description: 'Three speakers in a vertical stack', speakerCount: 3,
     slots: [280, 650, 1020].map((y) => ({ transform: { x: 360, y, scaleX: 0.58, scaleY: 0.58, rotation: 0 }, frame: { centerX: 360, centerY: y, personHeight: 390 } })), textStyleAndPosition: portraitTextStyle },
   { id: 'portrait-four-grid', name: 'Four-Corner Grid', description: 'Four speakers in a compact two-by-two grid', speakerCount: 4,

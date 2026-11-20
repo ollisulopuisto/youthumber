@@ -1,5 +1,6 @@
 import { normalizeCrop, type Crop } from './imageCrop'
 import type {
+  PanelRect,
   BugState,
   ExtraTextState,
   StickerState,
@@ -186,6 +187,15 @@ export function slotFrameFor(project: ThumbnailProject, speakerId: string): Slot
   const index = project.speakers.findIndex((s) => s.id === speakerId)
   if (index < 0) return undefined
   return currentLayout(project).slots[index]?.frame
+}
+
+/** The panel a speaker is clipped to in the current layout, if the layout has panels. */
+export function panelFor(project: ThumbnailProject, speakerId: string): PanelRect | undefined {
+  const index = project.speakers.findIndex((s) => s.id === speakerId)
+  if (index < 0) return undefined
+  const layout = getLayout(project.layoutId)
+  if (!layout || layout.speakerCount !== project.speakers.length) return undefined
+  return layout.slots[index]?.panel
 }
 
 function updateSpeaker(

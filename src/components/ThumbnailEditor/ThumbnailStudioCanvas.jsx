@@ -1,12 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useImperativeHandle } from 'react'
 import * as fabric from 'fabric'
 import { cropOffset, cropSource, normalizeCrop, visibleShare } from '../../modules/thumbnail/imageCrop'
+import { clipToPanel } from '../../modules/thumbnail/panelClip'
 import {
   isSpeakerLayer,
   isStickerLayer,
   isTextLayer,
   isExtraTextLayer,
   isBugLayer,
+  panelFor,
 } from '../../modules/thumbnail/thumbnailState'
 import { ElementObject, elementObjectProps } from '../../modules/thumbnail/elementObject'
 import { saveExportedImage } from '../../services/exportImage'
@@ -456,6 +458,7 @@ function ThumbnailStudioCanvas(
         })
         placeImage(img, latest.crop, transform.x, transform.y, transform.scaleX, transform.scaleY, transform.rotation, !!transform.flipX)
         img.setCoords()
+        clipToPanel(img, panelFor(latestProjectRef.current, layerId))
         live.add(img)
         reorderCanvasObjects(live, latestProjectRef.current.layerOrder)
         live.requestRenderAll()
@@ -722,6 +725,8 @@ function ThumbnailStudioCanvas(
 
     for (const speaker of project.speakers) {
       syncSpeakerObject(canvas, speaker, speaker.id)
+      const object = canvas.getObjects().find((o) => o.data?.layerId === speaker.id)
+      if (object) clipToPanel(object, panelFor(project, speaker.id))
     }
 
     // Sync Text layer
