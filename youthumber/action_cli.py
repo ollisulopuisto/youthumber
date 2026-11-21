@@ -31,7 +31,11 @@ def _read_batch(source: str) -> Any:
             mode = target.stat().st_mode
             is_file = stat.S_ISREG(mode) or stat.S_ISFIFO(mode)
         except OSError as exc:
-            if exc.errno not in (errno.ENAMETOOLONG, errno.ENOENT, errno.ENOTDIR):
+            invalid_windows_name = getattr(exc, "winerror", None) == 123
+            if (
+                exc.errno not in (errno.ENAMETOOLONG, errno.ENOENT, errno.ENOTDIR)
+                and not invalid_windows_name
+            ):
                 raise
             is_file = False
         if is_file:

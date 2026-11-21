@@ -46,3 +46,7 @@ Devin follow-up: a directory named like inline JSON could shadow the batch.
 Added a failing process test, then limited path precedence to regular files and
 FIFOs using one stat call. Existing file, process-substitution and long-inline
 regressions remain in the suite.
+
+Devin Windows follow-up: reproduced WinError 123 filename probe rejecting valid
+inline JSON. Only that Windows error now falls through; permission errors still
+fail closed. Two new tests, full suite 209 passed and 16 platform skips.

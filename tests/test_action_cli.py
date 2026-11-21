@@ -306,3 +306,37 @@ def test_directory_does_not_shadow_inline_batch(tmp_path):
     result = run_cli("--run-actions", "[]", cwd=tmp_path)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["version"] == 2
+
+
+def test_windows_invalid_filename_probe_falls_back_to_inline(monkeypatch, capsys):
+    import errno
+
+    from youthumber.action_cli import run_actions
+
+    def invalid_name(_self):
+        error = OSError(errno.EINVAL, "Invalid Windows filename")
+        error.winerror = 123
+        raise error
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "stat", invalid_name)
+        code = run_actions('[{"action":"create_project","params":{"name":"Windows"}}]')
+    assert code == 0
+    assert json.loads(capsys.readouterr().out)["name"] == "Windows"
+
+
+def test_other_path_probe_errors_are_not_suppressed(monkeypatch, capsys):
+    import errno
+
+    from youthumber.action_cli import run_actions
+
+    def denied(_self):
+        raise OSError(errno.EACCES, "Denied")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "stat", denied)
+        code = run_actions('[{"action":"create_project"}]')
+    assert code == 2
+    result = capsys.readouterr()
+    assert result.out == ""
+    assert "Denied" in json.loads(result.err)["error"]["message"]
