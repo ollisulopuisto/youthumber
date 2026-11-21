@@ -19,7 +19,10 @@ def _reject_constant(value: str) -> None:
 
 def _read_batch(source: str) -> Any:
     if source == "-":
-        raw = sys.stdin.read(MAX_INPUT_BYTES + 1)
+        raw_bytes = sys.stdin.buffer.read(MAX_INPUT_BYTES + 1)
+        if len(raw_bytes) > MAX_INPUT_BYTES:
+            raise ValueError(f"Input exceeds {MAX_INPUT_BYTES} UTF-8 bytes")
+        raw = raw_bytes.decode("utf-8")
     elif source.lstrip().startswith(("[", "{")):
         # Parse JSON before considering a path. A valid batch can be much longer
         # than the filesystem's maximum filename length.

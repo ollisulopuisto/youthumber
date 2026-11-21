@@ -31,7 +31,10 @@ state. Save the envelope to `batch.json`, then run:
 uv run youthumber --run-actions batch.json > updated-project.json
 ```
 
-A step accepts `action` (or `name`) and `parameters` (or `params`). The batch
+A step accepts `action` (or `name`) and `parameters` (or `params`). Supply only
+one name key and one parameter key per step. If both aliases appear, the existing
+engine prefers a non-empty `action` and non-empty `parameters`. Explicit null
+parameter maps are rejected; omit them or use `{}` for no parameters. The batch
 contains at most 100 steps, and the input is limited to 1,048,576 UTF-8 bytes.
 An empty array keeps the initial project, or creates the engine's default project
 when no initial project was supplied.
@@ -54,3 +57,8 @@ would truncate it before the command reads it.
 
 This is project-state editing only. Headless image rendering/export, asynchronous
 video/removal jobs, and full editor-command parity remain roadmap work.
+
+Standard input is always decoded as UTF-8, independent of the terminal locale.
+Output uses ASCII-safe JSON escapes while preserving the original text values.
+The JSON error contract applies to action processing; command-line usage errors
+(such as conflicting modes) use argparse's normal stderr help and exit code 2.

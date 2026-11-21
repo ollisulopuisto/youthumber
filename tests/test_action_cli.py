@@ -11,7 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_cli(*args, stdin=None):
+def run_cli(*args, stdin=None, encoding=None):
     return subprocess.run(
         [sys.executable, "-m", "youthumber", *args],
         input=stdin,
@@ -19,7 +19,11 @@ def run_cli(*args, stdin=None):
         capture_output=True,
         text=True,
         cwd=ROOT,
-        env={**os.environ, "PYTHONPATH": str(ROOT)},
+        env={
+            **os.environ,
+            "PYTHONPATH": str(ROOT),
+            **({"PYTHONIOENCODING": encoding} if encoding else {}),
+        },
         timeout=10,
     )
 
@@ -171,3 +175,62 @@ def test_escaped_unicode_surrogate_remains_valid_json():
     )
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["text"]["text"] == "\ud800"
+
+
+def test_utf8_stdin_and_ascii_stdout_round_trip():
+    result = run_cli(
+        "--run-actions",
+        "-",
+        encoding="ascii",
+        stdin=json.dumps(
+            [
+                {"action": "create_project", "params": {"name": "ääkköset"}},
+            ],
+            ensure_ascii=False,
+        ),
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["name"] == "ääkköset"
+
+
+def test_later_action_failure_never_prints_partial_project():
+    result = run_cli(
+        "--run-actions",
+        "-",
+        stdin=json.dumps(
+            [
+                {"action": "create_project", "params": {"name": "Do not publish"}},
+                {"action": "no_such_action"},
+            ]
+        ),
+    )
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr)["error"]["code"] == "invalid_action_batch"
+
+
+def test_exact_input_and_action_limits_are_accepted():
+    data = {
+        "actions": [{"action": "create_project"} for _ in range(100)],
+        "padding": "",
+    }
+    raw = json.dumps(data)
+    data["padding"] = " " * (1048576 - len(raw.encode("utf-8")))
+    raw = json.dumps(data)
+    assert len(raw.encode("utf-8")) == 1048576
+    result = run_cli("--run-actions", "-", stdin=raw)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["version"] == 2
+
+
+@pytest.mark.parametrize("source", ["file", "inline"])
+def test_invalid_json_transport(source, tmp_path):
+    raw = '[{"action":'
+    if source == "file":
+        path = tmp_path / "bad.json"
+        path.write_text(raw, encoding="utf-8")
+        raw = str(path)
+    result = run_cli("--run-actions", raw)
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr)["error"]["code"] == "invalid_action_batch"

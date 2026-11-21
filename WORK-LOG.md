@@ -17,3 +17,9 @@ in action parameters and escaped lone Unicode surrogates during stdout encoding.
 Added failing process regressions for both, then fixed error handling/serialization.
 Full Python 3.13 suite before those additions: 194 passed, 16 platform skips.
 Ruff lint and format checks passed. Mac runtime, GUI and packaged DMG not run here.
+
+Independent pre-push review confirmed the overflow/output-encoding issues already
+fixed, and found stdin still depended on locale. A new process test reproduced it
+under PYTHONIOENCODING=ascii; stdin now reads bounded UTF-8 bytes. Added exact
+1 MiB/100-action acceptance, invalid file/inline JSON, and late-step-failure tests.
+Clarified parameter aliases, explicit null handling, and argparse usage errors.
