@@ -11,14 +11,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_cli(*args, stdin=None, encoding=None):
+def run_cli(*args, stdin=None, encoding=None, cwd=ROOT):
     return subprocess.run(
         [sys.executable, "-m", "youthumber", *args],
         input=stdin,
         check=False,
         capture_output=True,
         text=True,
-        cwd=ROOT,
+        cwd=cwd,
         env={
             **os.environ,
             "PYTHONPATH": str(ROOT),
@@ -234,3 +234,11 @@ def test_invalid_json_transport(source, tmp_path):
     assert result.returncode == 2
     assert result.stdout == ""
     assert json.loads(result.stderr)["error"]["code"] == "invalid_action_batch"
+
+
+@pytest.mark.parametrize("name", ["[Draft] Episode 42.json", "{draft}.json"])
+def test_bracket_prefixed_relative_file_is_read(tmp_path, name):
+    (tmp_path / name).write_text('[{"action":"create_project","params":{"name":"from file"}}]', encoding="utf-8")
+    result = run_cli("--run-actions", name, cwd=tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["name"] == "from file"

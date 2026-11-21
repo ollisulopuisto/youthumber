@@ -23,3 +23,7 @@ fixed, and found stdin still depended on locale. A new process test reproduced i
 under PYTHONIOENCODING=ascii; stdin now reads bounded UTF-8 bytes. Added exact
 1 MiB/100-action acceptance, invalid file/inline JSON, and late-step-failure tests.
 Clarified parameter aliases, explicit null handling, and argparse usage errors.
+
+Devin found bracket-prefixed relative filenames regressed. Added two failing
+process tests, then restored existing-file precedence with an ENAMETOOLONG-only
+fallback for long inline JSON. All file reads remain bounded.

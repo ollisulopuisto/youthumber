@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import sys
 from pathlib import Path
@@ -23,16 +24,24 @@ def _read_batch(source: str) -> Any:
         if len(raw_bytes) > MAX_INPUT_BYTES:
             raise ValueError(f"Input exceeds {MAX_INPUT_BYTES} UTF-8 bytes")
         raw = raw_bytes.decode("utf-8")
-    elif source.lstrip().startswith(("[", "{")):
-        # Parse JSON before considering a path. A valid batch can be much longer
-        # than the filesystem's maximum filename length.
-        raw = source
     else:
-        with Path(source).open("rb") as stream:
-            raw_bytes = stream.read(MAX_INPUT_BYTES + 1)
-        if len(raw_bytes) > MAX_INPUT_BYTES:
-            raise ValueError(f"Input exceeds {MAX_INPUT_BYTES} UTF-8 bytes")
-        raw = raw_bytes.decode("utf-8")
+        target = Path(source)
+        try:
+            is_file = target.is_file()
+        except OSError as exc:
+            if exc.errno != errno.ENAMETOOLONG:
+                raise
+            is_file = False
+        if is_file:
+            with target.open("rb") as stream:
+                raw_bytes = stream.read(MAX_INPUT_BYTES + 1)
+            if len(raw_bytes) > MAX_INPUT_BYTES:
+                raise ValueError(f"Input exceeds {MAX_INPUT_BYTES} UTF-8 bytes")
+            raw = raw_bytes.decode("utf-8")
+        elif source.lstrip().startswith(("[", "{")):
+            raw = source
+        else:
+            raise ValueError("Expected a JSON array/object or an existing batch file")
     if len(raw.encode("utf-8")) > MAX_INPUT_BYTES:
         raise ValueError(f"Input exceeds {MAX_INPUT_BYTES} UTF-8 bytes")
     return json.loads(raw, parse_constant=_reject_constant)
