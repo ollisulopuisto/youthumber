@@ -35,7 +35,7 @@ A step accepts `action` (or `name`) and `parameters` (or `params`). Supply only
 one name key and one parameter key per step. If both aliases appear, the existing
 engine prefers a non-empty `action` and non-empty `parameters`. Explicit null
 parameter maps are rejected; omit them or use `{}` for no parameters. The batch
-contains at most 100 steps, and the input is limited to 1,048,576 UTF-8 bytes.
+contains at most 100 steps, and the input is limited to 67,108,864 UTF-8 bytes.
 An empty array keeps the initial project, or creates the engine's default project
 when no initial project was supplied.
 
@@ -62,3 +62,9 @@ Standard input is always decoded as UTF-8, independent of the terminal locale.
 Output uses ASCII-safe JSON escapes while preserving the original text values.
 The JSON error contract applies to action processing; command-line usage errors
 (such as conflicting modes) use argparse's normal stderr help and exit code 2.
+
+Existing readable paths may be regular files or process-substitution pipes. Reads
+are bounded to 64 MiB, including embedded photos. Larger projects still need a
+smaller project payload; the command does not silently strip or recompress images.
+If an output consumer stops early, the command exits cleanly instead of printing
+a broken-pipe traceback. That consumer is responsible for saving complete JSON.

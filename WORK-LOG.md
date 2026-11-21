@@ -27,3 +27,17 @@ Clarified parameter aliases, explicit null handling, and argparse usage errors.
 Devin found bracket-prefixed relative filenames regressed. Added two failing
 process tests, then restored existing-file precedence with an ENAMETOOLONG-only
 fallback for long inline JSON. All file reads remain bounded.
+
+## 2026-11-21: further review follow-up
+
+Three process regressions reproduced the pasted findings: early-closed stdout,
+process-substitution paths, and continuation of an embedded-photo project above
+1 MiB. Fixed all three. Input remains finite at 64 MiB; exactly-limit input is
+tested. FIFO/process-substitution paths use the same bounded byte reader.
+Full Python 3.13 suite: 206 passed, 16 platform skips. Frontend: 396 tests passed,
+lint, typecheck and production build passed. Local Chrome editor smoke checked
+landscape/portrait canvas, headline edit, layout selection, save/reload, JPG
+1920x1080 and PNG 1280x720 exports. Screenshots and exported pixels inspected.
+This was not the entire CONTRIBUTING interactive matrix: native Mac webview,
+all image-upload routes, shortcut actions, all browsers, model downloads and
+packaged DMG were not verified. No full-GUI coverage claim is made.

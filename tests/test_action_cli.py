@@ -24,7 +24,7 @@ def run_cli(*args, stdin=None, encoding=None, cwd=ROOT):
             "PYTHONPATH": str(ROOT),
             **({"PYTHONIOENCODING": encoding} if encoding else {}),
         },
-        timeout=10,
+        timeout=30,
     )
 
 
@@ -122,7 +122,7 @@ def test_missing_file_is_structured_error(tmp_path):
 @pytest.mark.parametrize("source", ["stdin", "file"])
 def test_input_size_is_bounded(tmp_path, source):
     payload = json.dumps(
-        [{"action": "set_headline", "params": {"text": "ä" * 600_000}}],
+        [{"action": "set_headline", "params": {"text": "A" * (64 * 1024 * 1024)}}],
         ensure_ascii=False,
     )
     if source == "stdin":
@@ -133,7 +133,7 @@ def test_input_size_is_bounded(tmp_path, source):
         result = run_cli("--run-actions", str(path))
     assert result.returncode == 2
     assert result.stdout == ""
-    assert "1048576" in json.loads(result.stderr)["error"]["message"]
+    assert "67108864" in json.loads(result.stderr)["error"]["message"]
 
 
 def test_batch_size_is_bounded():
@@ -215,9 +215,9 @@ def test_exact_input_and_action_limits_are_accepted():
         "padding": "",
     }
     raw = json.dumps(data)
-    data["padding"] = " " * (1048576 - len(raw.encode("utf-8")))
+    data["padding"] = " " * (67108864 - len(raw.encode("utf-8")))
     raw = json.dumps(data)
-    assert len(raw.encode("utf-8")) == 1048576
+    assert len(raw.encode("utf-8")) == 67108864
     result = run_cli("--run-actions", "-", stdin=raw)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["version"] == 2
@@ -244,3 +244,58 @@ def test_bracket_prefixed_relative_file_is_read(tmp_path, name):
     result = run_cli("--run-actions", name, cwd=tmp_path)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["name"] == "from file"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX process substitution")
+def test_process_substitution_batch():
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            '"$1" -m youthumber --run-actions <(printf "%s" "[]")',
+            "bash",
+            sys.executable,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["version"] == 2
+
+
+def test_embedded_photo_project_can_continue_above_one_mib():
+    image = "data:image/png;base64," + "A" * 1_100_000
+    payload = {
+        "project": {
+            "id": "photo",
+            "text": {"text": "old"},
+            "speakers": [{"sourceImageUrl": image}],
+        },
+        "actions": [{"action": "set_headline", "params": {"text": "new"}}],
+    }
+    result = run_cli("--run-actions", "-", stdin=json.dumps(payload))
+    assert result.returncode == 0, result.stderr
+    project = json.loads(result.stdout)
+    assert project["text"]["text"] == "new"
+    assert project["speakers"][0]["sourceImageUrl"] == image
+
+
+def test_early_closing_pipe_has_no_traceback_or_shutdown_error(tmp_path):
+    source = tmp_path / "large-batch.json"
+    source.write_text(
+        json.dumps([{"action": "set_headline", "params": {"text": "A" * 100_000}}]),
+        encoding="utf-8",
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-m", "youthumber", "--run-actions", str(source)],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    process.stdout.close()
+    error = process.communicate(timeout=10)[1]
+    assert process.returncode == 0, error
+    assert error == b""

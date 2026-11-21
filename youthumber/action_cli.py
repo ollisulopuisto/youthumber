@@ -10,7 +10,7 @@ from typing import Any
 
 from .actions import execute_batch
 
-MAX_INPUT_BYTES = 1024 * 1024
+MAX_INPUT_BYTES = 64 * 1024 * 1024
 MAX_BATCH_ACTIONS = 100
 
 
@@ -27,7 +27,7 @@ def _read_batch(source: str) -> Any:
     else:
         target = Path(source)
         try:
-            is_file = target.is_file()
+            is_file = target.exists()
         except OSError as exc:
             if exc.errno != errno.ENAMETOOLONG:
                 raise
@@ -99,5 +99,13 @@ def run_actions(source: str) -> int:
             file=sys.stderr,
         )
         return 2
-    print(output)
+    try:
+        print(output, flush=True)
+    except BrokenPipeError:
+        # A consumer such as head can finish before reading the whole project.
+        # Close our stream so interpreter shutdown does not retry its buffer.
+        try:
+            sys.stdout.close()
+        except BrokenPipeError:
+            pass
     return 0
