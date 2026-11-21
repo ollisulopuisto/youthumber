@@ -18,7 +18,7 @@ except ModuleNotFoundError:
 
 
 def run(command, cwd):
-    return subprocess.run(  # noqa: S603 - fixed argv lists; never a shell.
+    return subprocess.run(
         command, cwd=cwd, capture_output=True, text=True, timeout=900, check=False
     )
 
@@ -67,7 +67,7 @@ def main():
     parser.add_argument("--checks", default="secrets,python,npm,go")
     args = parser.parse_args()
     root = Path.cwd()
-    tracked = subprocess.check_output(  # noqa: S603 - fixed Git inventory argv.
+    tracked = subprocess.check_output(
         [shutil.which("git"), "ls-files", "-z"], text=True
     ).split("\0")
     tracked = [Path(p) for p in tracked if p]
@@ -109,7 +109,7 @@ def main():
 
             def scan_history():
                 if (
-                    subprocess.check_output(  # noqa: S603 - fixed Git metadata argv.
+                    subprocess.check_output(
                         [shutil.which("git"), "rev-parse", "--is-shallow-repository"],
                         text=True,
                     ).strip()
@@ -149,8 +149,10 @@ def main():
                     ),
                     findings,
                     [
-                        "Full fetched history, including merge patches. "
-                        "Matched values/source are never printed."
+                        (
+                            "Full fetched history, including merge patches. "
+                            "Matched values/source are never printed."
+                        )
                     ],
                 )
 
@@ -202,7 +204,15 @@ def main():
                 def bandit():
                     output = temp / "bandit.json"
                     result = run(
-                        ["bandit", "-q", "-f", "json", "-o", str(output), *python_files],
+                        [
+                            "bandit",
+                            "-q",
+                            "-f",
+                            "json",
+                            "-o",
+                            str(output),
+                            *python_files,
+                        ],
                         root,
                     )
                     data = json.loads(output.read_text())
@@ -300,8 +310,10 @@ def main():
                     ]
                     state = classify(result.returncode, (0, 1), findings, not skipped)
                     notes = [
-                        "Frozen export, all extras/groups; all locked platforms. "
-                        "No packages installed.",
+                        (
+                            "Frozen export, all extras/groups; all locked platforms. "
+                            "No packages installed."
+                        ),
                         "Registry pins: " + str(len(requirements)),
                         "Not covered by PyPI advisory lookup (local/project/git): "
                         + ", ".join(nonregistry),
@@ -354,8 +366,10 @@ def main():
                         classify(result.returncode, (0, 1), findings),
                         findings,
                         [
-                            "Includes RustSec informational warnings "
-                            "and vulnerability findings."
+                            (
+                                "Includes RustSec informational warnings "
+                                "and vulnerability findings."
+                            )
                         ],
                     )
 
