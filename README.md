@@ -60,6 +60,14 @@ Ctrl and ⌘ both work on every platform, so the shortcuts below are the same ev
 - **JSON export and import**: back up a project to a JSON file, or load one back in.
 - **Older projects** are migrated to the current format when they are opened.
 
+## Offline automation
+
+Discover the action catalog with `uv run youthumber --list-actions`, or pipe a
+JSON batch to `uv run youthumber --run-actions -` to edit project state without
+opening a window or server. See [the CLI guide](docs/action-cli.md) for file input,
+continuing saved projects, limits and error responses. Image export is not part
+of this CLI yet.
+
 ## Tech Stack
 
 - **Frontend**: React 18 + Vite
