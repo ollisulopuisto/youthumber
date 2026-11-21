@@ -238,7 +238,9 @@ def test_invalid_json_transport(source, tmp_path):
 
 @pytest.mark.parametrize("name", ["[Draft] Episode 42.json", "{draft}.json"])
 def test_bracket_prefixed_relative_file_is_read(tmp_path, name):
-    (tmp_path / name).write_text('[{"action":"create_project","params":{"name":"from file"}}]', encoding="utf-8")
+    (tmp_path / name).write_text(
+        '[{"action":"create_project","params":{"name":"from file"}}]', encoding="utf-8"
+    )
     result = run_cli("--run-actions", name, cwd=tmp_path)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["name"] == "from file"
