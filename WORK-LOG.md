@@ -41,3 +41,8 @@ landscape/portrait canvas, headline edit, layout selection, save/reload, JPG
 This was not the entire CONTRIBUTING interactive matrix: native Mac webview,
 all image-upload routes, shortcut actions, all browsers, model downloads and
 packaged DMG were not verified. No full-GUI coverage claim is made.
+
+Devin follow-up: a directory named like inline JSON could shadow the batch.
+Added a failing process test, then limited path precedence to regular files and
+FIFOs using one stat call. Existing file, process-substitution and long-inline
+regressions remain in the suite.

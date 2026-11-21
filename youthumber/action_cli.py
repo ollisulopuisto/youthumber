@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import json
+import stat
 import sys
 from pathlib import Path
 from typing import Any
@@ -27,9 +28,10 @@ def _read_batch(source: str) -> Any:
     else:
         target = Path(source)
         try:
-            is_file = target.exists()
+            mode = target.stat().st_mode
+            is_file = stat.S_ISREG(mode) or stat.S_ISFIFO(mode)
         except OSError as exc:
-            if exc.errno != errno.ENAMETOOLONG:
+            if exc.errno not in (errno.ENAMETOOLONG, errno.ENOENT, errno.ENOTDIR):
                 raise
             is_file = False
         if is_file:

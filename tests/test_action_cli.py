@@ -299,3 +299,10 @@ def test_early_closing_pipe_has_no_traceback_or_shutdown_error(tmp_path):
     error = process.communicate(timeout=10)[1]
     assert process.returncode == 0, error
     assert error == b""
+
+
+def test_directory_does_not_shadow_inline_batch(tmp_path):
+    (tmp_path / "[]").mkdir()
+    result = run_cli("--run-actions", "[]", cwd=tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["version"] == 2
