@@ -296,6 +296,9 @@ def test_early_closing_pipe_has_no_traceback_or_shutdown_error(tmp_path):
         stderr=subprocess.PIPE,
     )
     process.stdout.close()
+    # Windows communicate starts reader threads for non-None streams. The
+    # consumer is deliberately gone, so do not read its closed handle.
+    process.stdout = None
     error = process.communicate(timeout=10)[1]
     assert process.returncode == 0, error
     assert error == b""

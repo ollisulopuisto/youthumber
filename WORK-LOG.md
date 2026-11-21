@@ -50,3 +50,10 @@ regressions remain in the suite.
 Devin Windows follow-up: reproduced WinError 123 filename probe rejecting valid
 inline JSON. Only that Windows error now falls through; permission errors still
 fail closed. Two new tests, full suite 209 passed and 16 platform skips.
+
+App-only Devin note recovered: the early-closed-pipe regression left a closed
+stdout handle attached when calling communicate. Windows starts reader threads
+for non-None handles, unlike the POSIX implementation. Detach the intentionally
+closed pipe before communicate; preserve the exit-code and empty-stderr checks.
+This changes the test harness only. Native Windows execution not available here.
+Full GUI matrix remains incomplete; the prior Chromium smoke is not a substitute.
