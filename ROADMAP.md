@@ -9,6 +9,7 @@ Planned work, not yet scheduled to a specific day unless noted.
 
 ## Agent and CLI automation
 
+- Partly done (26.11.21.1): the existing `--list-actions` / `--run-actions` CLI now accepts bounded JSON over stdin, preserves file/inline input, and returns structured errors without starting a server or window. See `docs/action-cli.md`. This edits project state only; rendering/export and full editor parity are still open.
 - Planned: expose the editor's supported actions through a documented, stable command/API surface so an LLM or local agent can operate it without driving the UI. Cover project state and editing actions (layers, text, images, layout), save, and export; keep the command catalog and API capabilities in sync.
 - Define machine-readable request and response schemas (for example, OpenAPI/JSON Schema), including validation errors and exported-file metadata. Long-running work such as background removal and video scans should return a job ID with queryable progress, terminal status, and results.
 - Provide a headless CLI that invokes the same API and can exchange JSON over stdin/stdout for scripts and agents. Document examples and capability discovery.

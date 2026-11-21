@@ -2,6 +2,13 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.21.1] - 2026-11-21
+
+### Changed
+- Offline action batches accept JSON on stdin with `--run-actions -`, handle long inline batches without filename errors, and report invalid batches as JSON on stderr with exit code 2. Input is bounded to 1 MiB and 100 actions.
+- Action discovery, action execution and self-test modes reject conflicting combinations instead of silently ignoring one.
+- Align Python and frontend version metadata for the next packaged build.
+
 ## [26.11.20.2] - 2026-11-20
 
 Covers everything merged since 26.11.10.2.
