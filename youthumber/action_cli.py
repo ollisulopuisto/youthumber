@@ -80,6 +80,13 @@ def _validate_batch(data: Any) -> tuple[list[dict[str, Any]], dict | None]:
     return actions, project
 
 
+def _closed_output_pipe(error: OSError) -> bool:
+    # Windows CRT reports a closed pipe as EINVAL rather than EPIPE.
+    return isinstance(error, BrokenPipeError) or (
+        sys.platform == "win32" and error.errno == errno.EINVAL
+    )
+
+
 def run_actions(source: str) -> int:
     """Emit one project on stdout, or a JSON error on stderr with exit code 2."""
     try:
@@ -107,11 +114,14 @@ def run_actions(source: str) -> int:
         return 2
     try:
         print(output, flush=True)
-    except BrokenPipeError:
+    except OSError as exc:
+        if not _closed_output_pipe(exc):
+            raise
         # A consumer such as head can finish before reading the whole project.
         # Close our stream so interpreter shutdown does not retry its buffer.
         try:
             sys.stdout.close()
-        except BrokenPipeError:
-            pass
+        except OSError as close_error:
+            if not _closed_output_pipe(close_error):
+                raise
     return 0

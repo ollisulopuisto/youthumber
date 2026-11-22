@@ -343,3 +343,46 @@ def test_other_path_probe_errors_are_not_suppressed(monkeypatch, capsys):
     result = capsys.readouterr()
     assert result.out == ""
     assert "Denied" in json.loads(result.err)["error"]["message"]
+
+
+@pytest.mark.parametrize(
+    ("platform", "write_errno", "close_errno", "expected_errno"),
+    [
+        ("win32", 22, None, None),
+        ("win32", 22, 22, None),
+        ("linux", 32, 32, None),
+        ("linux", 22, None, 22),
+        ("win32", 5, None, 5),
+        ("win32", 22, 5, 5),
+    ],
+)
+def test_output_pipe_errors_are_platform_specific(
+    monkeypatch, platform, write_errno, close_errno, expected_errno
+):
+    from youthumber import action_cli
+
+    class FailedOutput:
+        closed = False
+
+        def write(self, _text):
+            raise OSError(write_errno, "injected write failure")
+
+        def flush(self):
+            pass
+
+        def close(self):
+            self.closed = True
+            if close_errno is not None:
+                raise OSError(close_errno, "injected close failure")
+
+    output = FailedOutput()
+    with monkeypatch.context() as patch:
+        patch.setattr(action_cli.sys, "platform", platform)
+        patch.setattr(action_cli.sys, "stdout", output)
+        if expected_errno is None:
+            assert action_cli.run_actions("[]") == 0
+            assert output.closed
+        else:
+            with pytest.raises(OSError) as error:
+                action_cli.run_actions("[]")
+            assert error.value.errno == expected_errno

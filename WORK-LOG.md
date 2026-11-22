@@ -102,3 +102,9 @@ and empty stderr. The added job exercises the Windows reader-thread path rather
 than mocking it. Local Python 3.13 with the exact minimal dependency command:
 1 passed on Linux. Native Windows execution awaits hosted CI. No production,
 version, packaging, or browser-matrix changes. Full GUI coverage remains open.
+
+Native Windows CI reproduced a real output failure: the closed consumer raises
+OSError EINVAL at the stdout write, not BrokenPipeError. Six injected-error cases
+were added first (three failed). Output handling now accepts Windows EINVAL or
+BrokenPipeError only at output write/close; other errors and non-Windows EINVAL
+still propagate. The Windows job explicitly disables setup-uv cache handling.
