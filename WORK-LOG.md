@@ -85,3 +85,20 @@ Refresh the lockfile to remove the five npm advisory records without changing ap
 Main sync: preserved both independent WORK-LOG.md additions on conflict; retained
 main's merged package-lock dependency security update and security-pilot files.
 No main feature or dependency change was dropped. Fresh CI and Devin required.
+
+## 2026-11-22: focused Windows CLI pipe coverage
+
+Added a GitHub-hosted windows-latest job for the existing early-closing-pipe
+process regression. It uses Python 3.13 with only pytest and Pydantic (versions
+matching uv.lock), not the full GUI/ML environment. The job follows the existing
+backend changed-path filter and feeds the CI required aggregator, so a failed or
+cancelled Windows regression blocks the gate. Ten-minute timeout, no artifacts,
+no dependency cache upload, and no larger or self-hosted runner.
+
+Consumer trace: the test starts the real offline CLI in a child interpreter;
+__main__ routes to action_cli, whose actions import requires Pydantic. The test
+closes stdout, detaches the closed handle before communicate, then checks exit 0
+and empty stderr. The added job exercises the Windows reader-thread path rather
+than mocking it. Local Python 3.13 with the exact minimal dependency command:
+1 passed on Linux. Native Windows execution awaits hosted CI. No production,
+version, packaging, or browser-matrix changes. Full GUI coverage remains open.

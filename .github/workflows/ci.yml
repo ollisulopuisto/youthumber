@@ -109,6 +109,29 @@ jobs:
       - name: Run Backend Tests
         run: uv run pytest
 
+  backend-windows-cli:
+    # Exercise Windows' real closed-pipe/communicate behavior without GUI/ML deps.
+    name: Backend (Windows CLI pipe)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+
+      - name: Run closed-pipe regression on Windows
+        # Match pytest/pydantic in uv.lock; the offline CLI needs no server/GUI.
+        run: >-
+          uv run --isolated --no-project --python 3.13
+          --with pytest==9.2.0 --with pydantic==2.13.5
+          python -m pytest
+          tests/test_action_cli.py::test_early_closing_pipe_has_no_traceback_or_shutdown_error
+          -q
+
   backend-macos:
     # Vision, AVFoundation and Core Image only exist on macOS; on Ubuntu those tests
     # skip. Run on main pushes when backend files changed; PRs use the fast Linux suite.
@@ -140,7 +163,7 @@ jobs:
   required:
     name: CI required
     if: always()
-    needs: [changes, dmg-layout, frontend, backend, backend-macos]
+    needs: [changes, dmg-layout, frontend, backend, backend-windows-cli, backend-macos]
     runs-on: ubuntu-latest
     steps:
       - name: Check required CI results
@@ -149,12 +172,14 @@ jobs:
           DMG_LAYOUT_RESULT: ${{ needs.dmg-layout.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
+          BACKEND_WINDOWS_CLI_RESULT: ${{ needs.backend-windows-cli.result }}
           BACKEND_MACOS_RESULT: ${{ needs.backend-macos.result }}
         run: |
           if [[ "$CHANGES_RESULT" != "success" || \
                 ( "$DMG_LAYOUT_RESULT" != "success" && "$DMG_LAYOUT_RESULT" != "skipped" ) || \
                 ( "$FRONTEND_RESULT" != "success" && "$FRONTEND_RESULT" != "skipped" ) || \
                 ( "$BACKEND_RESULT" != "success" && "$BACKEND_RESULT" != "skipped" ) || \
+                ( "$BACKEND_WINDOWS_CLI_RESULT" != "success" && "$BACKEND_WINDOWS_CLI_RESULT" != "skipped" ) || \
                 ( "$BACKEND_MACOS_RESULT" != "success" && "$BACKEND_MACOS_RESULT" != "skipped" ) ]]; then
             echo "::error::One or more required CI jobs failed or were cancelled."
             exit 1
