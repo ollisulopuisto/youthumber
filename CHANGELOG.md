@@ -2,6 +2,10 @@
 
 All notable changes to YouThumber will be documented in this file.
 
+## [26.11.25.1] - 2026-11-25
+
+- On Mac, app commands require Command instead of accepting physical Control aliases. Control-K/E and other text-editing keys stay with the field. Existing Command shortcuts and other-platform behavior are unchanged.
+
 ## [26.11.21.1] - 2026-11-21
 
 ### Changed

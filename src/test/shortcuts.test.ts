@@ -22,50 +22,64 @@ const key = (k: string, mods: { meta?: boolean; ctrl?: boolean; shift?: boolean;
 
 const input = (type = 'text') => Object.assign(document.createElement('input'), { type })
 
+describe('Mac physical Control ownership', () => {
+  it('keeps all Command actions but rejects Control aliases on Mac, including fields', () => {
+    const field = input()
+    for (const [letter, action] of [['k', 'palette'], ['e', 'export'], ['o', 'projects'], ['s', 'save']] as const) {
+      for (const target of [document.body, field]) {
+        expect(matchShortcut(key(letter, { ctrl: true }, target), true)).toBeNull()
+        expect(matchShortcut(key(letter, { meta: true }, target), true)).toBe(action)
+        expect(matchShortcut(key(letter, { meta: true, ctrl: true }, target), true)).toBeNull()
+        expect(matchShortcut(key(letter, { ctrl: true }, target), false)).toBe(action)
+      }
+    }
+  })
+})
+
 describe('matchShortcut', () => {
-  it('accepts ⌘ and Ctrl alike for the modifier shortcuts', () => {
-    expect(matchShortcut(key('z', { meta: true }))).toBe('undo')
-    expect(matchShortcut(key('z', { ctrl: true }))).toBe('undo')
-    expect(matchShortcut(key('s', { meta: true }))).toBe('save')
-    expect(matchShortcut(key('e', { ctrl: true }))).toBe('export')
-    expect(matchShortcut(key('o', { meta: true }))).toBe('projects')
-    expect(matchShortcut(key('d', { meta: true }))).toBe('duplicate')
+  it('keeps non-Mac modifier compatibility', () => {
+    expect(matchShortcut(key('z', { meta: true }), false)).toBe('undo')
+    expect(matchShortcut(key('z', { ctrl: true }), false)).toBe('undo')
+    expect(matchShortcut(key('s', { meta: true }), false)).toBe('save')
+    expect(matchShortcut(key('e', { ctrl: true }), false)).toBe('export')
+    expect(matchShortcut(key('o', { meta: true }), false)).toBe('projects')
+    expect(matchShortcut(key('d', { meta: true }), false)).toBe('duplicate')
   })
 
   it('tells redo from undo by Shift, and takes Ctrl+Y as redo too', () => {
-    expect(matchShortcut(key('Z', { meta: true, shift: true }))).toBe('redo')
-    expect(matchShortcut(key('y', { ctrl: true }))).toBe('redo')
+    expect(matchShortcut(key('Z', { meta: true, shift: true }), false)).toBe('redo')
+    expect(matchShortcut(key('y', { ctrl: true }), false)).toBe('redo')
   })
 
   it('ignores letters without a modifier, and anything with Alt', () => {
-    expect(matchShortcut(key('z'))).toBeNull()
-    expect(matchShortcut(key('z', { meta: true, alt: true }))).toBeNull()
-    expect(matchShortcut(key('s', { meta: true, shift: true }))).toBeNull()
+    expect(matchShortcut(key('z'), false)).toBeNull()
+    expect(matchShortcut(key('z', { meta: true, alt: true }), false)).toBeNull()
+    expect(matchShortcut(key('s', { meta: true, shift: true }), false)).toBeNull()
   })
 
   it('deletes with either Delete or Backspace, but not with a modifier', () => {
-    expect(matchShortcut(key('Delete'))).toBe('delete')
-    expect(matchShortcut(key('Backspace'))).toBe('delete')
-    expect(matchShortcut(key('Backspace', { meta: true }))).toBeNull()
+    expect(matchShortcut(key('Delete'), false)).toBe('delete')
+    expect(matchShortcut(key('Backspace'), false)).toBe('delete')
+    expect(matchShortcut(key('Backspace', { meta: true }), false)).toBeNull()
   })
 
   it('opens the help sheet with ?, however the layout makes it', () => {
-    expect(matchShortcut(key('?', { shift: true }))).toBe('help')
-    expect(matchShortcut(key('?'))).toBe('help')
+    expect(matchShortcut(key('?', { shift: true }), false)).toBe('help')
+    expect(matchShortcut(key('?'), false)).toBe('help')
   })
 
   it('leaves typing keys to text fields, but still saves and exports from them', () => {
     const field = input()
-    expect(matchShortcut(key('Backspace', {}, field))).toBeNull()
-    expect(matchShortcut(key('?', { shift: true }, field))).toBeNull()
-    expect(matchShortcut(key('z', { meta: true }, field))).toBeNull()
-    expect(matchShortcut(key('s', { meta: true }, field))).toBe('save')
-    expect(matchShortcut(key('e', { ctrl: true }, field))).toBe('export')
+    expect(matchShortcut(key('Backspace', {}, field), false)).toBeNull()
+    expect(matchShortcut(key('?', { shift: true }, field), false)).toBeNull()
+    expect(matchShortcut(key('z', { meta: true }, field), false)).toBeNull()
+    expect(matchShortcut(key('s', { meta: true }, field), false)).toBe('save')
+    expect(matchShortcut(key('e', { ctrl: true }, field), false)).toBe('export')
   })
 
   it('still fires from sliders and colour swatches, which take no typing', () => {
-    expect(matchShortcut(key('z', { meta: true }, input('range')))).toBe('undo')
-    expect(matchShortcut(key('Delete', {}, input('color')))).toBe('delete')
+    expect(matchShortcut(key('z', { meta: true }, input('range'), false))).toBe('undo')
+    expect(matchShortcut(key('Delete', {}, input('color'), false))).toBe('delete')
   })
 })
 
