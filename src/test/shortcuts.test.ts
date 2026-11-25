@@ -78,8 +78,8 @@ describe('matchShortcut', () => {
   })
 
   it('still fires from sliders and colour swatches, which take no typing', () => {
-    expect(matchShortcut(key('z', { meta: true }, input('range'), false))).toBe('undo')
-    expect(matchShortcut(key('Delete', {}, input('color'), false))).toBe('delete')
+    expect(matchShortcut(key('z', { meta: true }, input('range')), false)).toBe('undo')
+    expect(matchShortcut(key('Delete', {}, input('color')), false)).toBe('delete')
   })
 })
 
