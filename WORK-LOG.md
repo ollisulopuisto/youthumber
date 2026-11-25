@@ -1,5 +1,23 @@
 # Work log
 
+## 2026-11-25: Mac shortcut modifier ownership
+
+Prepared a separate PR for kb-audit-youthumber. Existing SHORTCUTS remains the
+single registry for dispatch, hints, help and native-menu command mapping.
+On Mac the shared matcher rejects physical Control, including Control+Command,
+so Control-K/E reach focused text fields. Command equivalents stay assigned;
+other-platform compatibility and existing input/modal guards are unchanged.
+
+Failing-first regression reproduced Control-K incorrectly opening the palette.
+Focused shortcut/command tests: 57 pass. Full frontend suite: 397 pass;
+typecheck and production build pass; lint has 19 existing warnings, no errors.
+Own adversarial review RAN: traced App keydown dispatch, command registry,
+native-menu bridge, help/tooltip/aria consumers and modifier/typing rules.
+No open findings. No physical Mac runtime or packaged acceptance test here.
+Local npm10 needed legacy-peer-deps for the existing lockfile; no dependency
+resolution change included. Existing CI uses Node24, and must pass before merge.
+
+
 ## 2026-11-21: offline action transport
 
 Branch: `feat/offline-action-stdin`. Scope: the agent/CLI automation roadmap,

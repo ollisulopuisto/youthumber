@@ -22,7 +22,7 @@ export type ShortcutId =
   | 'help'
 
 export interface KeyBinding {
-  /** ⌘ on a Mac, Ctrl elsewhere. Either is accepted on every platform. */
+  /** Command on Mac; Control or Command elsewhere for existing host compatibility. */
   mod?: boolean
   shift?: boolean
   /** `KeyboardEvent.key`, lower-case for letters. */
@@ -143,8 +143,9 @@ type KeyEventLike = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey'
 // Many layouts type these with Option/AltGr (on a Finnish Mac, ] is ⌥9), so Alt is allowed.
 const ALT_TYPED_KEYS = new Set(['[', ']'])
 
-function matches(binding: KeyBinding, event: KeyEventLike): boolean {
-  const mod = event.metaKey || event.ctrlKey
+function matches(binding: KeyBinding, event: KeyEventLike, mac: boolean): boolean {
+  const mod = mac ? event.metaKey && !event.ctrlKey : event.metaKey || event.ctrlKey
+  if (mac && event.ctrlKey) return false
   if (Boolean(binding.mod) !== mod) return false
   if (ALT_TYPED_KEYS.has(binding.key)) return event.key === binding.key
   if (event.altKey) return false
@@ -155,13 +156,13 @@ function matches(binding: KeyBinding, event: KeyEventLike): boolean {
 }
 
 /** The shortcut `event` triggers, or null. */
-export function matchShortcut(event: KeyEventLike): ShortcutId | null {
+export function matchShortcut(event: KeyEventLike, mac = isMacPlatform()): ShortcutId | null {
   const typing = isTypingTarget(event.target)
   const arrowsTaken = event.key.startsWith('Arrow') && takesArrowKeys(event.target)
   for (const shortcut of SHORTCUTS) {
     if (typing && !shortcut.inInputs) continue
     if (arrowsTaken) continue
-    if (shortcut.bindings.some((b) => matches(b, event))) return shortcut.id
+    if (shortcut.bindings.some((b) => matches(b, event, mac))) return shortcut.id
   }
   return null
 }
